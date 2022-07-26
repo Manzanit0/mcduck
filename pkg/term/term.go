@@ -7,7 +7,7 @@ import (
 	"github.com/pterm/pterm"
 )
 
-func Render(grouping string, calculations map[string]map[string]float32) {
+func Render(grouping string, calculations map[string]map[string]float32) error {
 	// get all unique categories
 	categories := make(map[string]bool)
 	for _, amountByCategory := range calculations {
@@ -39,7 +39,7 @@ func Render(grouping string, calculations map[string]map[string]float32) {
 	pterm.Println()
 	err := pterm.DefaultBarChart.WithBars(chartCategories).WithHorizontal(true).WithShowValue(true).Render()
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("failed to render bar chart: %w", err)
 	}
 
 	// then build each row by month
@@ -58,6 +58,8 @@ func Render(grouping string, calculations map[string]map[string]float32) {
 	pterm.Println()
 	err = pterm.DefaultTable.WithHasHeader().WithData(data).Render()
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("failed to render table: %w", err)
 	}
+
+	return nil
 }

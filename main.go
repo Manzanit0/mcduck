@@ -12,16 +12,13 @@ import (
 )
 
 func main() {
-	// open file
 	f, err := os.Open("./example_input.csv")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// remember to close the file at the end of the program
 	defer f.Close()
 
-	// read csv values using csv.Reader
 	csvReader := csv.NewReader(f)
 	csvReader.TrimLeadingSpace = true
 	csvReader.FieldsPerRecord = 4
@@ -37,10 +34,16 @@ func main() {
 	}
 
 	categoryTotals := calculateTotalsPerCategory(expenses)
-	term.Render("category", categoryTotals)
+	err = term.Render("category", categoryTotals)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	subcategoryTotals := calculateTotalsPerSubCategory(expenses)
-	term.Render("sub-category", subcategoryTotals)
+	err = term.Render("sub-category", subcategoryTotals)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func calculateTotalsPerCategory(expenses []Expense) map[string]map[string]float32 {
