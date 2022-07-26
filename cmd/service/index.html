@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>McDuck</title>
+  </head>
+  <header>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  </header>
+  <body>
+    <div style="margin: 200px">
+      <div>
+        <canvas id="categoriesChart"></canvas>
+      </div>
+      <div>
+        <canvas id="subcategoriesChart"></canvas>
+      </div>
+      <div>
+        <canvas id="momChart"></canvas>
+      </div>
+    </div>
+  </body>
+  <script>
+    let labels = {{.Categories}};
+    let amounts = {{.CategoryAmounts}};
+
+    let data = {
+      labels: labels,
+      datasets: [
+        {
+          label: "Expenses by Category",
+          data: amounts,
+          backgroundColor: [
+            "rgba(255, 99, 132, 0.2)",
+            "rgba(255, 159, 64, 0.2)",
+            "rgba(255, 205, 86, 0.2)",
+            "rgba(75, 192, 192, 0.2)",
+            "rgba(54, 162, 235, 0.2)",
+            "rgba(153, 102, 255, 0.2)",
+            "rgba(201, 203, 207, 0.2)",
+          ],
+          borderColor: [
+            "rgb(255, 99, 132)",
+            "rgb(255, 159, 64)",
+            "rgb(255, 205, 86)",
+            "rgb(75, 192, 192)",
+            "rgb(54, 162, 235)",
+            "rgb(153, 102, 255)",
+            "rgb(201, 203, 207)",
+          ],
+          borderWidth: 1,
+        },
+      ],
+    };
+
+    let config = {
+      type: "bar",
+      data: data,
+      options: {
+        scales: {
+          y: {
+            beginAtZero: true,
+          },
+        },
+      },
+    };
+    let myChart = new Chart(
+      document.getElementById("categoriesChart"),
+      config
+    );
+  </script>
+  <script>
+    labels = {{.SubCategories}};
+    amounts = {{.SubCategoryAmounts}};
+
+    data = {
+      labels: labels,
+      datasets: [
+        {
+          label: "Expenses by sub-category",
+          data: amounts,
+          backgroundColor: [
+            "rgba(255, 99, 132, 0.2)",
+            "rgba(255, 159, 64, 0.2)",
+            "rgba(255, 205, 86, 0.2)",
+            "rgba(75, 192, 192, 0.2)",
+            "rgba(54, 162, 235, 0.2)",
+            "rgba(153, 102, 255, 0.2)",
+            "rgba(201, 203, 207, 0.2)",
+          ],
+          borderColor: [
+            "rgb(255, 99, 132)",
+            "rgb(255, 159, 64)",
+            "rgb(255, 205, 86)",
+            "rgb(75, 192, 192)",
+            "rgb(54, 162, 235)",
+            "rgb(153, 102, 255)",
+            "rgb(201, 203, 207)",
+          ],
+          borderWidth: 1,
+        },
+      ],
+    };
+
+    config = {
+      type: "bar",
+      data: data,
+      options: {
+        scales: {
+          y: {
+            beginAtZero: true,
+          },
+        },
+      },
+    };
+    myChart = new Chart(
+      document.getElementById("subcategoriesChart"),
+      config
+    );
+  </script>
+  <script>
+    labels = {{.MOMLabels}};
+    amounts = {{.MOMData}};
+
+    const datasets = [];
+    {{range $category, $dataset := .MOMData}}
+      datasets.push({
+        label: {{$category}},
+        data: {{$dataset}},
+        fill: false,
+        borderColor: `rgb(${Math.random() * 255}, 99, ${Math.random() * 255})`,
+        tension: 0.1,
+      })
+    {{end}}
+
+    data = {
+      labels: labels,
+      datasets: datasets,
+    };
+
+    config = {
+      type: "line",
+      data: data,
+    };
+    myChart = new Chart(
+      document.getElementById("momChart"),
+      config
+    );
+  </script>
+</html>

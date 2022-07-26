@@ -45,6 +45,20 @@ func CalculateTotalsPerSubCategory(expenses []Expense) map[string]map[string]flo
 	return totalsByMonth
 }
 
+func CalculateMonthOverMonthTotals(expenses []Expense) map[string]map[string]float32 {
+	totalsByCategory := make(map[string]map[string]float32)
+	for _, expense := range expenses {
+		if _, ok := totalsByCategory[expense.Category]; !ok {
+			totalsByCategory[expense.Category] = make(map[string]float32)
+		}
+
+		monthYear := expense.Date.Format("2006-01")
+		totalsByCategory[expense.Category][monthYear] += expense.Amount
+	}
+
+	return totalsByCategory
+}
+
 func NewExpenses(data [][]string) ([]Expense, error) {
 	expenses := make([]Expense, len(data))
 	for k, rows := range data {

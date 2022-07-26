@@ -1,4 +1,16 @@
 date,amount,category,subcategory
+2022-04-02,2.82,food,meat
+2022-04-02,8.22,transport,gasoline
+2022-04-03,12.22,food,fish
+2022-04-12,22.83,food,bread
+2022-04-17,12.86,utilities,internet
+2022-04-19,9.13,utilities,water
+2022-05-02,8.33,food,meat
+2022-05-02,1.87,transport,gasoline
+2022-05-03,6.32,food,fish
+2022-05-12,2.23,food,bread
+2022-05-17,4.86,utilities,internet
+2022-05-19,4.13,utilities,water
 2022-06-02,12.2,food,meat
 2022-06-02,2.87,transport,gasoline
 2022-06-03,9.32,food,fish
