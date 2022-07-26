@@ -1,18 +1,20 @@
-package main
+package expense_test
 
 import (
 	"fmt"
 	"testing"
 	"time"
+
+	"github.com/manzanit0/mcduck/pkg/expense"
 )
 
 func TestCalculateTotalsPerCategory(t *testing.T) {
 	testCases := []struct {
-		expenses []Expense
+		expenses []expense.Expense
 		result   map[string]map[string]float32
 	}{
 		{
-			expenses: []Expense{
+			expenses: []expense.Expense{
 				{Date: time.Date(2006, 1, 1, 0, 0, 0, 0, time.UTC), Category: "a", Amount: 1},
 				{Date: time.Date(2006, 2, 1, 0, 0, 0, 0, time.UTC), Category: "a", Amount: 1},
 				{Date: time.Date(2006, 2, 1, 0, 0, 0, 0, time.UTC), Category: "b", Amount: 1},
@@ -25,7 +27,7 @@ func TestCalculateTotalsPerCategory(t *testing.T) {
 			},
 		},
 		{
-			expenses: []Expense{
+			expenses: []expense.Expense{
 				{Date: time.Date(2006, 1, 1, 0, 0, 0, 0, time.UTC), Category: "a", Amount: 1.3},
 				{Date: time.Date(2008, 1, 1, 0, 0, 0, 0, time.UTC), Category: "a", Amount: 1.2},
 			},
@@ -37,7 +39,7 @@ func TestCalculateTotalsPerCategory(t *testing.T) {
 	}
 	for x, tC := range testCases {
 		t.Run(fmt.Sprintf("case %d", x), func(t *testing.T) {
-			totals := calculateTotalsPerCategory(tC.expenses)
+			totals := expense.CalculateTotalsPerCategory(tC.expenses)
 			if len(totals) != len(tC.result) {
 				t.Fatalf("expected %d results, got %d", len(tC.result), len(totals))
 			}
