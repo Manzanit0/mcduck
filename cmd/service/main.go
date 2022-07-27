@@ -16,7 +16,7 @@ import (
 
 func main() {
 	r := gin.Default()
-	r.LoadHTMLGlob("index.html")
+	r.LoadHTMLGlob("templates/*")
 
 	r.GET("/", func(c *gin.Context) {
 		expenses, err := readExpensesFromCSV("../../example_input.csv")
