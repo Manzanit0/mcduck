@@ -54,3 +54,35 @@ func TestCalculateTotalsPerCategory(t *testing.T) {
 		})
 	}
 }
+
+func TestCalculateMonthOverMonthTotals(t *testing.T) {
+	input := []expense.Expense{
+		{Date: time.Date(2006, 1, 1, 0, 0, 0, 0, time.UTC), Category: "a", Amount: 1},
+		{Date: time.Date(2006, 2, 1, 0, 0, 0, 0, time.UTC), Category: "a", Amount: 1},
+		{Date: time.Date(2006, 2, 1, 0, 0, 0, 0, time.UTC), Category: "b", Amount: 2},
+		{Date: time.Date(2006, 2, 1, 0, 0, 0, 0, time.UTC), Category: "c", Amount: 3},
+		{Date: time.Date(2006, 2, 1, 0, 0, 0, 0, time.UTC), Category: "c", Amount: 3},
+		{Date: time.Date(2006, 3, 1, 0, 0, 0, 0, time.UTC), Category: "d", Amount: 4},
+	}
+
+	want := map[string]map[string]float32{
+		"a": {"2006-01": 1, "2006-02": 1, "2006-03": 0},
+		"b": {"2006-01": 0, "2006-02": 2, "2006-03": 0},
+		"c": {"2006-01": 0, "2006-02": 6, "2006-03": 0},
+		"d": {"2006-01": 0, "2006-02": 0, "2006-03": 4},
+	}
+
+	got := expense.CalculateMonthOverMonthTotals(input)
+
+	if len(want) != len(got) {
+		t.Fatalf("expected %d results, got %d", len(want), len(got))
+	}
+
+	for category, amountsByMonth := range got {
+		for month, amount := range amountsByMonth {
+			if want[category][month] != amount {
+				t.Errorf("wanted %f for %s in %s, got %f", want[category][month], category, month, amount)
+			}
+		}
+	}
+}
