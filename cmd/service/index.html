@@ -2,24 +2,34 @@
 <html>
   <head>
     <title>McDuck</title>
+    <meta charset="utf-8" />
   </head>
   <header>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      body {
+        font-family: monospace;
+      }
+
+      h1 {
+        text-align: center;
+      }
+    </style>
   </header>
   <body>
     <div>
-      <h1 style="text-align: center">Expense Report</h1>
+      <h1>Expense Report</h1>
     </div>
     <div style="padding-left: 300px; padding-right: 300px">
-      <div style="margin: 100px">
+      <div style="margin: 20px">
         <h2>Expenses per category this month</h2>
         <canvas id="categoriesChart"></canvas>
       </div>
-      <div style="margin: 100px">
+      <div style="margin: 20px">
         <h2>Expenses per sub-category this month</h2>
         <canvas id="subcategoriesChart"></canvas>
       </div>
-      <div style="margin: 100px">
+      <div style="margin: 20px">
         <h2>MoM comparison of expenses per category</h2>
         <canvas id="momChart"></canvas>
       </div>
