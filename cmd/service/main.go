@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"sort"
 	"time"
 
@@ -18,23 +19,41 @@ func main() {
 	r.LoadHTMLGlob("index.html")
 
 	r.GET("/", func(c *gin.Context) {
-		f, err := os.Open("../../example_input.csv")
+		expenses, err := readExpensesFromCSV("../../example_input.csv")
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		defer f.Close()
+		categoryTotals := expense.CalculateTotalsPerCategory(expenses)
+		subcategoryTotals := expense.CalculateTotalsPerSubCategory(expenses)
+		mom := expense.CalculateMonthOverMonthTotals(expenses)
+		labels, amountsByCategory := getMOMData(mom)
 
-		csvReader := csv.NewReader(f)
-		csvReader.TrimLeadingSpace = true
-		csvReader.FieldsPerRecord = 4
-		data, err := csvReader.ReadAll()
+		c.HTML(http.StatusOK, "index.html", gin.H{
+			"Categories":         getAllTimeCategories(categoryTotals),
+			"CategoryAmounts":    getCurrentMonthAmounts(categoryTotals),
+			"SubCategories":      getAllTimeCategories(subcategoryTotals),
+			"SubCategoryAmounts": getCurrentMonthAmounts(subcategoryTotals),
+			"MOMLabels":          labels,
+			"MOMData":            amountsByCategory,
+		})
+	})
+
+	r.POST("/upload", func(c *gin.Context) {
+		form, err := c.MultipartForm()
 		if err != nil {
-			log.Fatal(err)
+			c.String(http.StatusBadRequest, "get form err: %s", err.Error())
+			return
 		}
 
-		// skip header
-		expenses, err := expense.NewExpenses(data[1:])
+		file := form.File["files"][0]
+		filename := filepath.Base(file.Filename)
+		if err := c.SaveUploadedFile(file, filename); err != nil {
+			c.String(http.StatusBadRequest, "upload file err: %s", err.Error())
+			return
+		}
+
+		expenses, err := readExpensesFromCSV(filename)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -117,4 +136,28 @@ func getMOMData(calculations map[string]map[string]float32) ([]string, map[strin
 	sort.Strings(monthsSlice)
 
 	return monthsSlice, amountsPerMonthByCategory
+}
+
+func readExpensesFromCSV(filename string) ([]expense.Expense, error) {
+	f, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	defer f.Close()
+
+	csvReader := csv.NewReader(f)
+	csvReader.TrimLeadingSpace = true
+	csvReader.FieldsPerRecord = 4
+	data, err := csvReader.ReadAll()
+	if err != nil {
+		return nil, err
+	}
+
+	expenses, err := expense.NewExpenses(data[1:])
+	if err != nil {
+		return nil, err
+	}
+
+	return expenses, nil
 }
