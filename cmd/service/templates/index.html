@@ -15,34 +15,75 @@
       h1 {
         text-align: center;
       }
+
+      .chart {
+        margin: 20px;
+        font-family: monospace;
+      }
+
+      @media (min-width: 961px) {
+        /* tablet */
+        body {
+          font-size: 15px;
+          padding-left: 50px;
+          padding-right: 50px;
+        }
+      }
+      @media (min-width: 1025px) {
+        /* laptop */
+        body {
+          padding-left: 150px;
+          padding-right: 150px;
+        }
+      }
+      @media (min-width: 1281px) {
+        /* desktop */
+        body {
+          padding-left: 300px;
+          padding-right: 300px;
+        }
+      }
     </style>
   </header>
   <body>
     <div>
+      <nav>
+        <ul>
+          <li style="display: inline"><a href="/">Dashboard</a></li>
+          <li style="display: inline"><a href="/about">About</a></li>
+        </ul>
+      </nav>
+    </div>
+    <div>
       <h1>Expense Report</h1>
     </div>
-    <div style="padding-left: 300px">
-      <form action="/upload" method="post" enctype="multipart/form-data">
-        Files: <input type="file" name="files" multiple /><br /><br />
-        <input type="submit" value="Submit" />
-      </form>
-    </div>
-    <div style="padding-left: 300px; padding-right: 300px">
-      <div style="margin: 20px">
-        <h2>Expenses per category this month</h2>
-        <canvas id="categoriesChart"></canvas>
+    <div>
+      <div>
+        <form action="/upload" method="post" enctype="multipart/form-data">
+          Files: <input type="file" name="files" multiple /><br /><br />
+          <input type="submit" value="Submit" />
+        </form>
       </div>
-      <div style="margin: 20px">
-        <h2>Expenses per sub-category this month</h2>
-        <canvas id="subcategoriesChart"></canvas>
-      </div>
-      <div style="margin: 20px">
-        <h2>MoM comparison of expenses per category</h2>
-        <canvas id="momChart"></canvas>
+      <div>
+        <div style="display: flex">
+          <div class="chart" style="width: 50%">
+            <h2>Expenses per category this month</h2>
+            <canvas id="categoriesChart"></canvas>
+          </div>
+          <div class="chart" style="width: 50%">
+            <h2>Expenses per sub-category this month</h2>
+            <canvas id="subcategoriesChart"></canvas>
+          </div>
+        </div>
+        <div class="chart">
+          <h2>MoM expenses per category</h2>
+          <canvas id="momChart"></canvas>
+        </div>
       </div>
     </div>
   </body>
   <script>
+    Chart.defaults.font.familty = "monospace";
     let labels = {{.Categories}};
     let amounts = {{.CategoryAmounts}};
 

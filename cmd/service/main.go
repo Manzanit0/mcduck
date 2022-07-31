@@ -18,6 +18,10 @@ func main() {
 	r := gin.Default()
 	r.LoadHTMLGlob("templates/*")
 
+	r.GET("/about", func(c *gin.Context) {
+		c.HTML(http.StatusOK, "about.html", gin.H{})
+	})
+
 	r.GET("/", func(c *gin.Context) {
 		expenses, err := readExpensesFromCSV("../../example_input.csv")
 		if err != nil {
