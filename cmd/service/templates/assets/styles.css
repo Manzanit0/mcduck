@@ -1,0 +1,40 @@
+body {
+  font-family: monospace;
+  margin: 30px;
+}
+
+h1 {
+  text-align: center;
+}
+
+.navbar li {
+  display: inline;
+}
+
+.chart {
+  margin: 20px;
+  font-family: monospace;
+}
+
+@media (min-width: 961px) {
+  /* tablet */
+  body {
+    font-size: 15px;
+    padding-left: 50px;
+    padding-right: 50px;
+  }
+}
+@media (min-width: 1025px) {
+  /* laptop */
+  body {
+    padding-left: 150px;
+    padding-right: 150px;
+  }
+}
+@media (min-width: 1281px) {
+  /* desktop */
+  body {
+    padding-left: 300px;
+    padding-right: 300px;
+  }
+}

@@ -3,54 +3,18 @@
   <head>
     <title>McDuck</title>
     <meta charset="utf-8" />
+    <link rel="stylesheet" type="text/css" href="assets/styles.css" />
+    <link rel="icon" type="image/x-icon" href="assets/favicon.ico" />
   </head>
   <header>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-      body {
-        font-family: monospace;
-        margin: 30px;
-      }
-
-      h1 {
-        text-align: center;
-      }
-
-      .chart {
-        margin: 20px;
-        font-family: monospace;
-      }
-
-      @media (min-width: 961px) {
-        /* tablet */
-        body {
-          font-size: 15px;
-          padding-left: 50px;
-          padding-right: 50px;
-        }
-      }
-      @media (min-width: 1025px) {
-        /* laptop */
-        body {
-          padding-left: 150px;
-          padding-right: 150px;
-        }
-      }
-      @media (min-width: 1281px) {
-        /* desktop */
-        body {
-          padding-left: 300px;
-          padding-right: 300px;
-        }
-      }
-    </style>
   </header>
   <body>
-    <div>
+    <div class="navbar">
       <nav>
         <ul>
-          <li style="display: inline"><a href="/">Dashboard</a></li>
-          <li style="display: inline"><a href="/about">About</a></li>
+          <li><a href="/">Dashboard</a></li>
+          <li><a href="/about">About</a></li>
         </ul>
       </nav>
     </div>
@@ -84,6 +48,7 @@
   </body>
   <script>
     Chart.defaults.font.familty = "monospace";
+    Chart.defaults.font.size = 15;
     let labels = {{.Categories}};
     let amounts = {{.CategoryAmounts}};
 
