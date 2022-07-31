@@ -5,9 +5,19 @@ some nice charts.
 
 ## Output
 
-The output is a user-friendly table and chart view of the data provided in the CSV:
+## Terminal
 
-![example](./example_output.png)
+The output is a user-friendly table and chart view of the data provided in the
+CSV:
+
+![cli example](./example_output.png)
+
+## Browser
+
+In case you decide to leverage the web UI, spin up the server in `/cmd/service`
+and access the UI under `localhost:8080`:
+
+![browser example](./example_web_dashboard.png)
 
 ## Input
 
