@@ -102,6 +102,7 @@ func getAllTimeCategories(calculations map[string]map[string]float32) []string {
 		i++
 	}
 
+	sort.Strings(categoriesSlice)
 	return categoriesSlice
 }
 
