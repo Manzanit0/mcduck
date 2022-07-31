@@ -35,9 +35,9 @@ func main() {
 		labels, amountsByCategory := getMOMData(mom)
 
 		c.HTML(http.StatusOK, "index.html", gin.H{
-			"Categories":         getAllTimeCategories(categoryTotals),
+			"Categories":         getSecondClassifier(categoryTotals),
 			"CategoryAmounts":    getCurrentMonthAmounts(categoryTotals),
-			"SubCategories":      getAllTimeCategories(subcategoryTotals),
+			"SubCategories":      getSecondClassifier(subcategoryTotals),
 			"SubCategoryAmounts": getCurrentMonthAmounts(subcategoryTotals),
 			"MOMLabels":          labels,
 			"MOMData":            amountsByCategory,
@@ -69,9 +69,9 @@ func main() {
 		labels, amountsByCategory := getMOMData(mom)
 
 		c.HTML(http.StatusOK, "index.html", gin.H{
-			"Categories":         getAllTimeCategories(categoryTotals),
+			"Categories":         getSecondClassifier(categoryTotals),
 			"CategoryAmounts":    getCurrentMonthAmounts(categoryTotals),
-			"SubCategories":      getAllTimeCategories(subcategoryTotals),
+			"SubCategories":      getSecondClassifier(subcategoryTotals),
 			"SubCategoryAmounts": getCurrentMonthAmounts(subcategoryTotals),
 			"MOMLabels":          labels,
 			"MOMData":            amountsByCategory,
@@ -83,65 +83,46 @@ func main() {
 	}
 }
 
-func getAllTimeCategories(calculations map[string]map[string]float32) []string {
-	// get all unique categoriesMap
-	categoriesMap := make(map[string]bool)
-	for _, amountByCategory := range calculations {
-		for category := range amountByCategory {
-			if ok := categoriesMap[category]; !ok {
-				categoriesMap[category] = true
+func getSecondClassifier(calculations map[string]map[string]float32) []string {
+	classifierMap := map[string]bool{}
+	classifierSlice := []string{}
+	for _, amountByClassifier := range calculations {
+		for secondClassifier := range amountByClassifier {
+			if ok := classifierMap[secondClassifier]; !ok {
+				classifierMap[secondClassifier] = true
+				classifierSlice = append(classifierSlice, secondClassifier)
 			}
 		}
 	}
 
-	// first get the categories header
-	categoriesSlice := make([]string, len(categoriesMap))
-	i := 0
-	for category := range categoriesMap {
-		categoriesSlice[i] = category
-		i++
-	}
-
-	sort.Strings(categoriesSlice)
-	return categoriesSlice
+	sort.Strings(classifierSlice)
+	return classifierSlice
 }
 
 func getCurrentMonthAmounts(calculations map[string]map[string]float32) []string {
-	categories := getAllTimeCategories(calculations)
+	uniqueCategories := getSecondClassifier(calculations)
 	amounts := []string{}
 	nowMonthYear := time.Now().Format("2006-01")
-	for _, category := range categories {
-		if v := calculations[nowMonthYear][category]; v != 0 {
-			amounts = append(amounts, fmt.Sprintf("%.2f", v))
-		} else {
-			amounts = append(amounts, "0.00")
-		}
+	for _, category := range uniqueCategories {
+		amounts = append(amounts, fmt.Sprintf("%.2f", calculations[nowMonthYear][category]))
 	}
 
 	return amounts
 }
 
 func getMOMData(calculations map[string]map[string]float32) ([]string, map[string][]string) {
-	monthsMap := map[string]bool{}
+	uniqueMonths := getSecondClassifier(calculations)
+
 	amountsPerMonthByCategory := map[string][]string{}
 
-	i := 0
 	for category := range calculations {
-		for month, amount := range calculations[category] {
-			monthsMap[month] = true
+		for _, month := range uniqueMonths {
+			amount := calculations[category][month]
 			amountsPerMonthByCategory[category] = append(amountsPerMonthByCategory[category], fmt.Sprintf("%.2f", amount))
 		}
-		i++
 	}
 
-	var monthsSlice []string
-	for month := range monthsMap {
-		monthsSlice = append(monthsSlice, month)
-	}
-
-	sort.Strings(monthsSlice)
-
-	return monthsSlice, amountsPerMonthByCategory
+	return uniqueMonths, amountsPerMonthByCategory
 }
 
 func readExpensesFromCSV(filename string) ([]expense.Expense, error) {
