@@ -47,6 +47,12 @@
     </div>
   </body>
   <script>
+    const monthNames = ["January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December"
+    ];
+
+    const thisMonth = monthNames[new Date().getMonth()] + " " + new Date().getFullYear()
+
     Chart.defaults.font.familty = "monospace";
     Chart.defaults.font.size = 15;
     let labels = {{.Categories}};
@@ -56,7 +62,7 @@
       labels: labels,
       datasets: [
         {
-          label: "Expenses by Category",
+          label: thisMonth,
           data: amounts,
           backgroundColor: [
             "rgba(255, 99, 132, 0.2)",
@@ -105,7 +111,7 @@
       labels: labels,
       datasets: [
         {
-          label: "Expenses by sub-category",
+          label: thisMonth,
           data: amounts,
           backgroundColor: [
             "rgba(255, 99, 132, 0.2)",
@@ -156,7 +162,7 @@
         label: {{$category}},
         data: {{$dataset}},
         fill: false,
-        borderColor: `rgb(${Math.random() * 255}, 99, ${Math.random() * 255})`,
+        borderColor: `rgb(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255})`,
         tension: 0.1,
       })
     {{end}}
