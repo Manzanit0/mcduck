@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bytes"
+	"embed"
 	"encoding/csv"
 	"fmt"
+	"html/template"
 	"log"
 	"net/http"
 	"os"
@@ -11,20 +14,35 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+
 	"github.com/manzanit0/mcduck/pkg/expense"
 )
 
+//go:embed templates/*.html
+var templates embed.FS
+
+//go:embed assets/*.ico assets/*.css
+var assets embed.FS
+
+//go:embed sample_data.csv
+var sampleData embed.FS
+
 func main() {
+	t, err := template.ParseFS(templates, "templates/*.html")
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	r := gin.Default()
-	r.LoadHTMLGlob("templates/*.html")
-	r.Static("/assets", "templates/assets")
+	r.SetHTMLTemplate(t)
+	r.StaticFS("/public", http.FS(assets))
 
 	r.GET("/about", func(c *gin.Context) {
 		c.HTML(http.StatusOK, "about.html", gin.H{})
 	})
 
 	r.GET("/", func(c *gin.Context) {
-		expenses, err := readExpensesFromCSV("../../example_input.csv")
+		expenses, err := readSampleData()
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -78,7 +96,12 @@ func main() {
 		})
 	})
 
-	if err := r.Run(); err != nil {
+	var port string
+	if port = os.Getenv("PORT"); port == "" {
+		port = "8080"
+	}
+
+	if err := r.Run(fmt.Sprintf(":%s", port)); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -134,6 +157,28 @@ func readExpensesFromCSV(filename string) ([]expense.Expense, error) {
 	defer f.Close()
 
 	csvReader := csv.NewReader(f)
+	csvReader.TrimLeadingSpace = true
+	csvReader.FieldsPerRecord = 4
+	data, err := csvReader.ReadAll()
+	if err != nil {
+		return nil, err
+	}
+
+	expenses, err := expense.NewExpenses(data[1:])
+	if err != nil {
+		return nil, err
+	}
+
+	return expenses, nil
+}
+
+func readSampleData() ([]expense.Expense, error) {
+	b, err := sampleData.ReadFile("sample_data.csv")
+	if err != nil {
+		return nil, err
+	}
+
+	csvReader := csv.NewReader(bytes.NewReader(b))
 	csvReader.TrimLeadingSpace = true
 	csvReader.FieldsPerRecord = 4
 	data, err := csvReader.ReadAll()

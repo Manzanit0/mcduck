@@ -1,3 +1,4 @@
+// +heroku goVersion go1.17
 module github.com/manzanit0/mcduck
 
 go 1.17
