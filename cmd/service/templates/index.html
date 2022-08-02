@@ -31,11 +31,11 @@
       <div>
         <div style="display: flex">
           <div class="chart" style="width: 50%">
-            <h2>Expenses per category this month</h2>
+            <h2>Expenses per category last month</h2>
             <canvas id="categoriesChart"></canvas>
           </div>
           <div class="chart" style="width: 50%">
-            <h2>Expenses per sub-category this month</h2>
+            <h2>Expenses per sub-category last month</h2>
             <canvas id="subcategoriesChart"></canvas>
           </div>
         </div>
@@ -51,7 +51,7 @@
       "July", "August", "September", "October", "November", "December"
     ];
 
-    const thisMonth = monthNames[new Date().getMonth()] + " " + new Date().getFullYear()
+    const lastMonth = monthNames[new Date().getMonth()-1] + " " + new Date().getFullYear()
 
     Chart.defaults.font.familty = "monospace";
     Chart.defaults.font.size = 15;
@@ -62,7 +62,7 @@
       labels: labels,
       datasets: [
         {
-          label: thisMonth,
+          label: lastMonth,
           data: amounts,
           backgroundColor: [
             "rgba(255, 99, 132, 0.2)",
@@ -111,7 +111,7 @@
       labels: labels,
       datasets: [
         {
-          label: thisMonth,
+          label: lastMonth,
           data: amounts,
           backgroundColor: [
             "rgba(255, 99, 132, 0.2)",

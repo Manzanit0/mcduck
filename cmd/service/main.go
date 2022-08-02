@@ -125,7 +125,7 @@ func getSecondClassifier(calculations map[string]map[string]float32) []string {
 func getCurrentMonthAmounts(calculations map[string]map[string]float32) []string {
 	uniqueCategories := getSecondClassifier(calculations)
 	amounts := []string{}
-	nowMonthYear := time.Now().Format("2006-01")
+	nowMonthYear := time.Now().AddDate(0, -1, 0).Format("2006-01")
 	for _, category := range uniqueCategories {
 		amounts = append(amounts, fmt.Sprintf("%.2f", calculations[nowMonthYear][category]))
 	}
