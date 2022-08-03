@@ -1,8 +1,12 @@
 package expense
 
 import (
+	"bytes"
+	"encoding/csv"
 	"fmt"
+	"io"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -67,6 +71,12 @@ func NewExpenses(data [][]string) ([]Expense, error) {
 			return nil, fmt.Errorf("failed to parse date %s for row %d: %w", rows[0], k, err)
 		}
 
+		// Americans use a dot as a decimal operator, but Spain uses a comma.
+		// Support both anyways.
+		if strings.ContainsRune(rows[1], ',') {
+			rows[1] = strings.ReplaceAll(rows[1], ",", ".")
+		}
+
 		amount, err := strconv.ParseFloat(rows[1], 32)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse amount %s for row %d: %w", rows[1], k, err)
@@ -78,6 +88,40 @@ func NewExpenses(data [][]string) ([]Expense, error) {
 			Category:    rows[2],
 			Subcategory: rows[3],
 		}
+	}
+
+	return expenses, nil
+}
+
+func FromCSV(r io.Reader) ([]Expense, error) {
+	var buf bytes.Buffer
+	tee := io.TeeReader(r, &buf)
+
+	csvReader := csv.NewReader(tee)
+	csvReader.TrimLeadingSpace = true
+	csvReader.Comma = ';'
+	csvReader.FieldsPerRecord = 4
+
+	data, err := csvReader.ReadAll()
+	if err != nil {
+		csvReader = csv.NewReader(&buf)
+		csvReader.Comma = ','
+		csvReader.TrimLeadingSpace = true
+		csvReader.FieldsPerRecord = 4
+
+		data, err = csvReader.ReadAll()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if len(data) == 0 {
+		return nil, fmt.Errorf("no data found")
+	}
+
+	expenses, err := NewExpenses(data[1:])
+	if err != nil {
+		return nil, err
 	}
 
 	return expenses, nil

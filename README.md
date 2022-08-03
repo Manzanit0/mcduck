@@ -26,6 +26,6 @@ format is:
 
 ```csv
 date,amount,category,subcategory
-2006-01-02,12.2,food,meat
+2006-01-02;12.2;food;meat
 ...
 ```

@@ -1,6 +1,7 @@
 package expense_test
 
 import (
+	"bytes"
 	"fmt"
 	"testing"
 	"time"
@@ -85,4 +86,184 @@ func TestCalculateMonthOverMonthTotals(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestFromCSV(t *testing.T) {
+	t.Run("when the file is empty, an error is returned", func(t *testing.T) {
+		expenses, err := expense.FromCSV(bytes.NewBufferString(""))
+
+		if err == nil {
+			t.Fatalf("expected an error, got nil")
+		}
+
+		if len(expenses) != 0 {
+			t.Fatalf("expected zero expenses, got %v", len(expenses))
+		}
+	})
+
+	t.Run("when the column separator is a semi-colon, the expenses are parsed successfully", func(t *testing.T) {
+		expenses, err := expense.FromCSV(bytes.NewBufferString(`
+date;amount;category;subcategory
+2022-04-02;2.82;food;meat
+2022-04-02;8.22;transport;gasoline
+`))
+
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+
+		if len(expenses) != 2 {
+			t.Fatalf("expected two expenses, got %v", len(expenses))
+		}
+
+		e := expenses[0]
+		if e.Amount != 2.82 {
+			t.Errorf("expected amount to be 2.82, got %v", e.Amount)
+		}
+
+		if e.Date.Format("2006-01-02") != "2022-04-02" {
+			t.Errorf("expected date to be 2022-04-02, got %v", e.Date)
+		}
+
+		if e.Category != "food" {
+			t.Errorf("expected category to be food, got %v", e.Category)
+		}
+
+		if e.Subcategory != "meat" {
+			t.Errorf("expected subcategory to be meat, got %v", e.Subcategory)
+		}
+
+		e = expenses[1]
+		if e.Amount != 8.22 {
+			t.Errorf("expected amount to be 8.22, got %v", e.Amount)
+		}
+
+		if e.Date.Format("2006-01-02") != "2022-04-02" {
+			t.Errorf("expected date to be 2022-04-02, got %v", e.Date)
+		}
+
+		if e.Category != "transport" {
+			t.Errorf("expected category to be transport, got %v", e.Category)
+		}
+
+		if e.Subcategory != "gasoline" {
+			t.Errorf("expected subcategory to be gasoline, got %v", e.Subcategory)
+		}
+	})
+
+	t.Run("when the column separator is a comma, the expenses are parsed successfully", func(t *testing.T) {
+		expenses, err := expense.FromCSV(bytes.NewBufferString(`
+date,amount,category,subcategory
+2022-04-02,2.82,food,meat
+2022-04-02,8.22,transport,gasoline
+`))
+
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+
+		if len(expenses) != 2 {
+			t.Fatalf("expected two expenses, got %v", len(expenses))
+		}
+
+		e := expenses[0]
+		if e.Amount != 2.82 {
+			t.Errorf("expected amount to be 2.82, got %v", e.Amount)
+		}
+
+		if e.Date.Format("2006-01-02") != "2022-04-02" {
+			t.Errorf("expected date to be 2022-04-02, got %v", e.Date)
+		}
+
+		if e.Category != "food" {
+			t.Errorf("expected category to be food, got %v", e.Category)
+		}
+
+		if e.Subcategory != "meat" {
+			t.Errorf("expected subcategory to be meat, got %v", e.Subcategory)
+		}
+
+		e = expenses[1]
+		if e.Amount != 8.22 {
+			t.Errorf("expected amount to be 8.22, got %v", e.Amount)
+		}
+
+		if e.Date.Format("2006-01-02") != "2022-04-02" {
+			t.Errorf("expected date to be 2022-04-02, got %v", e.Date)
+		}
+
+		if e.Category != "transport" {
+			t.Errorf("expected category to be transport, got %v", e.Category)
+		}
+
+		if e.Subcategory != "gasoline" {
+			t.Errorf("expected subcategory to be gasoline, got %v", e.Subcategory)
+		}
+	})
+
+	t.Run("when the column separator is neither a comma nor a semi-colon, an error is returned", func(t *testing.T) {
+		expenses, err := expense.FromCSV(bytes.NewBufferString(`
+date?amount?category?subcategory
+2022-04-02?2.82?food?meat
+2022-04-02?8.22?transport?gasoline
+`))
+
+		if err == nil {
+			t.Fatalf("expected an error, got nil")
+		}
+
+		if len(expenses) != 0 {
+			t.Fatalf("expected zero expenses, got %v", len(expenses))
+		}
+	})
+
+	t.Run("when the amounts floating point separator is a comma, the expenses are parsed succesfully", func(t *testing.T) {
+		expenses, err := expense.FromCSV(bytes.NewBufferString(`
+date;amount;category;subcategory
+2022-04-02;2,82;food;meat
+2022-04-02;8,22;transport;gasoline
+`))
+
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+
+		if len(expenses) != 2 {
+			t.Fatalf("expected two expenses, got %v", len(expenses))
+		}
+
+		e := expenses[0]
+		if e.Amount != 2.82 {
+			t.Errorf("expected amount to be 2.82, got %v", e.Amount)
+		}
+
+		if e.Date.Format("2006-01-02") != "2022-04-02" {
+			t.Errorf("expected date to be 2022-04-02, got %v", e.Date)
+		}
+
+		if e.Category != "food" {
+			t.Errorf("expected category to be food, got %v", e.Category)
+		}
+
+		if e.Subcategory != "meat" {
+			t.Errorf("expected subcategory to be meat, got %v", e.Subcategory)
+		}
+
+		e = expenses[1]
+		if e.Amount != 8.22 {
+			t.Errorf("expected amount to be 8.22, got %v", e.Amount)
+		}
+
+		if e.Date.Format("2006-01-02") != "2022-04-02" {
+			t.Errorf("expected date to be 2022-04-02, got %v", e.Date)
+		}
+
+		if e.Category != "transport" {
+			t.Errorf("expected category to be transport, got %v", e.Category)
+		}
+
+		if e.Subcategory != "gasoline" {
+			t.Errorf("expected subcategory to be gasoline, got %v", e.Subcategory)
+		}
+	})
 }

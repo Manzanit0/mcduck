@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"embed"
-	"encoding/csv"
 	"fmt"
 	"html/template"
 	"log"
@@ -156,20 +155,7 @@ func readExpensesFromCSV(filename string) ([]expense.Expense, error) {
 
 	defer f.Close()
 
-	csvReader := csv.NewReader(f)
-	csvReader.TrimLeadingSpace = true
-	csvReader.FieldsPerRecord = 4
-	data, err := csvReader.ReadAll()
-	if err != nil {
-		return nil, err
-	}
-
-	expenses, err := expense.NewExpenses(data[1:])
-	if err != nil {
-		return nil, err
-	}
-
-	return expenses, nil
+	return expense.FromCSV(f)
 }
 
 func readSampleData() ([]expense.Expense, error) {
@@ -178,18 +164,5 @@ func readSampleData() ([]expense.Expense, error) {
 		return nil, err
 	}
 
-	csvReader := csv.NewReader(bytes.NewReader(b))
-	csvReader.TrimLeadingSpace = true
-	csvReader.FieldsPerRecord = 4
-	data, err := csvReader.ReadAll()
-	if err != nil {
-		return nil, err
-	}
-
-	expenses, err := expense.NewExpenses(data[1:])
-	if err != nil {
-		return nil, err
-	}
-
-	return expenses, nil
+	return expense.FromCSV(bytes.NewReader(b))
 }
