@@ -16,6 +16,15 @@ h1 {
   font-family: monospace;
 }
 
+.code {
+  border: black;
+  border-style: solid;
+  border-width: thin;
+  padding: 10px;
+  font-size: 13px;
+  font-style: italic;
+}
+
 @media (min-width: 961px) {
   /* tablet */
   body {

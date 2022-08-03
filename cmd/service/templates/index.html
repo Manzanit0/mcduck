@@ -23,10 +23,30 @@
     </div>
     <div>
       <div>
-        <form action="/upload" method="post" enctype="multipart/form-data">
-          Files: <input type="file" name="files" multiple /><br /><br />
+        <p>
+          To analyse trends in your expenses please upload them in csv format
+          following this format:
+        </p>
+        <pre class="code">
+date,amount,category,subcategory
+2006-01-02;12,2;food;meat
+2006-01-02;12,2;utilities;water</pre
+        >
+        <form
+          action="/upload"
+          method="post"
+          enctype="multipart/form-data"
+          style="display: flex; margin-top: 30px"
+        >
+          <input type="file" name="files" multiple /><br /><br />
           <input type="submit" value="Submit" />
         </form>
+        <p>
+          Note: The date format is YYYY-MM-DD, and both semi-colons and commas
+          are supported as a separator. As for the decimals, both dots and
+          commas are also supported.
+        </p>
+        <p>The below graphs load a sample set of data on the initial render.</p>
       </div>
       <div>
         <div style="display: flex">
