@@ -64,20 +64,21 @@ func main() {
 	r.POST("/upload", func(c *gin.Context) {
 		form, err := c.MultipartForm()
 		if err != nil {
-			c.String(http.StatusBadRequest, "get form err: %s", err.Error())
+			c.String(http.StatusBadRequest, "get form error: %s", err.Error())
 			return
 		}
 
 		file := form.File["files"][0]
 		filename := filepath.Base(file.Filename)
 		if err := c.SaveUploadedFile(file, filename); err != nil {
-			c.String(http.StatusBadRequest, "upload file err: %s", err.Error())
+			c.String(http.StatusInternalServerError, "upload file error: %s", err.Error())
 			return
 		}
 
 		expenses, err := readExpensesFromCSV(filename)
 		if err != nil {
-			log.Fatal(err)
+			c.String(http.StatusInternalServerError, "file parsing error: %s", err.Error())
+			return
 		}
 
 		categoryTotals := expense.CalculateTotalsPerCategory(expenses)
