@@ -1,0 +1,2 @@
+CREATE USER docker WITH PASSWORD '123';
+CREATE DATABASE mcduck_db OWNER docker;

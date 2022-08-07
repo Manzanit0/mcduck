@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"database/sql"
 	"embed"
 	"fmt"
 	"html/template"
@@ -13,6 +14,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	_ "github.com/jackc/pgx/v4/stdlib"
+	"github.com/jmoiron/sqlx"
 
 	"github.com/manzanit0/mcduck/pkg/expense"
 )
@@ -36,8 +39,34 @@ func main() {
 	r.SetHTMLTemplate(t)
 	r.StaticFS("/public", http.FS(assets))
 
+	db, err := sql.Open("pgx", fmt.Sprintf("postgresql://%s:%s@%s:%s/%s", os.Getenv("PGUSER"), os.Getenv("PGPASSWORD"), os.Getenv("PGHOST"), os.Getenv("PGPORT"), os.Getenv("PGDATABASE")))
+	if err != nil {
+		log.Fatalf("unable to open db conn: %s", err.Error())
+	}
+
+	defer func() {
+		err = db.Close()
+		if err != nil {
+			log.Printf("error closing db connection: %s\n", err.Error())
+		}
+	}()
+
+	r.Use(func(c *gin.Context) {
+		c.Set("db", sqlx.NewDb(db, "postgres"))
+		c.Next()
+	})
+
+	r.Use(CookieAuthMiddleware)
+	r.GET("/register", GetRegisterForm)
+	r.POST("/register", RegisterUser)
+	r.GET("/login", GetLoginForm)
+	r.POST("/login", LoginUser)
+	r.GET("/signout", Signout)
+
 	r.GET("/about", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "about.html", gin.H{})
+		c.HTML(http.StatusOK, "about.html", gin.H{
+			"User": GetUserEmail(c),
+		})
 	})
 
 	r.GET("/", func(c *gin.Context) {
@@ -58,6 +87,7 @@ func main() {
 			"SubCategoryAmounts": getCurrentMonthAmounts(subcategoryTotals),
 			"MOMLabels":          labels,
 			"MOMData":            amountsByCategory,
+			"User":               GetUserEmail(c),
 		})
 	})
 

@@ -1,0 +1,31 @@
+<html>
+  <head>
+    <title>McDuck</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" type="text/css" href="public/assets/styles.css" />
+    <link rel="icon" type="image/x-icon" href="public/assets/favicon.ico" />
+  </head>
+  <body>
+    {{template "navbar" .}}
+    <div>
+      <h1>Login</h1>
+    </div>
+    <div>
+      <form method="POST" action="/login" id="form-login-user">
+        <input
+          id="email"
+          name="email"
+          type="email"
+          placeholder="Enter your email"
+        />
+        <input
+          id="password"
+          name="password"
+          type="password"
+          placeholder="Write your password"
+        />
+        <button id="btn-login-account">Login</button>
+      </form>
+    </div>
+  </body>
+</html>

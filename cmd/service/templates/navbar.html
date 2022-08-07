@@ -1,0 +1,25 @@
+{{define "navbar"}}
+<div class="navbar">
+  <nav>
+    <ul>
+      <li><a href="/">Dashboard</a></li>
+      <li><a href="/about">About</a></li>
+      {{ if .User }}
+      <li style="float: right; padding-right: 8px">
+        <a href="/signout">Sign out</a>
+      </li>
+      <li style="float: right; padding-right: 15px">
+        <div>Hello {{ .User }}!</div>
+      </li>
+      {{else}}
+      <li style="float: right; padding-right: 8px">
+        <a href="/register">Signup</a>
+      </li>
+      <li style="float: right; padding-right: 8px">
+        <a href="/login">Login</a>
+      </li>
+      {{end}}
+    </ul>
+  </nav>
+</div>
+{{end}}

@@ -1,0 +1,36 @@
+version: "3"
+
+services:
+  postgresql:
+    image: postgres:13-alpine
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "pg_isready",
+          "-q",
+          "-d",
+          "postgres",
+          "-U",
+          "root"
+        ]
+      timeout: 45s
+      interval: 10s
+      retries: 10
+    restart: always
+    environment:
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=password
+    ports:
+      - "5431:5432"
+    volumes:
+      - ./scripts/db:/docker-entrypoint-initdb.d/
+
+  flyway:
+    image: flyway/flyway
+    command: -url=jdbc:postgresql://postgresql:5432/mcduck_db -schemas=public -user=docker -password=123 -connectRetries=60 migrate
+    restart: on-failure
+    volumes:
+      - ./migrations:/flyway/sql
+    depends_on:
+      - postgresql
