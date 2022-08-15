@@ -2,12 +2,17 @@ package expense
 
 import (
 	"bytes"
+	"context"
 	"encoding/csv"
 	"fmt"
 	"io"
+	"math"
 	"strconv"
 	"strings"
 	"time"
+
+	sq "github.com/Masterminds/squirrel"
+	"github.com/jmoiron/sqlx"
 )
 
 type Expense struct {
@@ -125,4 +130,34 @@ func FromCSV(r io.Reader) ([]Expense, error) {
 	}
 
 	return expenses, nil
+}
+
+type ExpensesBatch struct {
+	Records   []Expense
+	UserEmail string
+}
+
+func CreateExpenses(ctx context.Context, db *sqlx.DB, e ExpensesBatch) error {
+	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
+
+	builder := psql.Insert("expenses").Columns("user_email", "expense_date", "amount", "category", "sub_category")
+	for _, expense := range e.Records {
+		builder = builder.Values(e.UserEmail, expense.Date, ConvertToCents(expense.Amount), expense.Category, expense.Subcategory)
+	}
+
+	query, args, err := builder.ToSql()
+	if err != nil {
+		return fmt.Errorf("unable to build query: %w", err)
+	}
+
+	_, err = db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("unable to execute query: %w", err)
+	}
+
+	return nil
+}
+
+func ConvertToCents(amount float32) int32 {
+	return int32(math.Round(float64(amount * 100)))
 }

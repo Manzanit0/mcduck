@@ -28,6 +28,7 @@ expenses:
 - [ ] If logged in, display existing data instead of sample.
 - [ ] allow for adding, modifying and deleting expenses (expenses page)
 - [ ] allow for downloading expenses in csv
+- [ ] add checksum validation on uploads to prevent duplicate uploads
 
 teams:
 - [ ] allow another user to join your expenses team

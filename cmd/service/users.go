@@ -54,7 +54,7 @@ func RegisterUser(c *gin.Context) {
 
 	c.SetCookie(authCookieName, token, 3600, "", "", false, true)
 
-	c.HTML(http.StatusOK, "about.html", gin.H{"error": err.Error()})
+	c.HTML(http.StatusOK, "about.html", gin.H{})
 }
 
 func GetLoginForm(c *gin.Context) {

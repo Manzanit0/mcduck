@@ -111,6 +111,22 @@ func main() {
 			return
 		}
 
+		// If the user is logged in, save those upload expenses
+		if u := GetUserEmail(c); u != "" {
+			db, ok := c.Get("db")
+			if !ok {
+				c.HTML(http.StatusOK, "error.html", gin.H{"error": err.Error()})
+				return
+			}
+
+			dbx := db.(*sqlx.DB)
+			err = expense.CreateExpenses(c.Request.Context(), dbx, expense.ExpensesBatch{UserEmail: u, Records: expenses})
+			if err != nil {
+				c.HTML(http.StatusOK, "error.html", gin.H{"error": err.Error()})
+				return
+			}
+		}
+
 		categoryTotals := expense.CalculateTotalsPerCategory(expenses)
 		subcategoryTotals := expense.CalculateTotalsPerSubCategory(expenses)
 		mom := expense.CalculateMonthOverMonthTotals(expenses)
