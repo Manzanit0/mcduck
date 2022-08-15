@@ -11,29 +11,39 @@
     </div>
     <div>
       <div>
-        <p>
-          To analyse trends in your expenses please upload them in csv format
-          following this format:
-        </p>
-        <pre class="code">
-date,amount,category,subcategory
-2006-01-02;12,2;food;meat
-2006-01-02;12,2;utilities;water</pre
-        >
         <form
           action="/upload"
           method="post"
           enctype="multipart/form-data"
-          style="display: flex; margin-top: 30px"
+          style="display: flex; margin-top: 30px; margin-bottom: 30px"
         >
-          <input type="file" name="files" multiple /><br /><br />
-          <input type="submit" value="Submit" />
+          <fieldset>
+            <div class="paragraph">
+              To analyse trends in your expenses please upload them in a csv
+              file with the following columns: <i>date</i>, <i>amount</i>,
+              <i>category </i>and <i>subcategory</i>.
+            </div>
+            <legend>Upload Expenses</legend>
+            <div class="form-group">
+              <label for="files">Files:</label>
+              <input
+                style="font-family: monospace"
+                type="file"
+                name="files"
+                id="files"
+                multiple
+              />
+            </div>
+            <div class="form-group">
+              <input
+                class="btn btn-default"
+                role="button"
+                type="submit"
+                value="Submit"
+              />
+            </div>
+          </fieldset>
         </form>
-        <p>
-          Note: The date format is YYYY-MM-DD, and both semi-colons and commas
-          are supported as a separator. As for the decimals, both dots and
-          commas are also supported.
-        </p>
       </div>
       <div>
         <div style="display: flex">
