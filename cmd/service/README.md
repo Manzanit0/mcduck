@@ -18,14 +18,14 @@ $ go run .
 ## TODO
 
 accounts:
-- [ ] `created_at` and `updated_at` fields for `users` table.
+- [X] `created_at` and `updated_at` fields for `users` table.
 - [ ] send emails upon signup and login
 - [ ] allow for resetting password
 - [ ] allow for deleting account (settings page)
 
 expenses:
-- [ ] Upon CSV upload, if logged in, save expenses
-- [ ] If logged in, display existing data instead of sample.
+- [X] Upon CSV upload, if logged in, save expenses
+- [X] If logged in, display existing data instead of sample.
 - [ ] allow for adding, modifying and deleting expenses (expenses page)
 - [ ] allow for downloading expenses in csv
 - [ ] add checksum validation on uploads to prevent duplicate uploads
