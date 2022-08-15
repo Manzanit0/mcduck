@@ -29,6 +29,7 @@ expenses:
 - [ ] allow for adding, modifying and deleting expenses (expenses page)
 - [ ] allow for downloading expenses in csv
 - [ ] add checksum validation on uploads to prevent duplicate uploads
+- [ ] allow for adding data in CSV in any order of columns (use header)
 
 teams:
 - [ ] allow another user to join your expenses team
