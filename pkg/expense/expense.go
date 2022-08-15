@@ -16,10 +16,11 @@ import (
 )
 
 type Expense struct {
-	Date        time.Time
-	Amount      float32
-	Category    string
-	Subcategory string
+	ID          int64     `db:"id"`
+	Date        time.Time `db:"expense_date"`
+	Amount      float32   `db:"amount"`
+	Category    string    `db:"category"`
+	Subcategory string    `db:"sub_category"`
 }
 
 func (e Expense) MonthYear() string {
@@ -156,6 +157,16 @@ func CreateExpenses(ctx context.Context, db *sqlx.DB, e ExpensesBatch) error {
 	}
 
 	return nil
+}
+
+func ListExpenses(ctx context.Context, db *sqlx.DB, email string) ([]Expense, error) {
+	var expenses []Expense
+	err := db.SelectContext(ctx, &expenses, `SELECT id, amount, expense_date, category, sub_category FROM expenses WHERE user_email = $1`, email)
+	if err != nil {
+		return nil, fmt.Errorf("unable to execute query: %w", err)
+	}
+
+	return expenses, nil
 }
 
 func ConvertToCents(amount float32) int32 {

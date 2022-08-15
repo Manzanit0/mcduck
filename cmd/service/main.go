@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"embed"
+	"errors"
 	"fmt"
 	"html/template"
 	"log"
@@ -70,9 +71,29 @@ func main() {
 	})
 
 	r.GET("/", func(c *gin.Context) {
-		expenses, err := readSampleData()
-		if err != nil {
-			log.Fatal(err)
+		var expenses []expense.Expense
+
+		// If the user is logged in, attempt to read expenses from DB instead of sample.
+		if u := GetUserEmail(c); u != "" {
+			db, ok := c.Get("db")
+			if !ok {
+				c.HTML(http.StatusOK, "error.html", gin.H{"error": err.Error()})
+				return
+			}
+
+			dbx := db.(*sqlx.DB)
+			expenses, err = expense.ListExpenses(c.Request.Context(), dbx, u)
+			if err != nil && !errors.Is(err, sql.ErrNoRows) {
+				c.HTML(http.StatusOK, "error.html", gin.H{"error": err.Error()})
+				return
+			}
+		}
+
+		if len(expenses) == 0 {
+			expenses, err = readSampleData()
+			if err != nil {
+				log.Fatal(err)
+			}
 		}
 
 		categoryTotals := expense.CalculateTotalsPerCategory(expenses)
