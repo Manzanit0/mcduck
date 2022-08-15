@@ -16,9 +16,19 @@ import (
 )
 
 type Expense struct {
+	Date        time.Time
+	Amount      float32
+	Category    string
+	Subcategory string
+}
+
+// dbExpense is the representation of an expense in the database. For instance,
+// the amount is saved as an integer in the DB, but presented to the user as a
+// float32.
+type dbExpense struct {
 	ID          int64     `db:"id"`
 	Date        time.Time `db:"expense_date"`
-	Amount      float32   `db:"amount"`
+	Amount      int32     `db:"amount"`
 	Category    string    `db:"category"`
 	Subcategory string    `db:"sub_category"`
 }
@@ -160,15 +170,33 @@ func CreateExpenses(ctx context.Context, db *sqlx.DB, e ExpensesBatch) error {
 }
 
 func ListExpenses(ctx context.Context, db *sqlx.DB, email string) ([]Expense, error) {
-	var expenses []Expense
+	var expenses []dbExpense
 	err := db.SelectContext(ctx, &expenses, `SELECT id, amount, expense_date, category, sub_category FROM expenses WHERE user_email = $1`, email)
 	if err != nil {
 		return nil, fmt.Errorf("unable to execute query: %w", err)
 	}
 
-	return expenses, nil
+	var expensesList []Expense
+	for _, expense := range expenses {
+		expensesList = append(expensesList, Expense{
+			Date:        expense.Date,
+			Category:    expense.Category,
+			Subcategory: expense.Subcategory,
+			Amount:      ConvertToDollar(expense.Amount),
+		})
+	}
+
+	return expensesList, nil
 }
 
 func ConvertToCents(amount float32) int32 {
 	return int32(math.Round(float64(amount * 100)))
+}
+
+func ConvertToDollar(cents int32) float32 {
+	if cents == 0 {
+		return float32(0)
+	}
+
+	return float32(cents) / 100
 }
