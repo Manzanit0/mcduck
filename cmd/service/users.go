@@ -54,7 +54,7 @@ func RegisterUser(c *gin.Context) {
 
 	c.SetCookie(authCookieName, token, 3600, "", "", false, true)
 
-	c.HTML(http.StatusOK, "about.html", gin.H{})
+	c.HTML(http.StatusOK, "index.html", gin.H{})
 }
 
 func GetLoginForm(c *gin.Context) {
@@ -96,7 +96,7 @@ func LoginUser(c *gin.Context) {
 
 	c.SetCookie(authCookieName, token, 3600, "", "", false, true)
 
-	c.HTML(http.StatusOK, "about.html", gin.H{"User": user.Email})
+	c.HTML(http.StatusOK, "index.html", gin.H{"User": user.Email})
 }
 
 func Signout(c *gin.Context) {
@@ -104,7 +104,7 @@ func Signout(c *gin.Context) {
 		c.SetCookie(authCookieName, "", -1, "", "", false, true)
 	}
 
-	c.HTML(http.StatusOK, "about.html", gin.H{})
+	c.HTML(http.StatusOK, "index.html", gin.H{})
 }
 
 func CookieAuthMiddleware(c *gin.Context) {

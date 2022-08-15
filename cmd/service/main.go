@@ -64,36 +64,17 @@ func main() {
 	r.POST("/login", LoginUser)
 	r.GET("/signout", Signout)
 
-	r.GET("/about", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "about.html", gin.H{
+	r.GET("/", func(c *gin.Context) {
+		c.HTML(http.StatusOK, "index.html", gin.H{
 			"User": GetUserEmail(c),
 		})
 	})
 
-	r.GET("/", func(c *gin.Context) {
-		var expenses []expense.Expense
-
-		// If the user is logged in, attempt to read expenses from DB instead of sample.
-		if u := GetUserEmail(c); u != "" {
-			db, ok := c.Get("db")
-			if !ok {
-				c.HTML(http.StatusOK, "error.html", gin.H{"error": err.Error()})
-				return
-			}
-
-			dbx := db.(*sqlx.DB)
-			expenses, err = expense.ListExpenses(c.Request.Context(), dbx, u)
-			if err != nil && !errors.Is(err, sql.ErrNoRows) {
-				c.HTML(http.StatusOK, "error.html", gin.H{"error": err.Error()})
-				return
-			}
-		}
-
-		if len(expenses) == 0 {
-			expenses, err = readSampleData()
-			if err != nil {
-				log.Fatal(err)
-			}
+	r.GET("/live_demo", func(c *gin.Context) {
+		expenses, err := readSampleData()
+		if err != nil {
+			c.HTML(http.StatusOK, "error.html", gin.H{"error": err.Error()})
+			return
 		}
 
 		categoryTotals := expense.CalculateTotalsPerCategory(expenses)
@@ -101,14 +82,53 @@ func main() {
 		mom := expense.CalculateMonthOverMonthTotals(expenses)
 		labels, amountsByCategory := getMOMData(mom)
 
-		c.HTML(http.StatusOK, "index.html", gin.H{
+		c.HTML(http.StatusOK, "dashboard.html", gin.H{
 			"Categories":         getSecondClassifier(categoryTotals),
 			"CategoryAmounts":    getCurrentMonthAmounts(categoryTotals),
 			"SubCategories":      getSecondClassifier(subcategoryTotals),
 			"SubCategoryAmounts": getCurrentMonthAmounts(subcategoryTotals),
 			"MOMLabels":          labels,
 			"MOMData":            amountsByCategory,
-			"User":               GetUserEmail(c),
+		})
+	})
+
+	r.GET("/dashboard", func(c *gin.Context) {
+		user := GetUserEmail(c)
+		if user == "" {
+			c.HTML(http.StatusOK, "error.html", gin.H{"error": "401: Unauthorized"})
+			return
+		}
+
+		db, ok := c.Get("db")
+		if !ok {
+			c.HTML(http.StatusOK, "error.html", gin.H{"error": "500: Internal Server Error"})
+			return
+		}
+
+		dbx := db.(*sqlx.DB)
+		expenses, err := expense.ListExpenses(c.Request.Context(), dbx, user)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			c.HTML(http.StatusOK, "error.html", gin.H{"error": err.Error()})
+			return
+		}
+
+		if len(expenses) == 0 {
+			expenses = []expense.Expense{}
+		}
+
+		categoryTotals := expense.CalculateTotalsPerCategory(expenses)
+		subcategoryTotals := expense.CalculateTotalsPerSubCategory(expenses)
+		mom := expense.CalculateMonthOverMonthTotals(expenses)
+		labels, amountsByCategory := getMOMData(mom)
+
+		c.HTML(http.StatusOK, "dashboard.html", gin.H{
+			"Categories":         getSecondClassifier(categoryTotals),
+			"CategoryAmounts":    getCurrentMonthAmounts(categoryTotals),
+			"SubCategories":      getSecondClassifier(subcategoryTotals),
+			"SubCategoryAmounts": getCurrentMonthAmounts(subcategoryTotals),
+			"MOMLabels":          labels,
+			"MOMData":            amountsByCategory,
+			"User":               user,
 		})
 	})
 
@@ -153,7 +173,7 @@ func main() {
 		mom := expense.CalculateMonthOverMonthTotals(expenses)
 		labels, amountsByCategory := getMOMData(mom)
 
-		c.HTML(http.StatusOK, "index.html", gin.H{
+		c.HTML(http.StatusOK, "dashboard.html", gin.H{
 			"Categories":         getSecondClassifier(categoryTotals),
 			"CategoryAmounts":    getCurrentMonthAmounts(categoryTotals),
 			"SubCategories":      getSecondClassifier(subcategoryTotals),

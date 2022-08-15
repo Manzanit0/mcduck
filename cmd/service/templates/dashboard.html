@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+  {{template "head"}}
+  <header>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  </header>
+  <body>
+    {{template "navbar" .}}
+    <div>
+      <h1>Expense Report</h1>
+    </div>
+    <div>
+      <div>
+        <p>
+          To analyse trends in your expenses please upload them in csv format
+          following this format:
+        </p>
+        <pre class="code">
+date,amount,category,subcategory
+2006-01-02;12,2;food;meat
+2006-01-02;12,2;utilities;water</pre
+        >
+        <form
+          action="/upload"
+          method="post"
+          enctype="multipart/form-data"
+          style="display: flex; margin-top: 30px"
+        >
+          <input type="file" name="files" multiple /><br /><br />
+          <input type="submit" value="Submit" />
+        </form>
+        <p>
+          Note: The date format is YYYY-MM-DD, and both semi-colons and commas
+          are supported as a separator. As for the decimals, both dots and
+          commas are also supported.
+        </p>
+      </div>
+      <div>
+        <div style="display: flex">
+          <div class="chart" style="width: 50%">
+            <h2>Expenses per category last month</h2>
+            <canvas id="categoriesChart"></canvas>
+          </div>
+          <div class="chart" style="width: 50%">
+            <h2>Expenses per sub-category last month</h2>
+            <canvas id="subcategoriesChart"></canvas>
+          </div>
+        </div>
+        <div class="chart">
+          <h2>MoM expenses per category</h2>
+          <canvas id="momChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </body>
+  <script>
+    const monthNames = ["January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December"
+    ];
+
+    const lastMonth = monthNames[new Date().getMonth()-1] + " " + new Date().getFullYear()
+
+    Chart.defaults.font.familty = "monospace";
+    Chart.defaults.font.size = 15;
+    let labels = {{.Categories}};
+    let amounts = {{.CategoryAmounts}};
+
+    let data = {
+      labels: labels,
+      datasets: [
+        {
+          label: lastMonth,
+          data: amounts,
+          backgroundColor: [
+            "rgba(255, 99, 132, 0.2)",
+            "rgba(255, 159, 64, 0.2)",
+            "rgba(255, 205, 86, 0.2)",
+            "rgba(75, 192, 192, 0.2)",
+            "rgba(54, 162, 235, 0.2)",
+            "rgba(153, 102, 255, 0.2)",
+            "rgba(201, 203, 207, 0.2)",
+          ],
+          borderColor: [
+            "rgb(255, 99, 132)",
+            "rgb(255, 159, 64)",
+            "rgb(255, 205, 86)",
+            "rgb(75, 192, 192)",
+            "rgb(54, 162, 235)",
+            "rgb(153, 102, 255)",
+            "rgb(201, 203, 207)",
+          ],
+          borderWidth: 1,
+        },
+      ],
+    };
+
+    let config = {
+      type: "bar",
+      data: data,
+      options: {
+        scales: {
+          y: {
+            beginAtZero: true,
+          },
+        },
+      },
+    };
+    let myChart = new Chart(
+      document.getElementById("categoriesChart"),
+      config
+    );
+  </script>
+  <script>
+    labels = {{.SubCategories}};
+    amounts = {{.SubCategoryAmounts}};
+
+    data = {
+      labels: labels,
+      datasets: [
+        {
+          label: lastMonth,
+          data: amounts,
+          backgroundColor: [
+            "rgba(255, 99, 132, 0.2)",
+            "rgba(255, 159, 64, 0.2)",
+            "rgba(255, 205, 86, 0.2)",
+            "rgba(75, 192, 192, 0.2)",
+            "rgba(54, 162, 235, 0.2)",
+            "rgba(153, 102, 255, 0.2)",
+            "rgba(201, 203, 207, 0.2)",
+          ],
+          borderColor: [
+            "rgb(255, 99, 132)",
+            "rgb(255, 159, 64)",
+            "rgb(255, 205, 86)",
+            "rgb(75, 192, 192)",
+            "rgb(54, 162, 235)",
+            "rgb(153, 102, 255)",
+            "rgb(201, 203, 207)",
+          ],
+          borderWidth: 1,
+        },
+      ],
+    };
+
+    config = {
+      type: "bar",
+      data: data,
+      options: {
+        scales: {
+          y: {
+            beginAtZero: true,
+          },
+        },
+      },
+    };
+    myChart = new Chart(
+      document.getElementById("subcategoriesChart"),
+      config
+    );
+  </script>
+  <script>
+    labels = {{.MOMLabels}};
+    amounts = {{.MOMData}};
+
+    const datasets = [];
+    {{range $category, $dataset := .MOMData}}
+      datasets.push({
+        label: {{$category}},
+        data: {{$dataset}},
+        fill: false,
+        borderColor: `rgb(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255})`,
+        tension: 0.1,
+      })
+    {{end}}
+
+    data = {
+      labels: labels,
+      datasets: datasets,
+    };
+
+    config = {
+      type: "line",
+      data: data,
+    };
+    myChart = new Chart(
+      document.getElementById("momChart"),
+      config
+    );
+  </script>
+</html>

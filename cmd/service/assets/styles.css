@@ -25,6 +25,18 @@ h1 {
   font-style: italic;
 }
 
+.paragraph {
+  margin: 20px;
+}
+
+.f-right {
+  float: right;
+}
+
+.f-left {
+  float: left;
+}
+
 @media (min-width: 961px) {
   /* tablet */
   body {

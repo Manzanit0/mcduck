@@ -2,9 +2,8 @@
 <div class="navbar">
   <nav>
     <ul>
-      <li><a href="/">Dashboard</a></li>
-      <li><a href="/about">About</a></li>
       {{ if .User }}
+      <li><a href="/dashboard">Dashboard</a></li>
       <li style="float: right; padding-right: 8px">
         <a href="/signout">Sign out</a>
       </li>
@@ -12,6 +11,8 @@
         <div>Hello {{ .User }}!</div>
       </li>
       {{else}}
+      <li><a href="/">Home</a></li>
+      <li><a href="/live_demo">Live Demo</a></li>
       <li style="float: right; padding-right: 8px">
         <a href="/register">Signup</a>
       </li>
