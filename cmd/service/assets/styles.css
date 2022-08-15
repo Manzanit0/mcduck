@@ -37,6 +37,26 @@ h1 {
   float: left;
 }
 
+.login-form-container {
+  border: black;
+  border-style: solid;
+  padding: 10px;
+  width: 30%;
+  margin: auto;
+  margin-top: 50px;
+}
+
+.login-form {
+  margin: auto;
+  padding: 25px;
+}
+
+.login-form-element {
+  margin-top: 10px;
+  width: 100%;
+  font-family: monospace;
+}
+
 @media (min-width: 961px) {
   /* tablet */
   body {

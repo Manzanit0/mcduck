@@ -5,21 +5,30 @@
     <div>
       <h1>Signup</h1>
     </div>
-    <div>
-      <form method="POST" action="/register" id="form-create-user">
+    <div class="login-form-container">
+      <form
+        class="login-form"
+        method="POST"
+        action="/register"
+        id="form-create-user"
+      >
         <input
+          class="login-form-element"
           id="email"
           name="email"
           type="email"
           placeholder="Enter your email"
         />
         <input
+          class="login-form-element"
           id="password"
           name="password"
           type="password"
           placeholder="Create your password"
         />
-        <button id="btn-create-account">Register</button>
+        <button class="login-form-element" id="btn-create-account">
+          Register
+        </button>
       </form>
     </div>
   </body>

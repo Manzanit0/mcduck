@@ -5,21 +5,28 @@
     <div>
       <h1>Login</h1>
     </div>
-    <div>
-      <form method="POST" action="/login" id="form-login-user">
+    <div class="login-form-container">
+      <form
+        class="login-form"
+        method="POST"
+        action="/login"
+        id="form-login-user"
+      >
         <input
+          class="login-form-element"
           id="email"
           name="email"
           type="email"
           placeholder="Enter your email"
         />
         <input
+          class="login-form-element"
           id="password"
           name="password"
           type="password"
           placeholder="Write your password"
         />
-        <button id="btn-login-account">Login</button>
+        <button class="login-form-element" id="btn-login-account">Login</button>
       </form>
     </div>
   </body>
