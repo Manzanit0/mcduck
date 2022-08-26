@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -10,6 +9,7 @@ import (
 	"github.com/jmoiron/sqlx"
 
 	"github.com/manzanit0/mcduck/pkg/auth"
+	"github.com/manzanit0/mcduck/pkg/users"
 )
 
 const authCookieName string = "_mcduck_key"
@@ -40,7 +40,7 @@ func RegisterUser(c *gin.Context) {
 
 	dbx := db.(*sqlx.DB)
 
-	_, err = Create(c.Request.Context(), dbx, User{Email: payload.Email, Password: payload.Password})
+	_, err = users.Create(c.Request.Context(), dbx, users.User{Email: payload.Email, Password: payload.Password})
 	if err != nil {
 		c.HTML(http.StatusOK, "error.html", gin.H{"error": err.Error()})
 		return
@@ -77,7 +77,7 @@ func LoginUser(c *gin.Context) {
 
 	dbx := db.(*sqlx.DB)
 
-	user, err := Find(c.Request.Context(), dbx, payload.Email)
+	user, err := users.Find(c.Request.Context(), dbx, payload.Email)
 	if err != nil {
 		c.HTML(http.StatusOK, "error.html", gin.H{"error": err.Error()})
 		return
@@ -127,36 +127,4 @@ func CookieAuthMiddleware(c *gin.Context) {
 
 func GetUserEmail(c *gin.Context) string {
 	return c.GetString(userContextKey)
-}
-
-type User struct {
-	Email          string `db:"email"`
-	HashedPassword string `db:"hashed_password"`
-	Password       string
-}
-
-func Create(ctx context.Context, db *sqlx.DB, u User) (User, error) {
-	hashed, err := auth.HashPassword(u.Password)
-	if err != nil {
-		return u, fmt.Errorf("could not hash password: %w", err)
-	}
-
-	u.HashedPassword = hashed
-
-	_, err = db.ExecContext(ctx, `INSERT INTO users (email, hashed_password) VALUES ($1, $2)`, u.Email, u.HashedPassword)
-	if err != nil {
-		return u, err
-	}
-
-	return u, nil
-}
-
-func Find(ctx context.Context, db *sqlx.DB, email string) (*User, error) {
-	var u User
-	err := db.GetContext(ctx, &u, `SELECT email, hashed_password FROM users WHERE email = $1`, email)
-	if err != nil {
-		return nil, err
-	}
-
-	return &u, nil
 }
