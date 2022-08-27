@@ -71,6 +71,9 @@ func main() {
 	r.POST("/upload", dashController.UploadExpenses)
 	r.GET("/dashboard", api.AuthWall(dashController.Dashboard))
 
+	expensesController := api.ExpensesController{DB: sqlx.NewDb(db, "postgres")}
+	r.GET("/expenses", api.AuthWall(expensesController.ListExpenses))
+
 	var port string
 	if port = os.Getenv("PORT"); port == "" {
 		port = "8080"

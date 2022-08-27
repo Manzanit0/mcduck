@@ -1,0 +1,35 @@
+<html>
+  {{template "head"}}
+  <body>
+    {{template "navbar" .}}
+    <div>
+      <h1>Expenses</h1>
+    </div>
+    <div>
+      {{ if .HasExpenses }}
+      <table>
+        <thead>
+          <tr>
+            <th colspan="1">Date</th>
+            <th colspan="1">Amount</th>
+            <th colspan="1">Category</th>
+            <th colspan="1">SubCategory</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{range $e := .Expenses}}
+          <tr>
+            <td>{{$e.Date}}</td>
+            <td>{{$e.Amount}}</td>
+            <td>{{$e.Category}}</td>
+            <td>{{$e.Subcategory}}</td>
+          </tr>
+          {{end}}
+        </tbody>
+      </table>
+      {{ else }}
+      <div>You don't have any expenses, would you like to upload some?</div>
+      {{ end }}
+    </div>
+  </body>
+</html>

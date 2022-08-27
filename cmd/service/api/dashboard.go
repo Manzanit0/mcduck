@@ -94,6 +94,11 @@ func (d *DashboardController) UploadExpenses(c *gin.Context) {
 		return
 	}
 
+	if len(form.File["files"]) == 0 {
+		c.String(http.StatusBadRequest, "no files uploaded")
+		return
+	}
+
 	file := form.File["files"][0]
 	filename := filepath.Base(file.Filename)
 	if err := c.SaveUploadedFile(file, filename); err != nil {
