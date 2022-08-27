@@ -77,6 +77,7 @@ func (d *DashboardController) Dashboard(c *gin.Context) {
 	labels, amountsByCategory := getMOMData(mom)
 
 	c.HTML(http.StatusOK, "dashboard.html", gin.H{
+		"NoExpenses":         len(expenses) == 0,
 		"Categories":         getSecondClassifier(categoryTotals),
 		"CategoryAmounts":    getCurrentMonthAmounts(categoryTotals),
 		"SubCategories":      getSecondClassifier(subcategoryTotals),

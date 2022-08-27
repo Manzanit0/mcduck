@@ -10,7 +10,16 @@
       <h1>Expense Report</h1>
     </div>
     <div>
+      {{ if .NoExpenses }}
+      <div>
+        <p>
+          In this page you can analyse trends in your personal finances based on
+          the expenses uploaded. You don't seem to have any expenses saved
+          though, would you like to upload some to see the charts?
+        </p>
+      </div>
       <div>{{ template "_upload_expenses_form" }}</div>
+      {{ else }}
       <div>
         <div class="chart">
           <h2>Expenses per category last month</h2>
@@ -25,6 +34,7 @@
           <canvas id="momChart"></canvas>
         </div>
       </div>
+      {{ end }}
     </div>
   </body>
   <script>
