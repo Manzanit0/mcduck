@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -37,13 +38,12 @@ func (r *RegistrationController) RegisterUser(c *gin.Context) {
 		return
 	}
 
-	token, err := auth.GenerateJWT(payload.Email)
+	err = setCookieAuth(c, payload.Email)
 	if err != nil {
 		c.HTML(http.StatusOK, "error.html", gin.H{"error": err.Error()})
 		return
 	}
 
-	auth.SetAuthCookie(c, token)
 	c.HTML(http.StatusOK, "index.html", gin.H{"User": payload.Email})
 }
 
@@ -61,22 +61,21 @@ func (r *RegistrationController) LoginUser(c *gin.Context) {
 
 	user, err := users.Find(c.Request.Context(), r.DB, payload.Email)
 	if err != nil {
-		c.HTML(http.StatusOK, "error.html", gin.H{"error": err.Error()})
+		c.HTML(http.StatusOK, "error.html", gin.H{"error": "invalid email or password"})
 		return
 	}
 
 	if !auth.CheckPasswordHash(payload.Password, user.HashedPassword) {
-		c.HTML(http.StatusOK, "error.html", gin.H{"error": "invalid password"})
+		c.HTML(http.StatusOK, "error.html", gin.H{"error": "invalid email or password"})
 		return
 	}
 
-	token, err := auth.GenerateJWT(payload.Email)
+	err = setCookieAuth(c, payload.Email)
 	if err != nil {
 		c.HTML(http.StatusOK, "error.html", gin.H{"error": err.Error()})
 		return
 	}
 
-	auth.SetAuthCookie(c, token)
 	c.HTML(http.StatusOK, "index.html", gin.H{"User": user.Email})
 }
 
@@ -86,4 +85,14 @@ func (_ *RegistrationController) Signout(c *gin.Context) {
 	}
 
 	c.HTML(http.StatusOK, "index.html", gin.H{})
+}
+
+func setCookieAuth(c *gin.Context, email string) error {
+	token, err := auth.GenerateJWT(email)
+	if err != nil {
+		return fmt.Errorf("unable to generate JWT: %w", err)
+	}
+
+	auth.SetAuthCookie(c, token)
+	return nil
 }
