@@ -55,7 +55,9 @@ func (d *DashboardController) LiveDemo(c *gin.Context) {
 func (d *DashboardController) Dashboard(c *gin.Context) {
 	user := auth.GetUserEmail(c)
 	if user == "" {
-		c.HTML(http.StatusOK, "error.html", gin.H{"error": "401: Unauthorized"})
+		// This should never happen since there's an authwall at router-level;
+		// but since it's logically possible, we handle it.
+		c.HTML(http.StatusUnauthorized, "error.html", gin.H{"error": "401: Unauthorized"})
 		return
 	}
 
