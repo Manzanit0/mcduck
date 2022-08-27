@@ -28,7 +28,17 @@
         </tbody>
       </table>
       {{ else }}
-      <div>You don't have any expenses, would you like to upload some?</div>
+      <div>
+        <p>
+          You can keep track of your personal finances and analyse trends to
+          gather insights through the <a href="/dashboard">Dashboard</a>.
+        </p>
+        <p>
+          In this page you can manage and browse the individual transactions.
+          You don't seem to have any expenses saved, would you like to upload
+          some?
+        </p>
+      </div>
       <div>{{ template "_upload_expenses_form" }}</div>
       {{ end }}
     </div>
