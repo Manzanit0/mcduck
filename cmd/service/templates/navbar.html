@@ -3,21 +3,29 @@
   <nav>
     <ul>
       {{ if .User }}
-      <li><a href="/dashboard">Dashboard</a></li>
-      <li><a href="/expenses">Expenses</a></li>
-      <li style="float: right; padding-right: 8px">
+      <li style="padding-right: 15px">
+        <a href="/dashboard">Dashboard</a>
+      </li>
+      <li style="padding-right: 15px">
+        <a href="/expenses">Expenses</a>
+      </li>
+      <li style="float: right; padding-right: 20px">
         <a href="/signout">Sign out</a>
       </li>
-      <li style="float: right; padding-right: 15px">
+      <li style="float: right; padding-right: 20px">
         <div>Hello {{ .User }}!</div>
       </li>
       {{else}}
-      <li><a href="/">Home</a></li>
-      <li><a href="/live_demo">Live Demo</a></li>
-      <li style="float: right; padding-right: 8px">
+      <li style="padding-right: 15px">
+        <a href="/">Home</a>
+      </li>
+      <li style="padding-right: 15px">
+        <a href="/live_demo">Live Demo</a>
+      </li>
+      <li style="float: right; padding-right: 20px">
         <a href="/register">Signup</a>
       </li>
-      <li style="float: right; padding-right: 8px">
+      <li style="float: right; padding-right: 20px">
         <a href="/login">Login</a>
       </li>
       {{end}}
