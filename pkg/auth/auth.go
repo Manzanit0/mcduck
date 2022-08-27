@@ -1,8 +1,10 @@
 package auth
 
 import (
+	"log"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v4"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -49,4 +51,37 @@ func ValidateJWT(tokenString string) (string, bool) {
 	}
 
 	return "", false
+}
+
+const authCookieName string = "_mcduck_key"
+const userContextKey string = "user.email"
+
+func CookieMiddleware(c *gin.Context) {
+	token, err := c.Cookie(authCookieName)
+	if err != nil {
+		c.Next()
+		return
+	}
+
+	email, isValid := ValidateJWT(token)
+	if !isValid {
+		c.Next()
+		return
+	}
+
+	log.Printf("user %s logged in\n", email)
+	c.Set(userContextKey, email)
+	c.Next()
+}
+
+func GetUserEmail(c *gin.Context) string {
+	return c.GetString(userContextKey)
+}
+
+func SetAuthCookie(c *gin.Context, token string) {
+	c.SetCookie(authCookieName, token, 3600, "", "", false, true)
+}
+
+func RemoveAuthCookie(c *gin.Context) {
+	c.SetCookie(authCookieName, "", -1, "", "", false, true)
 }
