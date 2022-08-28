@@ -21,6 +21,7 @@ type Expense struct {
 	Amount      float32
 	Category    string
 	Subcategory string
+	UserEmail   string
 }
 
 // dbExpense is the representation of an expense in the database. For instance,
@@ -32,6 +33,7 @@ type dbExpense struct {
 	Amount      int32     `db:"amount"`
 	Category    string    `db:"category"`
 	Subcategory string    `db:"sub_category"`
+	UserEmail   string    `db:"user_email"`
 }
 
 func (e Expense) MonthYear() string {
@@ -170,6 +172,29 @@ func CreateExpenses(ctx context.Context, db *sqlx.DB, e ExpensesBatch) error {
 	return nil
 }
 
+func FindExpense(ctx context.Context, db *sqlx.DB, id int64) (*Expense, error) {
+	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
+
+	builder := psql.
+		Select("id, expense_Date, amount, category, sub_category, user_email").
+		From("expenses").
+		Where(sq.Eq{"id": id})
+
+	query, args, err := builder.ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("unable to build query: %w", err)
+	}
+
+	var out dbExpense
+	err = db.GetContext(ctx, &out, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("unable to execute query: %w", err)
+	}
+
+	expense := toDomainExpense(out)
+	return &expense, nil
+}
+
 type UpdateExpenseRequest struct {
 	ID          int64
 	Date        *time.Time
@@ -231,13 +256,7 @@ func ListExpenses(ctx context.Context, db *sqlx.DB, email string) ([]Expense, er
 
 	var expensesList []Expense
 	for _, expense := range expenses {
-		expensesList = append(expensesList, Expense{
-			ID:          expense.ID,
-			Date:        expense.Date,
-			Category:    expense.Category,
-			Subcategory: expense.Subcategory,
-			Amount:      ConvertToDollar(expense.Amount),
-		})
+		expensesList = append(expensesList, toDomainExpense(expense))
 	}
 
 	return expensesList, nil
@@ -253,4 +272,15 @@ func ConvertToDollar(cents int32) float32 {
 	}
 
 	return float32(cents) / 100
+}
+
+func toDomainExpense(expense dbExpense) Expense {
+	return Expense{
+		ID:          expense.ID,
+		Date:        expense.Date,
+		Category:    expense.Category,
+		Subcategory: expense.Subcategory,
+		Amount:      ConvertToDollar(expense.Amount),
+		UserEmail:   expense.UserEmail,
+	}
 }

@@ -50,11 +50,13 @@ func main() {
 		}
 	}()
 
+	dbx := sqlx.NewDb(db, "postgres")
+
 	r.GET("/", api.LandingPage)
 
 	r.Use(auth.CookieMiddleware)
 
-	controller := api.RegistrationController{DB: sqlx.NewDb(db, "postgres")}
+	controller := api.RegistrationController{DB: dbx}
 	r.GET("/register", controller.GetRegisterForm)
 	r.POST("/register", controller.RegisterUser)
 	r.GET("/login", controller.GetLoginForm)
@@ -66,14 +68,14 @@ func main() {
 		log.Fatal(err)
 	}
 
-	dashController := api.DashboardController{DB: sqlx.NewDb(db, "postgres"), SampleData: data}
+	dashController := api.DashboardController{DB: dbx, SampleData: data}
 	r.GET("/live_demo", dashController.LiveDemo)
 	r.POST("/upload", dashController.UploadExpenses)
 	r.GET("/dashboard", api.AuthWall(dashController.Dashboard))
 
-	expensesController := api.ExpensesController{DB: sqlx.NewDb(db, "postgres")}
+	expensesController := api.ExpensesController{DB: dbx}
 	r.GET("/expenses", api.AuthWall(expensesController.ListExpenses))
-	r.PATCH("/expenses/:id", api.AuthWall(expensesController.UpdateExpense))
+	r.PATCH("/expenses/:id", api.ExpenseOwnershipWall(dbx, api.AuthWall(expensesController.UpdateExpense)))
 
 	var port string
 	if port = os.Getenv("PORT"); port == "" {
