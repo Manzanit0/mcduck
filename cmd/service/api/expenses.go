@@ -55,10 +55,10 @@ func (d *ExpensesController) ListExpenses(c *gin.Context) {
 }
 
 type UpdateExpense struct {
-	Date        string  `json:"date,omitempty"`
-	Amount      float32 `json:"amount,omitempty,string"`
-	Category    string  `json:"category,omitempty"`
-	Subcategory string  `json:"subcategory,omitempty"`
+	Date        *string  `json:"date"`
+	Amount      *float32 `json:"amount,string"`
+	Category    *string  `json:"category"`
+	Subcategory *string  `json:"subcategory"`
 }
 
 func (d *ExpensesController) UpdateExpense(c *gin.Context) {
@@ -78,16 +78,17 @@ func (d *ExpensesController) UpdateExpense(c *gin.Context) {
 		return
 	}
 
-	var date time.Time
-	if payload.Date != "" {
-		date, err = time.Parse("2006-01-02", payload.Date)
+	var date *time.Time
+	if payload.Date != nil {
+		d, err := time.Parse("2006-01-02", *payload.Date)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("unable to parse date: %s", err.Error())})
 			return
 		}
+		date = &d
 	}
 
-	err = expense.UpdateExpense(c.Request.Context(), d.DB, expense.Expense{
+	err = expense.UpdateExpense(c.Request.Context(), d.DB, expense.UpdateExpenseRequest{
 		ID:          i,
 		Date:        date,
 		Amount:      payload.Amount,

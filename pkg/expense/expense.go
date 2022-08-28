@@ -170,25 +170,43 @@ func CreateExpenses(ctx context.Context, db *sqlx.DB, e ExpensesBatch) error {
 	return nil
 }
 
-func UpdateExpense(ctx context.Context, db *sqlx.DB, e Expense) error {
+type UpdateExpenseRequest struct {
+	ID          int64
+	Date        *time.Time
+	Amount      *float32
+	Category    *string
+	Subcategory *string
+}
+
+func UpdateExpense(ctx context.Context, db *sqlx.DB, e UpdateExpenseRequest) error {
+	var shouldUpdate bool
+
 	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
 
 	builder := psql.Update("expenses").Where(sq.Eq{"id": e.ID})
 
-	if e.Amount != 0 {
-		builder = builder.Set("amount", ConvertToCents(e.Amount))
+	if e.Amount != nil {
+		builder = builder.Set("amount", ConvertToCents(*e.Amount))
+		shouldUpdate = true
 	}
 
-	if e.Category != "" {
-		builder = builder.Set("category", e.Category)
+	if e.Category != nil {
+		builder = builder.Set("category", *e.Category)
+		shouldUpdate = true
 	}
 
-	if e.Subcategory != "" {
-		builder = builder.Set("sub_category", e.Subcategory)
+	if e.Subcategory != nil {
+		builder = builder.Set("sub_category", *e.Subcategory)
+		shouldUpdate = true
 	}
 
-	if !e.Date.IsZero() {
-		builder = builder.Set("expense_date", e.Date)
+	if e.Date != nil {
+		builder = builder.Set("expense_date", *e.Date)
+		shouldUpdate = true
+	}
+
+	if !shouldUpdate {
+		return nil
 	}
 
 	query, args, err := builder.ToSql()
