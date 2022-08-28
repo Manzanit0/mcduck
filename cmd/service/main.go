@@ -73,6 +73,7 @@ func main() {
 
 	expensesController := api.ExpensesController{DB: sqlx.NewDb(db, "postgres")}
 	r.GET("/expenses", api.AuthWall(expensesController.ListExpenses))
+	r.PATCH("/expenses/:id", api.AuthWall(expensesController.UpdateExpense))
 
 	var port string
 	if port = os.Getenv("PORT"); port == "" {

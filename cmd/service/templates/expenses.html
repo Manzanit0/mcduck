@@ -23,10 +23,43 @@
           <tbody>
             {{range $e := .Expenses}}
             <tr>
-              <td>{{$e.Date}}</td>
-              <td>{{$e.Amount}}</td>
-              <td>{{$e.Category}}</td>
-              <td>{{$e.Subcategory}}</td>
+              <td>
+                <input
+                  style="border: 0; outline: 0"
+                  type="date"
+                  name="date"
+                  id="date-{{$e.Date}}"
+                  value="{{$e.Date}}"
+                />
+              </td>
+              <td>
+                <input
+                  style="border: 0; outline: 0"
+                  type="number"
+                  name="amount"
+                  id="amount-{{$e.ID}}"
+                  value="{{$e.Amount}}"
+                  min="0"
+                />
+              </td>
+              <td>
+                <input
+                  style="border: 0; outline: 0"
+                  type="text"
+                  name="category"
+                  id="category-{{$e.ID}}"
+                  value="{{$e.Category}}"
+                />
+              </td>
+              <td>
+                <input
+                  style="border: 0; outline: 0"
+                  type="text"
+                  name="subcategory"
+                  id="subcategory-{{$e.ID}}"
+                  value="{{$e.Subcategory}}"
+                />
+              </td>
             </tr>
             {{end}}
           </tbody>
@@ -47,5 +80,32 @@
       <div>{{ template "_upload_expenses_form" }}</div>
       {{ end }}
     </div>
+    <script>
+      const inputs = document.querySelectorAll("input");
+      inputs.forEach((input) => {
+        input.addEventListener("change", (event) => {
+          const [expenseField, expenseId] = input.id.split("-");
+
+          const req = new Request(`/expenses/${expenseId}`, {
+            method: "PATCH",
+            headers: {
+              Accept: "application/json",
+            },
+            body: JSON.stringify({ [expenseField]: event.target.value }),
+          });
+
+          fetch(req)
+            .then((response) => {
+              if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+              }
+              return response.blob();
+            })
+            .then((response) => {
+              console.log(response);
+            });
+        });
+      });
+    </script>
   </body>
 </html>

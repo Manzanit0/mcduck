@@ -16,6 +16,7 @@ import (
 )
 
 type Expense struct {
+	ID          int64
 	Date        time.Time
 	Amount      float32
 	Category    string
@@ -169,9 +170,43 @@ func CreateExpenses(ctx context.Context, db *sqlx.DB, e ExpensesBatch) error {
 	return nil
 }
 
+func UpdateExpense(ctx context.Context, db *sqlx.DB, e Expense) error {
+	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
+
+	builder := psql.Update("expenses").Where(sq.Eq{"id": e.ID})
+
+	if e.Amount != 0 {
+		builder = builder.Set("amount", ConvertToCents(e.Amount))
+	}
+
+	if e.Category != "" {
+		builder = builder.Set("category", e.Category)
+	}
+
+	if e.Subcategory != "" {
+		builder = builder.Set("sub_category", e.Subcategory)
+	}
+
+	if !e.Date.IsZero() {
+		builder = builder.Set("expense_date", e.Date)
+	}
+
+	query, args, err := builder.ToSql()
+	if err != nil {
+		return fmt.Errorf("unable to build query: %w", err)
+	}
+
+	_, err = db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("unable to execute query: %w", err)
+	}
+
+	return nil
+}
+
 func ListExpenses(ctx context.Context, db *sqlx.DB, email string) ([]Expense, error) {
 	var expenses []dbExpense
-	err := db.SelectContext(ctx, &expenses, `SELECT id, amount, expense_date, category, sub_category FROM expenses WHERE user_email = $1`, email)
+	err := db.SelectContext(ctx, &expenses, `SELECT id, amount, expense_date, category, sub_category FROM expenses WHERE user_email = $1 ORDER BY expense_date desc`, email)
 	if err != nil {
 		return nil, fmt.Errorf("unable to execute query: %w", err)
 	}
@@ -179,6 +214,7 @@ func ListExpenses(ctx context.Context, db *sqlx.DB, email string) ([]Expense, er
 	var expensesList []Expense
 	for _, expense := range expenses {
 		expensesList = append(expensesList, Expense{
+			ID:          expense.ID,
 			Date:        expense.Date,
 			Category:    expense.Category,
 			Subcategory: expense.Subcategory,
