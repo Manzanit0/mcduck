@@ -84,6 +84,18 @@
     <script>
       const inputs = document.querySelectorAll("input");
       inputs.forEach((input) => {
+        input.addEventListener("focus", (event) => {
+          if (!input.parentElement.classList.contains("cell--selected")) {
+            input.parentElement.classList.add("cell--selected");
+          }
+        });
+
+        input.addEventListener("focusout", (event) => {
+          if (input.parentElement.classList.contains("cell--selected")) {
+            input.parentElement.classList.remove("cell--selected");
+          }
+        });
+
         input.addEventListener("change", (event) => {
           const [expenseField, expenseId] = input.id.split("-");
 
