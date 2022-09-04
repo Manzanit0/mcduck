@@ -95,17 +95,17 @@
         if (!response.ok) {
           throw new Error(`HTTP error! Status: ${response.status}`);
         }
-        return response.blob();
+        return response;
       };
 
       const doRequest = (req) =>
         fetch(req)
           .then(throwOnError)
-          .then((res) => res.JSON());
+          .then((res) => res.json());
 
       const updateExpense = (id, expenseField, value) =>
         doRequest(
-          new Request(`/expenses/${expenseId}`, {
+          new Request(`/expenses/${id}`, {
             method: "PATCH",
             headers: { Accept: "application/json" },
             body: JSON.stringify({ [expenseField]: value }),
@@ -147,12 +147,23 @@
         });
 
         input.addEventListener("change", (event) => {
-          const [expenseField, expenseId] = input.id.split("-");
+          const [expenseField, expenseId, ts] = input.id.split("-");
           if (expenseId === "new") {
-            // TODO: here we would need to fetch all the values from the
-            // different inputs, build an expense and send it to the API.  then
-            // from the API's response, update the IDs of the inputs.
-            console.log("ignoring field because expense doesn't exist.");
+            const amount = document.getElementById(`amount-new-${ts}`).value;
+            const date = document.getElementById(`date-new-${ts}`).value;
+            if (date && amount) {
+              createExpense(date, amount).then(({ id: id }) => {
+                // Update the row to contain the ID of the newly created expense.
+                document.getElementById(`date-new-${ts}`).id = `date-${id}`;
+                document.getElementById(`amount-new-${ts}`).id = `amount-${id}`;
+                document.getElementById(
+                  `category-new-${ts}`
+                ).id = `category-${id}`;
+                document.getElementById(
+                  `subcategory-new-${ts}`
+                ).id = `subcategory-${id}`;
+              });
+            }
           } else {
             updateExpense(expenseId, expenseField, event.target.value);
           }

@@ -31,8 +31,8 @@ type dbExpense struct {
 	ID          int64     `db:"id"`
 	Date        time.Time `db:"expense_date"`
 	Amount      int32     `db:"amount"`
-	Category    string    `db:"category"`
-	Subcategory string    `db:"sub_category"`
+	Category    *string   `db:"category"`
+	Subcategory *string   `db:"sub_category"`
 	UserEmail   string    `db:"user_email"`
 }
 
@@ -259,19 +259,24 @@ func CreateExpense(ctx context.Context, db *sqlx.DB, e CreateExpenseRequest) (in
 	builder := psql.
 		Insert("expenses").
 		Columns("user_email", "amount, expense_date").
-		Values(e.UserEmail, ConvertToCents(e.Amount), e.Date)
+		Values(e.UserEmail, ConvertToCents(e.Amount), e.Date).
+		Suffix("RETURNING \"id\"")
 
 	query, args, err := builder.ToSql()
 	if err != nil {
 		return 0, fmt.Errorf("unable to build query: %w", err)
 	}
 
-	result, err := db.ExecContext(ctx, query, args...)
+	record := struct {
+		ID int64 `db:"id"`
+	}{}
+
+	err = db.GetContext(ctx, &record, query, args...)
 	if err != nil {
 		return 0, fmt.Errorf("unable to execute query: %w", err)
 	}
 
-	return result.LastInsertId()
+	return record.ID, nil
 }
 
 func ListExpenses(ctx context.Context, db *sqlx.DB, email string) ([]Expense, error) {
@@ -302,12 +307,20 @@ func ConvertToDollar(cents int32) float32 {
 }
 
 func toDomainExpense(expense dbExpense) Expense {
-	return Expense{
-		ID:          expense.ID,
-		Date:        expense.Date,
-		Category:    expense.Category,
-		Subcategory: expense.Subcategory,
-		Amount:      ConvertToDollar(expense.Amount),
-		UserEmail:   expense.UserEmail,
+	e := Expense{
+		ID:        expense.ID,
+		Date:      expense.Date,
+		Amount:    ConvertToDollar(expense.Amount),
+		UserEmail: expense.UserEmail,
 	}
+
+	if expense.Category != nil {
+		e.Category = *expense.Category
+	}
+
+	if expense.Subcategory != nil {
+		e.Category = *expense.Subcategory
+	}
+
+	return e
 }
