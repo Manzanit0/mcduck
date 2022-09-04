@@ -12,8 +12,17 @@
         {{ template "_upload_expenses_form" }}
       </div>
       <div>
-        <table>
-          <thead>
+        <div>
+          <button
+            id="add-expense-button"
+            style="margin-bottom: 10px; width: 15%"
+            class="btn btn-default f-right"
+          >
+            Add Expense
+          </button>
+        </div>
+        <table id="expenses-table">
+          <thead id="expenses-table-head">
             <tr>
               <th colspan="1">Date</th>
               <th colspan="1">Amount</th>
@@ -21,7 +30,7 @@
               <th colspan="1">SubCategory</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody id="expenses-table-body">
             {{range $e := .Expenses}}
             <tr>
               <td>
@@ -82,11 +91,35 @@
       {{ end }}
     </div>
     <script>
-      const inputs = document.querySelectorAll("input");
-      inputs.forEach((input) => {
+      const updateExpense = (id, expenseField, value) => {
+        const req = new Request(`/expenses/${expenseId}`, {
+          method: "PATCH",
+          headers: {
+            Accept: "application/json",
+          },
+          body: JSON.stringify({ [expenseField]: value }),
+        });
+
+        fetch(req)
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            return response.blob();
+          })
+          .then((response) => {
+            console.log(response);
+          });
+      };
+
+      const addListenersToTableCell = (input) => {
         input.addEventListener("focus", (event) => {
           if (!input.parentElement.classList.contains("cell--selected")) {
             input.parentElement.classList.add("cell--selected");
+          }
+
+          if (input.parentElement.classList.contains("cell--pending")) {
+            input.parentElement.classList.remove("cell--pending");
           }
         });
 
@@ -94,31 +127,106 @@
           if (input.parentElement.classList.contains("cell--selected")) {
             input.parentElement.classList.remove("cell--selected");
           }
+
+          const inputIsRequiredAndEmpty =
+            (input.value === null || input.value === "") &&
+            (input.id.includes("date") || input.id.includes("amount"));
+
+          if (inputIsRequiredAndEmpty) {
+            input.parentElement.classList.add("cell--pending");
+          }
         });
 
         input.addEventListener("change", (event) => {
           const [expenseField, expenseId] = input.id.split("-");
-
-          const req = new Request(`/expenses/${expenseId}`, {
-            method: "PATCH",
-            headers: {
-              Accept: "application/json",
-            },
-            body: JSON.stringify({ [expenseField]: event.target.value }),
-          });
-
-          fetch(req)
-            .then((response) => {
-              if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
-              }
-              return response.blob();
-            })
-            .then((response) => {
-              console.log(response);
-            });
+          if (expenseId === "new") {
+            // TODO: here we would need to fetch all the values from the
+            // different inputs, build an expense and send it to the API.  then
+            // from the API's response, update the IDs of the inputs.
+            console.log("ignoring field because expense doesn't exist.");
+          } else {
+            updateExpense(expenseId, expenseField, event.target.value);
+          }
         });
-      });
+      };
+
+      // FIXME: this should just be row inputs.
+      const addListenersToTable = () =>
+        document.querySelectorAll("input").forEach(addListenersToTableCell);
+
+      const addTableRow = () => {
+        // NOTE: Programatically speaking, this is broken... but it's good
+        // enough as long as humans use the UI.
+        //
+        // The reason is that if you click the button within less than a
+        // millisecond, two rows with the same ID will be created.
+        const timestamp = Date.now();
+        const rowHTML = `
+              <td class="cell--pending">
+                <input
+                  style="border: 0; outline: 0"
+                  type="date"
+                  name="date"
+                  id="date-new-${timestamp}"
+                />
+              </td>
+              <td class="cell--pending">
+                <input
+                  style="border: 0; outline: 0"
+                  type="number"
+                  name="amount"
+                  id="amount-new-${timestamp}"
+                  min="0"
+                  placeholder="42,00"
+                />
+              </td>
+              <td>
+                <input
+                  style="border: 0; outline: 0"
+                  type="text"
+                  name="category"
+                  id="category-new-${timestamp}"
+                  placeholder="Expense category..."
+                />
+              </td>
+              <td>
+                <input
+                  style="border: 0; outline: 0"
+                  type="text"
+                  name="subcategory"
+                  id="subcategory-new-${timestamp}"
+                  placeholder="Expense subcategory..."
+                />
+              </td>
+        `;
+        const rowNode = document.createElement("tr");
+        rowNode.innerHTML = rowHTML;
+
+        const table = document.getElementById("expenses-table-body");
+        table.prepend(rowNode);
+
+        addListenersToTableCell(
+          document.getElementById(`date-new-${timestamp}`)
+        );
+        addListenersToTableCell(
+          document.getElementById(`amount-new-${timestamp}`)
+        );
+        addListenersToTableCell(
+          document.getElementById(`category-new-${timestamp}`)
+        );
+        addListenersToTableCell(
+          document.getElementById(`subcategory-new-${timestamp}`)
+        );
+      };
+
+      const addListenersToButtons = () =>
+        document
+          .getElementById("add-expense-button")
+          .addEventListener("click", addTableRow);
+
+      addListenersToTable();
+
+      addListenersToButtons();
     </script>
   </body>
 </html>

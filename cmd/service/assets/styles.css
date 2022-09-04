@@ -66,3 +66,7 @@
 .cell--selected {
   border: 3px solid #1a95e0 !important;
 }
+
+.cell--pending {
+  border: 3px solid #d20962 !important;
+}
