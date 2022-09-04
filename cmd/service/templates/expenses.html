@@ -91,26 +91,39 @@
       {{ end }}
     </div>
     <script>
-      const updateExpense = (id, expenseField, value) => {
-        const req = new Request(`/expenses/${expenseId}`, {
-          method: "PATCH",
-          headers: {
-            Accept: "application/json",
-          },
-          body: JSON.stringify({ [expenseField]: value }),
-        });
-
-        fetch(req)
-          .then((response) => {
-            if (!response.ok) {
-              throw new Error(`HTTP error! Status: ${response.status}`);
-            }
-            return response.blob();
-          })
-          .then((response) => {
-            console.log(response);
-          });
+      const throwOnError = (response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        return response.blob();
       };
+
+      const doRequest = (req) =>
+        fetch(req)
+          .then(throwOnError)
+          .then((res) => res.JSON());
+
+      const updateExpense = (id, expenseField, value) =>
+        doRequest(
+          new Request(`/expenses/${expenseId}`, {
+            method: "PATCH",
+            headers: {
+              Accept: "application/json",
+            },
+            body: JSON.stringify({ [expenseField]: value }),
+          })
+        );
+
+      const createExpense = (date, amount) =>
+        doRequest(
+          new Request(`/expenses`, {
+            method: "PUT",
+            headers: {
+              Accept: "application/json",
+            },
+            body: JSON.stringify({ date: date, amount: amount }),
+          })
+        );
 
       const addListenersToTableCell = (input) => {
         input.addEventListener("focus", (event) => {
