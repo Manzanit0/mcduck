@@ -75,6 +75,7 @@ func main() {
 
 	expensesController := api.ExpensesController{DB: dbx}
 	r.GET("/expenses", api.AuthWall(expensesController.ListExpenses))
+	r.PUT("/expenses", api.AuthWall(expensesController.CreateExpense))
 	r.PATCH("/expenses/:id", api.ExpenseOwnershipWall(dbx, api.AuthWall(expensesController.UpdateExpense)))
 
 	var port string

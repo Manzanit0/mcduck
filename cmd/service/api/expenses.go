@@ -62,8 +62,6 @@ type UpdateExpense struct {
 }
 
 func (d *ExpensesController) UpdateExpense(c *gin.Context) {
-	// TODO: add authorization; any users should not be able to modify any expense
-
 	payload := UpdateExpense{}
 	err := c.ShouldBindJSON(&payload)
 	if err != nil {
@@ -97,11 +95,48 @@ func (d *ExpensesController) UpdateExpense(c *gin.Context) {
 	})
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("unable to update expense: %s", err.Error())})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable to update expense: %s", err.Error())})
 		return
 	}
 
 	c.JSON(http.StatusAccepted, "")
+}
+
+type CreateExpensePayload struct {
+	Date   string  `json:"date"`
+	Amount float32 `json:"amount,string"`
+}
+
+type CreateExpenseResponse struct {
+	ID int64 `json:"id"`
+}
+
+func (d *ExpensesController) CreateExpense(c *gin.Context) {
+	payload := CreateExpensePayload{}
+	err := c.ShouldBindJSON(&payload)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("unable to parse request body: %s", err.Error())})
+		return
+	}
+
+	date, err := time.Parse("2006-01-02", payload.Date)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("unable to parse date: %s", err.Error())})
+		return
+	}
+
+	expenseID, err := expense.CreateExpense(c.Request.Context(), d.DB, expense.CreateExpenseRequest{
+		UserEmail: auth.GetUserEmail(c),
+		Date:      date,
+		Amount:    payload.Amount,
+	})
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable to create expense: %s", err.Error())})
+		return
+	}
+
+	c.JSON(http.StatusCreated, CreateExpenseResponse{ID: expenseID})
 }
 
 // ExpenseOwnershipWall validates that the expense ID in the URL parameter

@@ -247,6 +247,33 @@ func UpdateExpense(ctx context.Context, db *sqlx.DB, e UpdateExpenseRequest) err
 	return nil
 }
 
+type CreateExpenseRequest struct {
+	UserEmail string
+	Date      time.Time
+	Amount    float32
+}
+
+func CreateExpense(ctx context.Context, db *sqlx.DB, e CreateExpenseRequest) (int64, error) {
+	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
+
+	builder := psql.
+		Insert("expenses").
+		Columns("user_email", "amount, expense_date").
+		Values(e.UserEmail, ConvertToCents(e.Amount), e.Date)
+
+	query, args, err := builder.ToSql()
+	if err != nil {
+		return 0, fmt.Errorf("unable to build query: %w", err)
+	}
+
+	result, err := db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return 0, fmt.Errorf("unable to execute query: %w", err)
+	}
+
+	return result.LastInsertId()
+}
+
 func ListExpenses(ctx context.Context, db *sqlx.DB, email string) ([]Expense, error) {
 	var expenses []dbExpense
 	err := db.SelectContext(ctx, &expenses, `SELECT id, amount, expense_date, category, sub_category FROM expenses WHERE user_email = $1 ORDER BY expense_date desc`, email)
