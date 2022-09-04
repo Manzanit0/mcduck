@@ -107,20 +107,16 @@
         doRequest(
           new Request(`/expenses/${expenseId}`, {
             method: "PATCH",
-            headers: {
-              Accept: "application/json",
-            },
+            headers: { Accept: "application/json" },
             body: JSON.stringify({ [expenseField]: value }),
           })
         );
 
       const createExpense = (date, amount) =>
         doRequest(
-          new Request(`/expenses`, {
+          new Request("/expenses", {
             method: "PUT",
-            headers: {
-              Accept: "application/json",
-            },
+            headers: { Accept: "application/json" },
             body: JSON.stringify({ date: date, amount: amount }),
           })
         );
