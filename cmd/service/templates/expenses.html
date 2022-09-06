@@ -28,6 +28,7 @@
               <th colspan="1">Amount</th>
               <th colspan="1">Category</th>
               <th colspan="1">SubCategory</th>
+              <th></th>
             </tr>
           </thead>
           <tbody id="expenses-table-body">
@@ -71,6 +72,31 @@
                   value="{{$e.Subcategory}}"
                 />
               </td>
+              <td>
+                <div style="max-width: 25px; max-height: 25px">
+                  <a
+                    style="display: block"
+                    id="delete-expense-{{$e.ID}}"
+                    href="#"
+                  >
+                    <!-- Rubbish bin SVG-->
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke-width="1.5"
+                      stroke="currentColor"
+                      class="w-6 h-6"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"
+                      />
+                    </svg>
+                  </a>
+                </div>
+              </td>
             </tr>
             {{end}}
           </tbody>
@@ -99,10 +125,7 @@
         return response;
       };
 
-      const doRequest = (req) =>
-        fetch(req)
-          .then(throwOnError)
-          .then((res) => res.json());
+      const doRequest = (req) => fetch(req).then(throwOnError);
 
       const updateExpense = (id, expenseField, value) =>
         doRequest(
@@ -121,6 +144,16 @@
             body: JSON.stringify({ date: date, amount: amount }),
           })
         );
+
+      const deleteExpense = (id) =>
+        doRequest(new Request(`/expenses/${id}`, { method: "DELETE" }));
+
+      const addListenerToDeleteLink = (link) => {
+        link.addEventListener("click", () => {
+          const expenseId = link.id.split("-")[2];
+          deleteExpense(expenseId).then(() => window.location.reload());
+        });
+      };
 
       const addListenersToTableCell = (input) => {
         input.addEventListener("focus", (event) => {
@@ -153,17 +186,21 @@
             const amount = document.getElementById(`amount-new-${ts}`).value;
             const date = document.getElementById(`date-new-${ts}`).value;
             if (date && amount) {
-              createExpense(date, amount).then(({ id: id }) => {
-                // Update the row to contain the ID of the newly created expense.
-                document.getElementById(`date-new-${ts}`).id = `date-${id}`;
-                document.getElementById(`amount-new-${ts}`).id = `amount-${id}`;
-                document.getElementById(
-                  `category-new-${ts}`
-                ).id = `category-${id}`;
-                document.getElementById(
-                  `subcategory-new-${ts}`
-                ).id = `subcategory-${id}`;
-              });
+              createExpense(date, amount)
+                .then((res) => res.json())
+                .then(({ id: id }) => {
+                  // Update the row to contain the ID of the newly created expense.
+                  document.getElementById(`date-new-${ts}`).id = `date-${id}`;
+                  document.getElementById(
+                    `amount-new-${ts}`
+                  ).id = `amount-${id}`;
+                  document.getElementById(
+                    `category-new-${ts}`
+                  ).id = `category-${id}`;
+                  document.getElementById(
+                    `subcategory-new-${ts}`
+                  ).id = `subcategory-${id}`;
+                });
             }
           } else {
             updateExpense(expenseId, expenseField, event.target.value);
@@ -174,6 +211,11 @@
       // FIXME: this should just be row inputs.
       const addListenersToTable = () =>
         document.querySelectorAll("input").forEach(addListenersToTableCell);
+
+      const addListenersToDeleteLinks = () =>
+        document
+          .querySelectorAll('[id*="delete-expense"]')
+          .forEach(addListenerToDeleteLink);
 
       const addTableRow = () => {
         // NOTE: Programatically speaking, this is broken... but it's good
@@ -244,8 +286,8 @@
           .addEventListener("click", addTableRow);
 
       addListenersToTable();
-
       addListenersToButtons();
+      addListenersToDeleteLinks();
     </script>
   </body>
 </html>

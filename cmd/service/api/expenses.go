@@ -139,6 +139,23 @@ func (d *ExpensesController) CreateExpense(c *gin.Context) {
 	c.JSON(http.StatusCreated, CreateExpenseResponse{ID: expenseID})
 }
 
+func (d *ExpensesController) DeleteExpense(c *gin.Context) {
+	id := c.Param("id")
+	i, err := strconv.ParseInt(id, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("unable to parse expense id: %s", err.Error())})
+		return
+	}
+
+	err = expense.DeleteExpense(c.Request.Context(), d.DB, i)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable to create expense: %s", err.Error())})
+		return
+	}
+
+	c.JSON(http.StatusNoContent, "")
+}
+
 // ExpenseOwnershipWall validates that the expense ID in the URL parameter
 // belongs to the requesting user, otherwise abouts with Unauthorised status.
 func ExpenseOwnershipWall(db *sqlx.DB, controller gin.HandlerFunc) gin.HandlerFunc {

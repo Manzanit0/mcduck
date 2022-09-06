@@ -77,6 +77,7 @@ func main() {
 	r.GET("/expenses", api.AuthWall(expensesController.ListExpenses))
 	r.PUT("/expenses", api.AuthWall(expensesController.CreateExpense))
 	r.PATCH("/expenses/:id", api.ExpenseOwnershipWall(dbx, api.AuthWall(expensesController.UpdateExpense)))
+	r.DELETE("/expenses/:id", api.ExpenseOwnershipWall(dbx, api.AuthWall(expensesController.DeleteExpense)))
 
 	var port string
 	if port = os.Getenv("PORT"); port == "" {

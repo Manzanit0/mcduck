@@ -279,6 +279,22 @@ func CreateExpense(ctx context.Context, db *sqlx.DB, e CreateExpenseRequest) (in
 	return record.ID, nil
 }
 
+func DeleteExpense(ctx context.Context, db *sqlx.DB, id int64) error {
+	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
+
+	query, args, err := psql.Delete("expenses").Where(sq.Eq{"id": id}).ToSql()
+	if err != nil {
+		return fmt.Errorf("unable to build query: %w", err)
+	}
+
+	_, err = db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("unable to execute query: %w", err)
+	}
+
+	return nil
+}
+
 func ListExpenses(ctx context.Context, db *sqlx.DB, email string) ([]Expense, error) {
 	var expenses []dbExpense
 	err := db.SelectContext(ctx, &expenses, `SELECT id, amount, expense_date, category, sub_category FROM expenses WHERE user_email = $1 ORDER BY expense_date desc`, email)
