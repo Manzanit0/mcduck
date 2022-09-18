@@ -38,15 +38,11 @@ func main() {
 	r.SetHTMLTemplate(t)
 	r.StaticFS("/public", http.FS(assets))
 
-	db, err := sql.Open("pgx", fmt.Sprintf("postgresql://%s:%s@%s:%s/%s", os.Getenv("PGUSER"), os.Getenv("PGPASSWORD"), os.Getenv("PGHOST"), os.Getenv("PGPORT"), os.Getenv("PGDATABASE")))
-	if err != nil {
-		log.Fatalf("unable to open db conn: %s", err.Error())
-	}
-
+	db := MustOpenDB()
 	defer func() {
 		err = db.Close()
 		if err != nil {
-			log.Printf("error closing db connection: %s\n", err.Error())
+			log.Printf("closing postgres connection: %s\n", err.Error())
 		}
 	}()
 
@@ -65,7 +61,7 @@ func main() {
 
 	data, err := readSampleData()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("read sample data: %s", err.Error())
 	}
 
 	dashController := api.DashboardController{DB: dbx, SampleData: data}
@@ -87,6 +83,15 @@ func main() {
 	if err := r.Run(fmt.Sprintf(":%s", port)); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func MustOpenDB() *sql.DB {
+	db, err := sql.Open("pgx", fmt.Sprintf("postgresql://%s:%s@%s:%s/%s", os.Getenv("PGUSER"), os.Getenv("PGPASSWORD"), os.Getenv("PGHOST"), os.Getenv("PGPORT"), os.Getenv("PGDATABASE")))
+	if err != nil {
+		log.Fatalf("open postgres connection: %s", err.Error())
+	}
+
+	return db
 }
 
 func readSampleData() ([]expense.Expense, error) {
