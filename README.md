@@ -14,5 +14,5 @@ docker compose -f cmd/service/docker-compose.yml up -d
 earthly +docker
 
 # Runs the service
-docker run -p 8080:8080 --env-file cmd/service/local.env --network service_mcduck --rm mcduck:latest
+docker run -p 8080:8080 --env-file cmd/service/docker.env --network service_mcduck --rm mcduck:latest
 ```
