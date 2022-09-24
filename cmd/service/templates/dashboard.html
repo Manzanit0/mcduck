@@ -3,6 +3,7 @@
   {{template "head"}}
   <header>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
   </header>
   <body>
     {{template "navbar" .}}
@@ -38,14 +39,32 @@
     </div>
   </body>
   <script>
+    Chart.defaults.font.familty = "monospace";
+    Chart.defaults.font.size = 15;
+    Chart.register(ChartDataLabels);
+
+    Chart.defaults.set('plugins.datalabels', {
+      display: 'auto',
+      anchor: 'center',
+      align: 'top',
+      clamp: true,
+    });
+
+    // Chart.plugins.register({
+    //   id: 'paddingBelowLegends',
+    //   beforeInit: function(chart, options) {
+    //     chart.legend.afterFit = function() {
+    //       this.height = this.height + 50;
+    //     };
+    //   }
+    // });
+
     const monthNames = ["January", "February", "March", "April", "May", "June",
       "July", "August", "September", "October", "November", "December"
     ];
 
     const lastMonth = monthNames[new Date().getMonth()-1] + " " + new Date().getFullYear()
 
-    Chart.defaults.font.familty = "monospace";
-    Chart.defaults.font.size = 15;
     let labels = {{.Categories}};
     let amounts = {{.CategoryAmounts}};
 
@@ -79,6 +98,7 @@
     };
 
     let config = {
+      plugins: [ChartDataLabels],
       type: "bar",
       data: data,
       options: {
@@ -128,6 +148,7 @@
     };
 
     config = {
+      plugins: [ChartDataLabels],
       type: "bar",
       data: data,
       options: {
@@ -163,9 +184,34 @@
       datasets: datasets,
     };
 
+    const plugin = {
+      id: "increase-legend-spacing",
+      beforeInit(chart) {
+        // Get reference to the original fit function
+        const originalFit = chart.legend.fit;
+
+        // Override the fit function
+        chart.legend.fit = function fit() {
+          // Call original function and bind scope in order to use `this` correctly inside it
+          originalFit.bind(chart.legend)();
+          // Change the height as suggested in another answers
+          this.height += 20;
+        }
+      }
+    };
+
     config = {
+      plugins: [
+        ChartDataLabels,
+        plugin
+      ],
       type: "line",
       data: data,
+      options: {
+          layout:{
+              padding:20
+          }
+        },
     };
     myChart = new Chart(
       document.getElementById("momChart"),
