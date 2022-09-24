@@ -91,6 +91,11 @@ func MustOpenDB() *sql.DB {
 		log.Fatalf("open postgres connection: %s", err.Error())
 	}
 
+	err = db.Ping()
+	if err != nil {
+		log.Fatalf("ping postgres connection: %s", err.Error())
+	}
+
 	return db
 }
 

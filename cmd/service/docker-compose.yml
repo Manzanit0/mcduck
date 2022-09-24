@@ -25,6 +25,8 @@ services:
       - "5431:5432"
     volumes:
       - ./scripts/db:/docker-entrypoint-initdb.d/
+    networks:
+      - mcduck
 
   flyway:
     image: flyway/flyway
@@ -34,3 +36,9 @@ services:
       - ./migrations:/flyway/sql
     depends_on:
       - postgresql
+    networks:
+      - mcduck
+
+networks:
+  mcduck:
+    driver: bridge
