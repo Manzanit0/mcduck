@@ -158,7 +158,7 @@ func (d *ExpensesController) DeleteExpense(c *gin.Context) {
 
 // ExpenseOwnershipWall validates that the expense ID in the URL parameter
 // belongs to the requesting user, otherwise abouts with Unauthorised status.
-func ExpenseOwnershipWall(db *sqlx.DB, controller gin.HandlerFunc) gin.HandlerFunc {
+func ExpenseOwnershipWall(db *sqlx.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.Param("id")
 		i, err := strconv.ParseInt(id, 10, 64)
@@ -179,6 +179,5 @@ func ExpenseOwnershipWall(db *sqlx.DB, controller gin.HandlerFunc) gin.HandlerFu
 		}
 
 		c.Next()
-		controller(c)
 	}
 }

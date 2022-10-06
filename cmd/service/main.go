@@ -34,23 +34,28 @@ func main() {
 		log.Fatal(err)
 	}
 
-	r := gin.Default()
-	r.SetHTMLTemplate(t)
-	r.StaticFS("/public", http.FS(assets))
-
-	db := MustOpenDB()
+	dbx := MustOpenDB()
 	defer func() {
-		err = db.Close()
+		err = dbx.Close()
 		if err != nil {
 			log.Printf("closing postgres connection: %s\n", err.Error())
 		}
 	}()
 
-	dbx := sqlx.NewDb(db, "postgres")
+	data, err := readSampleData()
+	if err != nil {
+		log.Fatalf("read sample data: %s", err.Error())
+	}
+
+	r := gin.Default()
+	r.SetHTMLTemplate(t)
+	r.StaticFS("/public", http.FS(assets))
 
 	r.GET("/", api.LandingPage)
-
 	r.Use(auth.CookieMiddleware)
+
+	authenticated := r.Group("/").Use(api.AuthWall)
+	authorised := r.Group("/").Use(api.AuthWall, api.ExpenseOwnershipWall(dbx))
 
 	controller := api.RegistrationController{DB: dbx}
 	r.GET("/register", controller.GetRegisterForm)
@@ -59,21 +64,16 @@ func main() {
 	r.POST("/login", controller.LoginUser)
 	r.GET("/signout", controller.Signout)
 
-	data, err := readSampleData()
-	if err != nil {
-		log.Fatalf("read sample data: %s", err.Error())
-	}
-
 	dashController := api.DashboardController{DB: dbx, SampleData: data}
 	r.GET("/live_demo", dashController.LiveDemo)
 	r.POST("/upload", dashController.UploadExpenses)
-	r.GET("/dashboard", api.AuthWall(dashController.Dashboard))
+	authenticated.GET("/dashboard", dashController.Dashboard)
 
 	expensesController := api.ExpensesController{DB: dbx}
-	r.GET("/expenses", api.AuthWall(expensesController.ListExpenses))
-	r.PUT("/expenses", api.AuthWall(expensesController.CreateExpense))
-	r.PATCH("/expenses/:id", api.ExpenseOwnershipWall(dbx, api.AuthWall(expensesController.UpdateExpense)))
-	r.DELETE("/expenses/:id", api.ExpenseOwnershipWall(dbx, api.AuthWall(expensesController.DeleteExpense)))
+	authenticated.GET("/expenses", expensesController.ListExpenses)
+	authenticated.PUT("/expenses", expensesController.CreateExpense)
+	authorised.PATCH("/expenses/:id", expensesController.UpdateExpense)
+	authorised.DELETE("/expenses/:id", expensesController.DeleteExpense)
 
 	var port string
 	if port = os.Getenv("PORT"); port == "" {
@@ -85,7 +85,7 @@ func main() {
 	}
 }
 
-func MustOpenDB() *sql.DB {
+func MustOpenDB() *sqlx.DB {
 	db, err := sql.Open("pgx", fmt.Sprintf("postgresql://%s:%s@%s:%s/%s", os.Getenv("PGUSER"), os.Getenv("PGPASSWORD"), os.Getenv("PGHOST"), os.Getenv("PGPORT"), os.Getenv("PGDATABASE")))
 	if err != nil {
 		log.Fatalf("open postgres connection: %s", err.Error())
@@ -96,7 +96,7 @@ func MustOpenDB() *sql.DB {
 		log.Fatalf("ping postgres connection: %s", err.Error())
 	}
 
-	return db
+	return sqlx.NewDb(db, "postgres")
 }
 
 func readSampleData() ([]expense.Expense, error) {

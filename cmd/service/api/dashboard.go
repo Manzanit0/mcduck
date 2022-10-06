@@ -19,16 +19,13 @@ import (
 // AuthWall is an authentication decorator that validates that the user is
 // logged in. If they are not it redirects them to the login page instead of
 // continuing to the requested page.
-func AuthWall(controller gin.HandlerFunc) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		user := auth.GetUserEmail(c)
-		if user == "" {
-			c.Redirect(http.StatusTemporaryRedirect, "/login")
-			return
-		}
-		c.Next()
-		controller(c)
+func AuthWall(c *gin.Context) {
+	user := auth.GetUserEmail(c)
+	if user == "" {
+		c.Redirect(http.StatusTemporaryRedirect, "/login")
+		return
 	}
+	c.Next()
 }
 
 type DashboardController struct {
