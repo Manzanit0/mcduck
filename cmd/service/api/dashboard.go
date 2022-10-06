@@ -16,18 +16,6 @@ import (
 	"github.com/manzanit0/mcduck/pkg/expense"
 )
 
-// AuthWall is an authentication decorator that validates that the user is
-// logged in. If they are not it redirects them to the login page instead of
-// continuing to the requested page.
-func AuthWall(c *gin.Context) {
-	user := auth.GetUserEmail(c)
-	if user == "" {
-		c.Redirect(http.StatusTemporaryRedirect, "/login")
-		return
-	}
-	c.Next()
-}
-
 type DashboardController struct {
 	DB         *sqlx.DB
 	SampleData []expense.Expense
@@ -51,12 +39,6 @@ func (d *DashboardController) LiveDemo(c *gin.Context) {
 
 func (d *DashboardController) Dashboard(c *gin.Context) {
 	user := auth.GetUserEmail(c)
-	if user == "" {
-		// This should never happen since there's an authwall at router-level;
-		// but since it's logically possible, we handle it.
-		c.HTML(http.StatusUnauthorized, "error.html", gin.H{"error": "401: Unauthorized"})
-		return
-	}
 
 	expenses, err := expense.ListExpenses(c.Request.Context(), d.DB, user)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {

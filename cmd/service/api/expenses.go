@@ -155,29 +155,3 @@ func (d *ExpensesController) DeleteExpense(c *gin.Context) {
 
 	c.JSON(http.StatusNoContent, "")
 }
-
-// ExpenseOwnershipWall validates that the expense ID in the URL parameter
-// belongs to the requesting user, otherwise abouts with Unauthorised status.
-func ExpenseOwnershipWall(db *sqlx.DB) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		id := c.Param("id")
-		i, err := strconv.ParseInt(id, 10, 64)
-		if err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("unable to parse expense id: %s", err.Error())})
-			return
-		}
-
-		e, err := expense.FindExpense(c.Request.Context(), db, i)
-		if err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("unable to find expense: %s", err.Error())})
-			return
-		}
-
-		if !strings.EqualFold(e.UserEmail, auth.GetUserEmail(c)) {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "the expense doesn't belong to requesting user"})
-			return
-		}
-
-		c.Next()
-	}
-}

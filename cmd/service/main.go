@@ -54,8 +54,8 @@ func main() {
 	r.GET("/", api.LandingPage)
 	r.Use(auth.CookieMiddleware)
 
-	authenticated := r.Group("/").Use(api.AuthWall)
-	authorised := r.Group("/").Use(api.AuthWall, api.ExpenseOwnershipWall(dbx))
+	loggedIn := r.Group("/").Use(api.ForceLogin)
+	loggedInAndAuthorised := r.Group("/").Use(api.ForceLogin, api.ExpenseOwnershipWall(dbx))
 
 	controller := api.RegistrationController{DB: dbx}
 	r.GET("/register", controller.GetRegisterForm)
@@ -67,13 +67,13 @@ func main() {
 	dashController := api.DashboardController{DB: dbx, SampleData: data}
 	r.GET("/live_demo", dashController.LiveDemo)
 	r.POST("/upload", dashController.UploadExpenses)
-	authenticated.GET("/dashboard", dashController.Dashboard)
+	loggedIn.GET("/dashboard", dashController.Dashboard)
 
 	expensesController := api.ExpensesController{DB: dbx}
-	authenticated.GET("/expenses", expensesController.ListExpenses)
-	authenticated.PUT("/expenses", expensesController.CreateExpense)
-	authorised.PATCH("/expenses/:id", expensesController.UpdateExpense)
-	authorised.DELETE("/expenses/:id", expensesController.DeleteExpense)
+	loggedIn.GET("/expenses", expensesController.ListExpenses)
+	loggedIn.PUT("/expenses", expensesController.CreateExpense)
+	loggedInAndAuthorised.PATCH("/expenses/:id", expensesController.UpdateExpense)
+	loggedInAndAuthorised.DELETE("/expenses/:id", expensesController.DeleteExpense)
 
 	var port string
 	if port = os.Getenv("PORT"); port == "" {
