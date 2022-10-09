@@ -390,7 +390,7 @@ func toDomainExpense(expense dbExpense) Expense {
 	}
 
 	if expense.Subcategory != nil {
-		e.Category = *expense.Subcategory
+		e.Subcategory = *expense.Subcategory
 	}
 
 	return e
