@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -37,7 +38,11 @@ type dbExpense struct {
 }
 
 func (e Expense) MonthYear() string {
-	return e.Date.Format("2006-01")
+	return NewMonthYear(e.Date)
+}
+
+func NewMonthYear(t time.Time) string {
+	return t.Format("2006-01")
 }
 
 func CalculateTotalsPerCategory(expenses []Expense) map[string]map[string]float32 {
@@ -80,6 +85,56 @@ func CalculateMonthOverMonthTotals(expenses []Expense) map[string]map[string]flo
 	}
 
 	return totalsByCategory
+}
+
+type CategoryAggregate struct {
+	Category    string
+	MonthYear   string
+	TotalAmount float32
+}
+
+func GetTop3ExpenseCategories(expenses []Expense, monthYear string) []CategoryAggregate {
+	var aggregates []CategoryAggregate
+	for _, e := range expenses {
+		if !strings.EqualFold(e.MonthYear(), monthYear) {
+			continue
+		}
+
+		if i, aggr, found := findAggregateByCategory(aggregates, e.Category); found {
+			// Note: there is a lot of converting here. If it ends up being
+			// slow; having an intermediate structure which just uses integers
+			// and then we do a single final conversion, should help.
+			current := ConvertToCents(aggr.TotalAmount)
+			total := current + ConvertToCents(e.Amount)
+			aggregates[i].TotalAmount = ConvertToDollar(total)
+		} else {
+			aggregates = append(aggregates, CategoryAggregate{
+				TotalAmount: e.Amount,
+				MonthYear:   monthYear,
+				Category:    e.Category,
+			})
+		}
+	}
+
+	sort.Slice(aggregates, func(i, j int) bool {
+		return aggregates[i].TotalAmount > aggregates[j].TotalAmount
+	})
+
+	if len(aggregates) > 3 {
+		return aggregates[:3]
+	}
+
+	return aggregates
+}
+
+func findAggregateByCategory(aggregates []CategoryAggregate, category string) (int, CategoryAggregate, bool) {
+	for i, a := range aggregates {
+		if strings.EqualFold(a.Category, category) {
+			return i, a, true
+		}
+	}
+
+	return 0, CategoryAggregate{}, false
 }
 
 func NewExpenses(data [][]string) ([]Expense, error) {

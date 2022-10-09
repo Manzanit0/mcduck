@@ -3,6 +3,7 @@ package expense_test
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"testing"
 	"time"
 
@@ -86,6 +87,92 @@ func TestCalculateMonthOverMonthTotals(t *testing.T) {
 			}
 		}
 	}
+}
+func TestGetTop3ExpenseCategories(t *testing.T) {
+	testCases := []struct {
+		desc      string
+		input     []expense.Expense
+		monthYear string
+		output    []expense.CategoryAggregate
+	}{
+		{
+			desc:      "when less than three categories are provided, then they're all returned",
+			monthYear: expense.NewMonthYear(time.Date(2008, time.February, 2, 0, 0, 0, 0, time.UTC)),
+			input: []expense.Expense{
+				{Date: time.Date(2008, time.February, 11, 0, 0, 0, 0, time.UTC), Category: "foo", Amount: 1.1},
+				{Date: time.Date(2008, time.February, 11, 0, 0, 0, 0, time.UTC), Category: "foo", Amount: 1.1},
+				{Date: time.Date(2008, time.February, 11, 0, 0, 0, 0, time.UTC), Category: "bar", Amount: 3.3},
+			},
+			output: []expense.CategoryAggregate{
+				{Category: "bar", MonthYear: "2008-02", TotalAmount: 3.3},
+				{Category: "foo", MonthYear: "2008-02", TotalAmount: 2.2},
+			},
+		},
+		{
+			desc:      "when more than three categories are provided, then only the top three are returned",
+			monthYear: expense.NewMonthYear(time.Date(2008, time.February, 2, 0, 0, 0, 0, time.UTC)),
+			input: []expense.Expense{
+				{Date: time.Date(2008, time.February, 11, 0, 0, 0, 0, time.UTC), Category: "foo", Amount: 1.1},
+				{Date: time.Date(2008, time.February, 11, 0, 0, 0, 0, time.UTC), Category: "foo", Amount: 1.1},
+				{Date: time.Date(2008, time.February, 11, 0, 0, 0, 0, time.UTC), Category: "bar", Amount: 3.3},
+				{Date: time.Date(2008, time.February, 11, 0, 0, 0, 0, time.UTC), Category: "baz", Amount: 1.02},
+				{Date: time.Date(2008, time.February, 11, 0, 0, 0, 0, time.UTC), Category: "baz", Amount: 4.4},
+				{Date: time.Date(2008, time.February, 11, 0, 0, 0, 0, time.UTC), Category: "baz", Amount: 5.5},
+				{Date: time.Date(2008, time.February, 11, 0, 0, 0, 0, time.UTC), Category: "nope", Amount: 0.5},
+			},
+			output: []expense.CategoryAggregate{
+				{Category: "baz", MonthYear: "2008-02", TotalAmount: 10.92},
+				{Category: "bar", MonthYear: "2008-02", TotalAmount: 3.3},
+				{Category: "foo", MonthYear: "2008-02", TotalAmount: 2.2},
+			},
+		},
+		{
+			desc:      "when input expenses contain more than 2 decimals, then aggregates returned only 2 decimals",
+			monthYear: expense.NewMonthYear(time.Date(2008, time.February, 2, 0, 0, 0, 0, time.UTC)),
+			input: []expense.Expense{
+				{Date: time.Date(2008, time.February, 11, 0, 0, 0, 0, time.UTC), Category: "foo", Amount: 1.11111111119},
+				{Date: time.Date(2008, time.February, 11, 0, 0, 0, 0, time.UTC), Category: "foo", Amount: 1.11111111119},
+			},
+			output: []expense.CategoryAggregate{
+				{Category: "foo", MonthYear: "2008-02", TotalAmount: 2.22},
+			},
+		},
+		{
+			desc:      "when input expenses contain more than two decimals, then aggregates apply rounding as oposed to truncation",
+			monthYear: expense.NewMonthYear(time.Date(2008, time.February, 2, 0, 0, 0, 0, time.UTC)),
+			input: []expense.Expense{
+				{Date: time.Date(2008, time.February, 11, 0, 0, 0, 0, time.UTC), Category: "foo", Amount: 1.49999},
+				{Date: time.Date(2008, time.February, 11, 0, 0, 0, 0, time.UTC), Category: "foo", Amount: 1.49999},
+			},
+			output: []expense.CategoryAggregate{
+				{Category: "foo", MonthYear: "2008-02", TotalAmount: 3},
+			},
+		},
+	}
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+			aggregate := expense.GetTop3ExpenseCategories(tC.input, tC.monthYear)
+			for i := range aggregate {
+				if aggregate[i].Category != tC.output[i].Category {
+					t.Error("unexpected category", aggregate[i].Category, "expected", tC.output[i].Category)
+				}
+
+				if !almostEqual(aggregate[i].TotalAmount, tC.output[i].TotalAmount) {
+					t.Error("unexpected amount", aggregate[i].TotalAmount, "expected", tC.output[i].TotalAmount)
+				}
+
+				if aggregate[i].MonthYear != tC.output[i].MonthYear {
+					t.Error("unexpected date ", aggregate[i].MonthYear, "expected", tC.output[i].MonthYear)
+				}
+			}
+		})
+	}
+}
+
+const float64EqualityThreshold = 1e-9
+
+func almostEqual(a, b float32) bool {
+	return math.Abs(float64(a)-float64(b)) <= float64EqualityThreshold
 }
 
 func TestFromCSV(t *testing.T) {
