@@ -55,12 +55,17 @@ func (d *DashboardController) Dashboard(c *gin.Context) {
 	mom := expense.CalculateMonthOverMonthTotals(expenses)
 	labels, amountsByCategory := getMOMData(mom)
 
+	expense.SortByDate(expenses)
+	topCategories := expense.GetTop3ExpenseCategories(expenses, expenses[0].MonthYear())
+	// FIXME: if the subcategory is empty, then it displays an empty card.
+
 	c.HTML(http.StatusOK, "dashboard.html", gin.H{
 		"NoExpenses":         len(expenses) == 0,
 		"Categories":         getSecondClassifier(categoryTotals),
 		"CategoryAmounts":    getCurrentMonthAmounts(categoryTotals),
 		"SubCategories":      getSecondClassifier(subcategoryTotals),
 		"SubCategoryAmounts": getCurrentMonthAmounts(subcategoryTotals),
+		"TopCategories":      topCategories,
 		"MOMLabels":          labels,
 		"MOMData":            amountsByCategory,
 		"User":               user,

@@ -100,7 +100,7 @@ func GetTop3ExpenseCategories(expenses []Expense, monthYear string) []CategoryAg
 			continue
 		}
 
-		if i, aggr, found := findAggregateByCategory(aggregates, e.Category); found {
+		if i, aggr, found := findAggregateByCategory(aggregates, e.Subcategory); found {
 			// Note: there is a lot of converting here. If it ends up being
 			// slow; having an intermediate structure which just uses integers
 			// and then we do a single final conversion, should help.
@@ -111,7 +111,7 @@ func GetTop3ExpenseCategories(expenses []Expense, monthYear string) []CategoryAg
 			aggregates = append(aggregates, CategoryAggregate{
 				TotalAmount: e.Amount,
 				MonthYear:   monthYear,
-				Category:    e.Category,
+				Category:    e.Subcategory,
 			})
 		}
 	}
@@ -135,6 +135,12 @@ func findAggregateByCategory(aggregates []CategoryAggregate, category string) (i
 	}
 
 	return 0, CategoryAggregate{}, false
+}
+
+func SortByDate(expenses []Expense) {
+	sort.Slice(expenses, func(i, j int) bool {
+		return expenses[i].Date.After(expenses[j].Date)
+	})
 }
 
 func NewExpenses(data [][]string) ([]Expense, error) {

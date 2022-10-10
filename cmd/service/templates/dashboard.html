@@ -22,6 +22,17 @@
       <div>{{ template "_upload_expenses_form" }}</div>
       {{ else }}
       <div>
+        <h2>Top Expense Categories {{ (index .TopCategories 0).MonthYear }}</h2>
+        <div style="display: flex; justify-content: center; gap: 10px">
+          {{ range $e := .TopCategories }}
+          <div class="terminal-card">
+            <header>{{ $e.Category }}</header>
+            <div>{{ $e.TotalAmount }} €</div>
+          </div>
+          {{ end }}
+        </div>
+      </div>
+      <div>
         <div class="chart">
           <h2>Expenses per category last month</h2>
           <canvas id="categoriesChart"></canvas>
