@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"embed"
 	"fmt"
@@ -13,11 +14,15 @@ import (
 	"github.com/gin-gonic/gin"
 	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/jmoiron/sqlx"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 
 	"github.com/manzanit0/mcduck/cmd/service/api"
 	"github.com/manzanit0/mcduck/pkg/auth"
 	"github.com/manzanit0/mcduck/pkg/expense"
+	"github.com/manzanit0/mcduck/pkg/trace"
 )
+
+const serviceName = "mcduck"
 
 //go:embed templates/*.html
 var templates embed.FS
@@ -50,6 +55,26 @@ func main() {
 	r := gin.Default()
 	r.SetHTMLTemplate(t)
 	r.StaticFS("/public", http.FS(assets))
+
+	endpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+	headers := os.Getenv("OTEL_EXPORTER_OTLP_HEADERS")
+	if endpoint != "" && headers != "" {
+		opts := trace.NewExporterOptions(endpoint, headers)
+		tp, err := trace.InitTracer(context.Background(), serviceName, opts)
+		if err != nil {
+			log.Fatalf("init tracer: %s", err.Error())
+		}
+
+		defer func() {
+			err := tp.Shutdown(context.Background())
+			if err != nil {
+				log.Fatalf("shutdown tracer: %s", err.Error())
+			}
+		}()
+
+		// Auto-instruments every endpoint
+		r.Use(otelgin.Middleware(serviceName))
+	}
 
 	r.GET("/", api.LandingPage)
 	r.Use(auth.CookieMiddleware)
