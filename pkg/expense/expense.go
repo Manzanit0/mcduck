@@ -13,7 +13,7 @@ import (
 	"time"
 
 	sq "github.com/Masterminds/squirrel"
-	"github.com/jmoiron/sqlx"
+	"github.com/manzanit0/isqlx"
 )
 
 type Expense struct {
@@ -207,12 +207,20 @@ func FromCSV(r io.Reader) ([]Expense, error) {
 	return expenses, nil
 }
 
+type Repository struct {
+	dbx isqlx.DBX
+}
+
+func NewRepository(dbx isqlx.DBX) *Repository {
+	return &Repository{dbx: dbx}
+}
+
 type ExpensesBatch struct {
 	Records   []Expense
 	UserEmail string
 }
 
-func CreateExpenses(ctx context.Context, db *sqlx.DB, e ExpensesBatch) error {
+func (r *Repository) CreateExpenses(ctx context.Context, e ExpensesBatch) error {
 	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
 
 	builder := psql.Insert("expenses").Columns("user_email", "expense_date", "amount", "category", "sub_category")
@@ -225,7 +233,7 @@ func CreateExpenses(ctx context.Context, db *sqlx.DB, e ExpensesBatch) error {
 		return fmt.Errorf("unable to build query: %w", err)
 	}
 
-	_, err = db.ExecContext(ctx, query, args...)
+	_, err = r.dbx.ExecContext(ctx, query, args...)
 	if err != nil {
 		return fmt.Errorf("unable to execute query: %w", err)
 	}
@@ -233,7 +241,7 @@ func CreateExpenses(ctx context.Context, db *sqlx.DB, e ExpensesBatch) error {
 	return nil
 }
 
-func FindExpense(ctx context.Context, db *sqlx.DB, id int64) (*Expense, error) {
+func (r *Repository) FindExpense(ctx context.Context, id int64) (*Expense, error) {
 	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
 
 	builder := psql.
@@ -247,7 +255,7 @@ func FindExpense(ctx context.Context, db *sqlx.DB, id int64) (*Expense, error) {
 	}
 
 	var out dbExpense
-	err = db.GetContext(ctx, &out, query, args...)
+	err = r.dbx.GetContext(ctx, &out, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("unable to execute query: %w", err)
 	}
@@ -264,7 +272,7 @@ type UpdateExpenseRequest struct {
 	Subcategory *string
 }
 
-func UpdateExpense(ctx context.Context, db *sqlx.DB, e UpdateExpenseRequest) error {
+func (r *Repository) UpdateExpense(ctx context.Context, e UpdateExpenseRequest) error {
 	var shouldUpdate bool
 
 	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
@@ -300,7 +308,7 @@ func UpdateExpense(ctx context.Context, db *sqlx.DB, e UpdateExpenseRequest) err
 		return fmt.Errorf("unable to build query: %w", err)
 	}
 
-	_, err = db.ExecContext(ctx, query, args...)
+	_, err = r.dbx.ExecContext(ctx, query, args...)
 	if err != nil {
 		return fmt.Errorf("unable to execute query: %w", err)
 	}
@@ -314,7 +322,7 @@ type CreateExpenseRequest struct {
 	Amount    float32
 }
 
-func CreateExpense(ctx context.Context, db *sqlx.DB, e CreateExpenseRequest) (int64, error) {
+func (r *Repository) CreateExpense(ctx context.Context, e CreateExpenseRequest) (int64, error) {
 	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
 
 	builder := psql.
@@ -332,7 +340,7 @@ func CreateExpense(ctx context.Context, db *sqlx.DB, e CreateExpenseRequest) (in
 		ID int64 `db:"id"`
 	}{}
 
-	err = db.GetContext(ctx, &record, query, args...)
+	err = r.dbx.GetContext(ctx, &record, query, args...)
 	if err != nil {
 		return 0, fmt.Errorf("unable to execute query: %w", err)
 	}
@@ -340,7 +348,7 @@ func CreateExpense(ctx context.Context, db *sqlx.DB, e CreateExpenseRequest) (in
 	return record.ID, nil
 }
 
-func DeleteExpense(ctx context.Context, db *sqlx.DB, id int64) error {
+func (r *Repository) DeleteExpense(ctx context.Context, id int64) error {
 	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
 
 	query, args, err := psql.Delete("expenses").Where(sq.Eq{"id": id}).ToSql()
@@ -348,7 +356,7 @@ func DeleteExpense(ctx context.Context, db *sqlx.DB, id int64) error {
 		return fmt.Errorf("unable to build query: %w", err)
 	}
 
-	_, err = db.ExecContext(ctx, query, args...)
+	_, err = r.dbx.ExecContext(ctx, query, args...)
 	if err != nil {
 		return fmt.Errorf("unable to execute query: %w", err)
 	}
@@ -356,9 +364,9 @@ func DeleteExpense(ctx context.Context, db *sqlx.DB, id int64) error {
 	return nil
 }
 
-func ListExpenses(ctx context.Context, db *sqlx.DB, email string) ([]Expense, error) {
+func (r *Repository) ListExpenses(ctx context.Context, email string) ([]Expense, error) {
 	var expenses []dbExpense
-	err := db.SelectContext(ctx, &expenses, `SELECT id, amount, expense_date, category, sub_category FROM expenses WHERE user_email = $1 ORDER BY expense_date desc`, email)
+	err := r.dbx.SelectContext(ctx, &expenses, `SELECT id, amount, expense_date, category, sub_category FROM expenses WHERE user_email = $1 ORDER BY expense_date desc`, email)
 	if err != nil {
 		return nil, fmt.Errorf("unable to execute query: %w", err)
 	}

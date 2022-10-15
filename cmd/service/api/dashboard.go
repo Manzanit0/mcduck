@@ -11,13 +11,12 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jmoiron/sqlx"
 	"github.com/manzanit0/mcduck/pkg/auth"
 	"github.com/manzanit0/mcduck/pkg/expense"
 )
 
 type DashboardController struct {
-	DB         *sqlx.DB
+	Expenses   *expense.Repository
 	SampleData []expense.Expense
 }
 
@@ -40,7 +39,7 @@ func (d *DashboardController) LiveDemo(c *gin.Context) {
 func (d *DashboardController) Dashboard(c *gin.Context) {
 	user := auth.GetUserEmail(c)
 
-	expenses, err := expense.ListExpenses(c.Request.Context(), d.DB, user)
+	expenses, err := d.Expenses.ListExpenses(c.Request.Context(), user)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		c.HTML(http.StatusOK, "error.html", gin.H{"error": err.Error()})
 		return
@@ -100,7 +99,7 @@ func (d *DashboardController) UploadExpenses(c *gin.Context) {
 	// If the user is logged in, save those upload expenses
 	user := auth.GetUserEmail(c)
 	if user != "" {
-		err = expense.CreateExpenses(c.Request.Context(), d.DB, expense.ExpensesBatch{UserEmail: user, Records: expenses})
+		err = d.Expenses.CreateExpenses(c.Request.Context(), expense.ExpensesBatch{UserEmail: user, Records: expenses})
 		if err != nil {
 			c.HTML(http.StatusOK, "error.html", gin.H{"error": err.Error()})
 			return

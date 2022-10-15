@@ -3,19 +3,21 @@ package main
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"embed"
 	"fmt"
 	"html/template"
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/jackc/pgx/v4/stdlib"
-	"github.com/jmoiron/sqlx"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
+	"go.opentelemetry.io/otel"
+	otrace "go.opentelemetry.io/otel/trace"
 
+	"github.com/manzanit0/isqlx"
 	"github.com/manzanit0/mcduck/cmd/service/api"
 	"github.com/manzanit0/mcduck/pkg/auth"
 	"github.com/manzanit0/mcduck/pkg/expense"
@@ -39,62 +41,67 @@ func main() {
 		log.Fatal(err)
 	}
 
-	dbx := MustOpenDB()
-	defer func() {
-		err = dbx.Close()
-		if err != nil {
-			log.Printf("closing postgres connection: %s\n", err.Error())
-		}
-	}()
-
-	data, err := readSampleData()
-	if err != nil {
-		log.Fatalf("read sample data: %s", err.Error())
-	}
-
 	r := gin.Default()
 	r.SetHTMLTemplate(t)
 	r.StaticFS("/public", http.FS(assets))
 
 	endpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
 	headers := os.Getenv("OTEL_EXPORTER_OTLP_HEADERS")
-	if endpoint != "" && headers != "" {
-		opts := trace.NewExporterOptions(endpoint, headers)
-		tp, err := trace.InitTracer(context.Background(), serviceName, opts)
-		if err != nil {
-			log.Fatalf("init tracer: %s", err.Error())
-		}
-
-		defer func() {
-			err := tp.Shutdown(context.Background())
-			if err != nil {
-				log.Fatalf("shutdown tracer: %s", err.Error())
-			}
-		}()
-
-		// Auto-instruments every endpoint
-		r.Use(otelgin.Middleware(serviceName))
+	if endpoint == "" || headers == "" {
+		log.Fatal("missing OTEL_EXPORTER_* environment variables")
 	}
+
+	opts := trace.NewExporterOptions(endpoint, headers)
+	tp, err := trace.InitTracer(context.Background(), serviceName, opts)
+	if err != nil {
+		log.Fatalf("init tracer: %s", err.Error())
+	}
+
+	defer func() {
+		err := tp.Shutdown(context.Background())
+		if err != nil {
+			log.Fatalf("shutdown tracer: %s", err.Error())
+		}
+	}()
+
+	// Auto-instruments every endpoint
+	r.Use(otelgin.Middleware(serviceName))
+
+	tracer := otel.Tracer(serviceName)
+	dbx := MustOpenDB(tracer)
+	defer func() {
+		err = dbx.GetSQLX().Close()
+		if err != nil {
+			log.Printf("closing postgres connection: %s\n", err.Error())
+		}
+	}()
 
 	r.GET("/", api.LandingPage)
 	r.Use(auth.CookieMiddleware)
 
-	loggedIn := r.Group("/").Use(api.ForceLogin)
-	loggedInAndAuthorised := r.Group("/").Use(api.ForceLogin, api.ExpenseOwnershipWall(dbx))
+	expenseRepository := expense.NewRepository(dbx)
 
-	controller := api.RegistrationController{DB: dbx}
+	loggedIn := r.Group("/").Use(api.ForceLogin)
+	loggedInAndAuthorised := r.Group("/").Use(api.ForceLogin, api.ExpenseOwnershipWall(expenseRepository))
+
+	controller := api.RegistrationController{DB: dbx.GetSQLX()}
 	r.GET("/register", controller.GetRegisterForm)
 	r.POST("/register", controller.RegisterUser)
 	r.GET("/login", controller.GetLoginForm)
 	r.POST("/login", controller.LoginUser)
 	r.GET("/signout", controller.Signout)
 
-	dashController := api.DashboardController{DB: dbx, SampleData: data}
+	data, err := readSampleData()
+	if err != nil {
+		log.Fatalf("read sample data: %s", err.Error())
+	}
+
+	dashController := api.DashboardController{Expenses: expenseRepository, SampleData: data}
 	r.GET("/live_demo", dashController.LiveDemo)
 	r.POST("/upload", dashController.UploadExpenses)
 	loggedIn.GET("/dashboard", dashController.Dashboard)
 
-	expensesController := api.ExpensesController{DB: dbx}
+	expensesController := api.ExpensesController{Expenses: expenseRepository}
 	loggedIn.GET("/expenses", expensesController.ListExpenses)
 	loggedIn.PUT("/expenses", expensesController.CreateExpense)
 	loggedInAndAuthorised.PATCH("/expenses/:id", expensesController.UpdateExpense)
@@ -110,18 +117,29 @@ func main() {
 	}
 }
 
-func MustOpenDB() *sqlx.DB {
-	db, err := sql.Open("pgx", fmt.Sprintf("postgresql://%s:%s@%s:%s/%s", os.Getenv("PGUSER"), os.Getenv("PGPASSWORD"), os.Getenv("PGHOST"), os.Getenv("PGPORT"), os.Getenv("PGDATABASE")))
+func MustOpenDB(tracer otrace.Tracer) isqlx.DBX {
+	port, err := strconv.Atoi(os.Getenv("PGPORT"))
+	if err != nil {
+		log.Fatalf("parse db port from env var PGPORT: %s", err.Error())
+	}
+
+	dbx, err := isqlx.NewDBXFromConfig("pgx", &isqlx.DBConfig{
+		Host:     os.Getenv("PGHOST"),
+		Port:     port,
+		User:     os.Getenv("PGUSER"),
+		Password: os.Getenv("PGPASSWORD"),
+		Name:     os.Getenv("PGDATABASE"),
+	}, tracer)
 	if err != nil {
 		log.Fatalf("open postgres connection: %s", err.Error())
 	}
 
-	err = db.Ping()
+	err = dbx.GetSQLX().DB.Ping()
 	if err != nil {
 		log.Fatalf("ping postgres connection: %s", err.Error())
 	}
 
-	return sqlx.NewDb(db, "postgres")
+	return dbx
 }
 
 func readSampleData() ([]expense.Expense, error) {

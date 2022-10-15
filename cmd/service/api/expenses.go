@@ -8,13 +8,12 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jmoiron/sqlx"
 	"github.com/manzanit0/mcduck/pkg/auth"
 	"github.com/manzanit0/mcduck/pkg/expense"
 )
 
 type ExpensesController struct {
-	DB *sqlx.DB
+	Expenses *expense.Repository
 }
 
 type ExpenseViewModel struct {
@@ -41,7 +40,7 @@ func MapExpenses(expenses []expense.Expense) (models []ExpenseViewModel) {
 
 func (d *ExpensesController) ListExpenses(c *gin.Context) {
 	user := auth.GetUserEmail(c)
-	expenses, err := expense.ListExpenses(c.Request.Context(), d.DB, user)
+	expenses, err := d.Expenses.ListExpenses(c.Request.Context(), user)
 	if err != nil {
 		c.HTML(http.StatusOK, "error.html", gin.H{"error": err.Error()})
 		return
@@ -86,7 +85,7 @@ func (d *ExpensesController) UpdateExpense(c *gin.Context) {
 		date = &d
 	}
 
-	err = expense.UpdateExpense(c.Request.Context(), d.DB, expense.UpdateExpenseRequest{
+	err = d.Expenses.UpdateExpense(c.Request.Context(), expense.UpdateExpenseRequest{
 		ID:          i,
 		Date:        date,
 		Amount:      payload.Amount,
@@ -125,7 +124,7 @@ func (d *ExpensesController) CreateExpense(c *gin.Context) {
 		return
 	}
 
-	expenseID, err := expense.CreateExpense(c.Request.Context(), d.DB, expense.CreateExpenseRequest{
+	expenseID, err := d.Expenses.CreateExpense(c.Request.Context(), expense.CreateExpenseRequest{
 		UserEmail: auth.GetUserEmail(c),
 		Date:      date,
 		Amount:    payload.Amount,
@@ -147,7 +146,7 @@ func (d *ExpensesController) DeleteExpense(c *gin.Context) {
 		return
 	}
 
-	err = expense.DeleteExpense(c.Request.Context(), d.DB, i)
+	err = d.Expenses.DeleteExpense(c.Request.Context(), i)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable to create expense: %s", err.Error())})
 		return

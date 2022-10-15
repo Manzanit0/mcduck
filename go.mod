@@ -4,12 +4,18 @@ module github.com/manzanit0/mcduck
 go 1.17
 
 require (
+	github.com/Masterminds/squirrel v1.5.3
 	github.com/gin-gonic/gin v1.8.1
+	github.com/manzanit0/isqlx v0.0.4
 	github.com/pterm/pterm v0.12.44
+	go.opentelemetry.io/otel v1.11.0
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.10.0
+	go.opentelemetry.io/otel/sdk v1.10.0
+	go.opentelemetry.io/otel/trace v1.11.0
+	google.golang.org/grpc v1.46.2
 )
 
 require (
-	github.com/Masterminds/squirrel v1.5.3 // indirect
 	github.com/cenkalti/backoff/v4 v4.1.3 // indirect
 	github.com/go-logr/logr v1.2.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
@@ -24,14 +30,9 @@ require (
 	github.com/jackc/pgtype v1.11.0 // indirect
 	github.com/lann/builder v0.0.0-20180802200727-47ae307949d0 // indirect
 	github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 // indirect
-	go.opentelemetry.io/otel v1.10.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/internal/retry v1.10.0 // indirect
-	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.10.0 // indirect
-	go.opentelemetry.io/otel/sdk v1.10.0 // indirect
-	go.opentelemetry.io/otel/trace v1.10.0 // indirect
 	go.opentelemetry.io/proto/otlp v0.19.0 // indirect
 	google.golang.org/genproto v0.0.0-20211118181313-81c1377c94b1 // indirect
-	google.golang.org/grpc v1.46.2 // indirect
 )
 
 require (
