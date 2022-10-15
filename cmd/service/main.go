@@ -16,7 +16,7 @@ import (
 	"github.com/manzanit0/isqlx"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 	"go.opentelemetry.io/otel"
-	otrace "go.opentelemetry.io/otel/trace"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 
 	"github.com/manzanit0/mcduck/cmd/service/api"
 	"github.com/manzanit0/mcduck/internal/expense"
@@ -36,6 +36,28 @@ var assets embed.FS
 var sampleData embed.FS
 
 func main() {
+	tp, err := initTracerProvider()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer func() {
+		err := tp.Shutdown(context.Background())
+		if err != nil {
+			log.Printf("shutdown tracer: %s\n", err.Error())
+		}
+	}()
+
+	dbx, err := openDB()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer func() {
+		err = dbx.GetSQLX().Close()
+		if err != nil {
+			log.Printf("closing postgres connection: %s\n", err.Error())
+		}
+	}()
+
 	t, err := template.ParseFS(templates, "templates/*.html")
 	if err != nil {
 		log.Fatal(err)
@@ -45,36 +67,8 @@ func main() {
 	r.SetHTMLTemplate(t)
 	r.StaticFS("/public", http.FS(assets))
 
-	endpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
-	headers := os.Getenv("OTEL_EXPORTER_OTLP_HEADERS")
-	if endpoint == "" || headers == "" {
-		log.Fatal("missing OTEL_EXPORTER_* environment variables")
-	}
-
-	opts := trace.NewExporterOptions(endpoint, headers)
-	tp, err := trace.InitTracer(context.Background(), serviceName, opts)
-	if err != nil {
-		log.Fatalf("init tracer: %s", err.Error())
-	}
-
-	defer func() {
-		err := tp.Shutdown(context.Background())
-		if err != nil {
-			log.Fatalf("shutdown tracer: %s", err.Error())
-		}
-	}()
-
 	// Auto-instruments every endpoint
 	r.Use(otelgin.Middleware(serviceName))
-
-	tracer := otel.Tracer(serviceName)
-	dbx := MustOpenDB(tracer)
-	defer func() {
-		err = dbx.GetSQLX().Close()
-		if err != nil {
-			log.Printf("closing postgres connection: %s\n", err.Error())
-		}
-	}()
 
 	r.GET("/", api.LandingPage)
 	r.Use(auth.CookieMiddleware)
@@ -117,10 +111,11 @@ func main() {
 	}
 }
 
-func MustOpenDB(tracer otrace.Tracer) isqlx.DBX {
+func openDB() (isqlx.DBX, error) {
+	tracer := otel.Tracer(serviceName)
 	port, err := strconv.Atoi(os.Getenv("PGPORT"))
 	if err != nil {
-		log.Fatalf("parse db port from env var PGPORT: %s", err.Error())
+		return nil, fmt.Errorf("parse db port from env var PGPORT: %w", err)
 	}
 
 	dbx, err := isqlx.NewDBXFromConfig("pgx", &isqlx.DBConfig{
@@ -131,15 +126,31 @@ func MustOpenDB(tracer otrace.Tracer) isqlx.DBX {
 		Name:     os.Getenv("PGDATABASE"),
 	}, tracer)
 	if err != nil {
-		log.Fatalf("open postgres connection: %s", err.Error())
+		return nil, fmt.Errorf("open postgres connection: %w", err)
 	}
 
 	err = dbx.GetSQLX().DB.Ping()
 	if err != nil {
-		log.Fatalf("ping postgres connection: %s", err.Error())
+		return nil, fmt.Errorf("ping postgres connection: %w", err)
 	}
 
-	return dbx
+	return dbx, nil
+}
+
+func initTracerProvider() (*sdktrace.TracerProvider, error) {
+	endpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+	headers := os.Getenv("OTEL_EXPORTER_OTLP_HEADERS")
+	if endpoint == "" || headers == "" {
+		return nil, fmt.Errorf("missing OTEL_EXPORTER_* environment variables")
+	}
+
+	opts := trace.NewExporterOptions(endpoint, headers)
+	tp, err := trace.InitTracer(context.Background(), serviceName, opts)
+	if err != nil {
+		return nil, fmt.Errorf("init tracer: %s", err.Error())
+	}
+
+	return tp, nil
 }
 
 func readSampleData() ([]expense.Expense, error) {
