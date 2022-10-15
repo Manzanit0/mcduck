@@ -7,8 +7,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
 
+	"github.com/manzanit0/mcduck/internal/users"
 	"github.com/manzanit0/mcduck/pkg/auth"
-	"github.com/manzanit0/mcduck/pkg/users"
 )
 
 type UserPayload struct {

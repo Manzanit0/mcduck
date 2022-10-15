@@ -7,8 +7,9 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/manzanit0/mcduck/internal/expense"
 	"github.com/manzanit0/mcduck/pkg/auth"
-	"github.com/manzanit0/mcduck/pkg/expense"
 )
 
 // ForceLogin validates that the user is logged in. If they are not it redirects

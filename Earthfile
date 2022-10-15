@@ -8,6 +8,7 @@ project-files:
     COPY go.sum go.sum
     COPY cmd cmd
     COPY pkg pkg
+    COPY internal internal
 
 build:
     FROM +project-files

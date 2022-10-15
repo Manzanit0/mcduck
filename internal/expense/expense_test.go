@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/manzanit0/mcduck/pkg/expense"
+	"github.com/manzanit0/mcduck/internal/expense"
 )
 
 func TestCalculateTotalsPerCategory(t *testing.T) {

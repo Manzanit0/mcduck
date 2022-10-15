@@ -13,14 +13,14 @@ import (
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/jackc/pgx/v4/stdlib"
+	"github.com/manzanit0/isqlx"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 	"go.opentelemetry.io/otel"
 	otrace "go.opentelemetry.io/otel/trace"
 
-	"github.com/manzanit0/isqlx"
 	"github.com/manzanit0/mcduck/cmd/service/api"
+	"github.com/manzanit0/mcduck/internal/expense"
 	"github.com/manzanit0/mcduck/pkg/auth"
-	"github.com/manzanit0/mcduck/pkg/expense"
 	"github.com/manzanit0/mcduck/pkg/trace"
 )
 

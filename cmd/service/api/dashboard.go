@@ -11,8 +11,9 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/manzanit0/mcduck/internal/expense"
 	"github.com/manzanit0/mcduck/pkg/auth"
-	"github.com/manzanit0/mcduck/pkg/expense"
 )
 
 type DashboardController struct {
