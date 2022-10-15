@@ -99,9 +99,9 @@ func TestGetTop3ExpenseCategories(t *testing.T) {
 			desc:      "when less than three categories are provided, then they're all returned",
 			monthYear: expense.NewMonthYear(time.Date(2008, time.February, 2, 0, 0, 0, 0, time.UTC)),
 			input: []expense.Expense{
-				{Date: time.Date(2008, time.February, 11, 0, 0, 0, 0, time.UTC), Category: "foo", Amount: 1.1},
-				{Date: time.Date(2008, time.February, 11, 0, 0, 0, 0, time.UTC), Category: "foo", Amount: 1.1},
-				{Date: time.Date(2008, time.February, 11, 0, 0, 0, 0, time.UTC), Category: "bar", Amount: 3.3},
+				{Date: time.Date(2008, time.February, 11, 0, 0, 0, 0, time.UTC), Subcategory: "foo", Amount: 1.1},
+				{Date: time.Date(2008, time.February, 11, 0, 0, 0, 0, time.UTC), Subcategory: "foo", Amount: 1.1},
+				{Date: time.Date(2008, time.February, 11, 0, 0, 0, 0, time.UTC), Subcategory: "bar", Amount: 3.3},
 			},
 			output: []expense.CategoryAggregate{
 				{Category: "bar", MonthYear: "2008-02", TotalAmount: 3.3},
@@ -112,13 +112,13 @@ func TestGetTop3ExpenseCategories(t *testing.T) {
 			desc:      "when more than three categories are provided, then only the top three are returned",
 			monthYear: expense.NewMonthYear(time.Date(2008, time.February, 2, 0, 0, 0, 0, time.UTC)),
 			input: []expense.Expense{
-				{Date: time.Date(2008, time.February, 11, 0, 0, 0, 0, time.UTC), Category: "foo", Amount: 1.1},
-				{Date: time.Date(2008, time.February, 11, 0, 0, 0, 0, time.UTC), Category: "foo", Amount: 1.1},
-				{Date: time.Date(2008, time.February, 11, 0, 0, 0, 0, time.UTC), Category: "bar", Amount: 3.3},
-				{Date: time.Date(2008, time.February, 11, 0, 0, 0, 0, time.UTC), Category: "baz", Amount: 1.02},
-				{Date: time.Date(2008, time.February, 11, 0, 0, 0, 0, time.UTC), Category: "baz", Amount: 4.4},
-				{Date: time.Date(2008, time.February, 11, 0, 0, 0, 0, time.UTC), Category: "baz", Amount: 5.5},
-				{Date: time.Date(2008, time.February, 11, 0, 0, 0, 0, time.UTC), Category: "nope", Amount: 0.5},
+				{Date: time.Date(2008, time.February, 11, 0, 0, 0, 0, time.UTC), Subcategory: "foo", Amount: 1.1},
+				{Date: time.Date(2008, time.February, 11, 0, 0, 0, 0, time.UTC), Subcategory: "foo", Amount: 1.1},
+				{Date: time.Date(2008, time.February, 11, 0, 0, 0, 0, time.UTC), Subcategory: "bar", Amount: 3.3},
+				{Date: time.Date(2008, time.February, 11, 0, 0, 0, 0, time.UTC), Subcategory: "baz", Amount: 1.02},
+				{Date: time.Date(2008, time.February, 11, 0, 0, 0, 0, time.UTC), Subcategory: "baz", Amount: 4.4},
+				{Date: time.Date(2008, time.February, 11, 0, 0, 0, 0, time.UTC), Subcategory: "baz", Amount: 5.5},
+				{Date: time.Date(2008, time.February, 11, 0, 0, 0, 0, time.UTC), Subcategory: "nope", Amount: 0.5},
 			},
 			output: []expense.CategoryAggregate{
 				{Category: "baz", MonthYear: "2008-02", TotalAmount: 10.92},
@@ -130,8 +130,8 @@ func TestGetTop3ExpenseCategories(t *testing.T) {
 			desc:      "when input expenses contain more than 2 decimals, then aggregates returned only 2 decimals",
 			monthYear: expense.NewMonthYear(time.Date(2008, time.February, 2, 0, 0, 0, 0, time.UTC)),
 			input: []expense.Expense{
-				{Date: time.Date(2008, time.February, 11, 0, 0, 0, 0, time.UTC), Category: "foo", Amount: 1.11111111119},
-				{Date: time.Date(2008, time.February, 11, 0, 0, 0, 0, time.UTC), Category: "foo", Amount: 1.11111111119},
+				{Date: time.Date(2008, time.February, 11, 0, 0, 0, 0, time.UTC), Subcategory: "foo", Amount: 1.11111111119},
+				{Date: time.Date(2008, time.February, 11, 0, 0, 0, 0, time.UTC), Subcategory: "foo", Amount: 1.11111111119},
 			},
 			output: []expense.CategoryAggregate{
 				{Category: "foo", MonthYear: "2008-02", TotalAmount: 2.22},
@@ -141,8 +141,8 @@ func TestGetTop3ExpenseCategories(t *testing.T) {
 			desc:      "when input expenses contain more than two decimals, then aggregates apply rounding as oposed to truncation",
 			monthYear: expense.NewMonthYear(time.Date(2008, time.February, 2, 0, 0, 0, 0, time.UTC)),
 			input: []expense.Expense{
-				{Date: time.Date(2008, time.February, 11, 0, 0, 0, 0, time.UTC), Category: "foo", Amount: 1.49999},
-				{Date: time.Date(2008, time.February, 11, 0, 0, 0, 0, time.UTC), Category: "foo", Amount: 1.49999},
+				{Date: time.Date(2008, time.February, 11, 0, 0, 0, 0, time.UTC), Subcategory: "foo", Amount: 1.49999},
+				{Date: time.Date(2008, time.February, 11, 0, 0, 0, 0, time.UTC), Subcategory: "foo", Amount: 1.49999},
 			},
 			output: []expense.CategoryAggregate{
 				{Category: "foo", MonthYear: "2008-02", TotalAmount: 3},
