@@ -26,12 +26,14 @@ func (d *DashboardController) LiveDemo(c *gin.Context) {
 	subcategoryTotals := expense.CalculateTotalsPerSubCategory(d.SampleData)
 	mom := expense.CalculateMonthOverMonthTotals(d.SampleData)
 	labels, amountsByCategory := getMOMData(mom)
+	topCategories := expense.GetTop3ExpenseCategories(d.SampleData, d.SampleData[0].MonthYear())
 
 	c.HTML(http.StatusOK, "dashboard.html", gin.H{
 		"Categories":         getSecondClassifier(categoryTotals),
 		"CategoryAmounts":    getCurrentMonthAmounts(categoryTotals),
 		"SubCategories":      getSecondClassifier(subcategoryTotals),
 		"SubCategoryAmounts": getCurrentMonthAmounts(subcategoryTotals),
+		"TopCategories":      topCategories,
 		"MOMLabels":          labels,
 		"MOMData":            amountsByCategory,
 	})
