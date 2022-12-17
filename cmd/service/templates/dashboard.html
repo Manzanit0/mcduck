@@ -8,7 +8,11 @@
   <body>
     {{template "navbar" .}}
     <div>
-      <h1>Expense Report {{ .PrettyMonthYear }}</h1>
+      {{ if .NoExpenses }}
+        <h1>Expense Report</h1>
+      {{ else }}
+        <h1>Expense Report {{ .PrettyMonthYear }}</h1>
+      {{ end }} 
     </div>
     <div>
       {{ if .NoExpenses }}
