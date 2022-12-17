@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -26,14 +25,16 @@ func (d *DashboardController) LiveDemo(c *gin.Context) {
 	subcategoryTotals := expense.CalculateTotalsPerSubCategory(d.SampleData)
 	mom := expense.CalculateMonthOverMonthTotals(d.SampleData)
 	labels, amountsByCategory := getMOMData(mom)
-	topCategories := expense.GetTop3ExpenseCategories(d.SampleData, d.SampleData[0].MonthYear())
+
+	mostRecent := expense.FindMostRecentTime(d.SampleData)
+	mostRecentMonthYear := expense.NewMonthYear(mostRecent)
 
 	c.HTML(http.StatusOK, "dashboard.html", gin.H{
 		"Categories":         getSecondClassifier(categoryTotals),
-		"CategoryAmounts":    getCurrentMonthAmounts(categoryTotals),
+		"CategoryAmounts":    getAmountsForMonth(mostRecentMonthYear, categoryTotals),
 		"SubCategories":      getSecondClassifier(subcategoryTotals),
-		"SubCategoryAmounts": getCurrentMonthAmounts(subcategoryTotals),
-		"TopCategories":      topCategories,
+		"SubCategoryAmounts": getAmountsForMonth(mostRecentMonthYear, subcategoryTotals),
+		"TopCategories":      expense.GetTop3ExpenseCategories(d.SampleData, mostRecentMonthYear),
 		"MOMLabels":          labels,
 		"MOMData":            amountsByCategory,
 	})
@@ -58,15 +59,20 @@ func (d *DashboardController) Dashboard(c *gin.Context) {
 	labels, amountsByCategory := getMOMData(mom)
 
 	expense.SortByDate(expenses)
-	topCategories := expense.GetTop3ExpenseCategories(expenses, expenses[0].MonthYear())
+
+	mostRecent := expense.FindMostRecentTime(expenses)
+	mostRecentMonthYear := expense.NewMonthYear(mostRecent)
+
+	topCategories := expense.GetTop3ExpenseCategories(expenses, mostRecentMonthYear)
+
 	// FIXME: if the subcategory is empty, then it displays an empty card.
 
 	c.HTML(http.StatusOK, "dashboard.html", gin.H{
 		"NoExpenses":         len(expenses) == 0,
 		"Categories":         getSecondClassifier(categoryTotals),
-		"CategoryAmounts":    getCurrentMonthAmounts(categoryTotals),
+		"CategoryAmounts":    getAmountsForMonth(mostRecentMonthYear, categoryTotals),
 		"SubCategories":      getSecondClassifier(subcategoryTotals),
-		"SubCategoryAmounts": getCurrentMonthAmounts(subcategoryTotals),
+		"SubCategoryAmounts": getAmountsForMonth(mostRecentMonthYear, subcategoryTotals),
 		"TopCategories":      topCategories,
 		"MOMLabels":          labels,
 		"MOMData":            amountsByCategory,
@@ -114,11 +120,14 @@ func (d *DashboardController) UploadExpenses(c *gin.Context) {
 	mom := expense.CalculateMonthOverMonthTotals(expenses)
 	labels, amountsByCategory := getMOMData(mom)
 
+	mostRecent := expense.FindMostRecentTime(expenses)
+	mostRecentMonthYear := expense.NewMonthYear(mostRecent)
+
 	c.HTML(http.StatusOK, "dashboard.html", gin.H{
 		"Categories":         getSecondClassifier(categoryTotals),
-		"CategoryAmounts":    getCurrentMonthAmounts(categoryTotals),
+		"CategoryAmounts":    getAmountsForMonth(mostRecentMonthYear, categoryTotals),
 		"SubCategories":      getSecondClassifier(subcategoryTotals),
-		"SubCategoryAmounts": getCurrentMonthAmounts(subcategoryTotals),
+		"SubCategoryAmounts": getAmountsForMonth(mostRecentMonthYear, subcategoryTotals),
 		"MOMLabels":          labels,
 		"MOMData":            amountsByCategory,
 		"User":               user,
@@ -141,12 +150,11 @@ func getSecondClassifier(calculations map[string]map[string]float32) []string {
 	return classifierSlice
 }
 
-func getCurrentMonthAmounts(calculations map[string]map[string]float32) []string {
+func getAmountsForMonth(monthYear string, calculations map[string]map[string]float32) []string {
 	uniqueCategories := getSecondClassifier(calculations)
 	amounts := []string{}
-	nowMonthYear := time.Now().AddDate(0, -1, 0).Format("2006-01")
 	for _, category := range uniqueCategories {
-		amounts = append(amounts, fmt.Sprintf("%.2f", calculations[nowMonthYear][category]))
+		amounts = append(amounts, fmt.Sprintf("%.2f", calculations[monthYear][category]))
 	}
 
 	return amounts

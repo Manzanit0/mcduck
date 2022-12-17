@@ -45,6 +45,17 @@ func NewMonthYear(t time.Time) string {
 	return t.Format("2006-01")
 }
 
+func FindMostRecentTime(expenses []Expense) time.Time {
+	var mostRecent time.Time
+	for _, e := range expenses {
+		if mostRecent.Before(e.Date) {
+			mostRecent = e.Date
+		}
+	}
+
+  return mostRecent
+}
+
 func CalculateTotalsPerCategory(expenses []Expense) map[string]map[string]float32 {
 	totalsByMonth := make(map[string]map[string]float32)
 	for _, expense := range expenses {
