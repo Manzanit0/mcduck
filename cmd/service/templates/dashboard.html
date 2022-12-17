@@ -8,7 +8,7 @@
   <body>
     {{template "navbar" .}}
     <div>
-      <h1>Expense Report</h1>
+      <h1>Expense Report {{ .PrettyMonthYear }}</h1>
     </div>
     <div>
       {{ if .NoExpenses }}
@@ -22,7 +22,7 @@
       <div>{{ template "_upload_expenses_form" }}</div>
       {{ else }}
       <div>
-        <h2>Top Expense Categories {{ (index .TopCategories 0).MonthYear }}</h2>
+        <h2>Top Expense Categories</h2>
         <div style="display: flex; justify-content: center; gap: 10px">
           {{ range $e := .TopCategories }}
           <div class="terminal-card">
@@ -34,11 +34,11 @@
       </div>
       <div>
         <div class="chart">
-          <h2>Expenses per category last month</h2>
+          <h2>Expenses per category</h2>
           <canvas id="categoriesChart"></canvas>
         </div>
         <div class="chart">
-          <h2>Expenses per sub-category last month</h2>
+          <h2>Expenses per sub-category</h2>
           <canvas id="subcategoriesChart"></canvas>
         </div>
         <div class="chart">
@@ -61,21 +61,7 @@
       clamp: true,
     });
 
-    // Chart.plugins.register({
-    //   id: 'paddingBelowLegends',
-    //   beforeInit: function(chart, options) {
-    //     chart.legend.afterFit = function() {
-    //       this.height = this.height + 50;
-    //     };
-    //   }
-    // });
-
-    const monthNames = ["January", "February", "March", "April", "May", "June",
-      "July", "August", "September", "October", "November", "December"
-    ];
-
-    const lastMonth = monthNames[new Date().getMonth()-1] + " " + new Date().getFullYear()
-
+    const lastMonth = {{.PrettyMonthYear}};
     let labels = {{.Categories}};
     let amounts = {{.CategoryAmounts}};
 

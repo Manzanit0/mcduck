@@ -30,6 +30,7 @@ func (d *DashboardController) LiveDemo(c *gin.Context) {
 	mostRecentMonthYear := expense.NewMonthYear(mostRecent)
 
 	c.HTML(http.StatusOK, "dashboard.html", gin.H{
+		"PrettyMonthYear":    mostRecent.Format("January 2006"),
 		"Categories":         getSecondClassifier(categoryTotals),
 		"CategoryAmounts":    getAmountsForMonth(mostRecentMonthYear, categoryTotals),
 		"SubCategories":      getSecondClassifier(subcategoryTotals),
@@ -68,6 +69,7 @@ func (d *DashboardController) Dashboard(c *gin.Context) {
 	// FIXME: if the subcategory is empty, then it displays an empty card.
 
 	c.HTML(http.StatusOK, "dashboard.html", gin.H{
+		"PrettyMonthYear":    mostRecent.Format("January 2006"),
 		"NoExpenses":         len(expenses) == 0,
 		"Categories":         getSecondClassifier(categoryTotals),
 		"CategoryAmounts":    getAmountsForMonth(mostRecentMonthYear, categoryTotals),
@@ -124,6 +126,7 @@ func (d *DashboardController) UploadExpenses(c *gin.Context) {
 	mostRecentMonthYear := expense.NewMonthYear(mostRecent)
 
 	c.HTML(http.StatusOK, "dashboard.html", gin.H{
+		"PrettyMonthYear":    mostRecent.Format("January 2006"),
 		"Categories":         getSecondClassifier(categoryTotals),
 		"CategoryAmounts":    getAmountsForMonth(mostRecentMonthYear, categoryTotals),
 		"SubCategories":      getSecondClassifier(subcategoryTotals),
