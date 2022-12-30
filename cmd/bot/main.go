@@ -80,6 +80,7 @@ func telegramWebhookController(tgramClient tgram.Client, invxClient invx.Client)
 	return func(c *gin.Context) {
 		var r tgram.WebhookRequest
 		if err := c.ShouldBindJSON(&r); err != nil {
+			log.Println(err.Error())
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error": fmt.Errorf("payload does not conform with telegram contract: %w", err).Error(),
 			})
@@ -103,12 +104,14 @@ func telegramWebhookController(tgramClient tgram.Client, invxClient invx.Client)
 
 		file, err := tgramClient.GetFile(tgram.GetFileRequest{FileID: fileID})
 		if err != nil {
+			log.Println(err.Error())
 			c.JSON(http.StatusOK, webhookResponse(&r, fmt.Sprintf("unable to get file from Telegram servers: %s", err.Error())))
 			return
 		}
 
 		fileData, err := tgramClient.DownloadFile(file)
 		if err != nil {
+			log.Println(err.Error())
 			c.JSON(http.StatusOK, webhookResponse(&r, fmt.Sprintf("unable to download file from Telegram servers: %s", err.Error())))
 			return
 		}
@@ -120,6 +123,7 @@ func telegramWebhookController(tgramClient tgram.Client, invxClient invx.Client)
 
 		amounts, err := invxClient.ParseReceipt(c.Request.Context(), fileData)
 		if err != nil {
+			log.Println(err.Error())
 			c.JSON(http.StatusOK, webhookResponse(&r, fmt.Sprintf("unable to parser receipt: %s", err.Error())))
 			return
 		}

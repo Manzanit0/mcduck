@@ -48,17 +48,30 @@ func (c *client) ParseReceipt(_ context.Context, data []byte) (map[string]float6
 	}
 
 	var unmarshalled struct {
-		Items      map[string]float64 `json:"items"`
-		ItemsCount int                `json:"items_count"`
-		Total      float64            `json:"total_price"`
+		Items      map[string]interface{} `json:"items"`
+		ItemsCount int                    `json:"items_count"`
+		Total      float64                `json:"total_price"`
 	}
 
 	err = json.Unmarshal(respBody, &unmarshalled)
 	if err != nil {
+		log.Println("body which was unmarsheable", string(respBody))
 		return nil, fmt.Errorf("unmarshal response body: %w", err)
 	}
 
-	return unmarshalled.Items, nil
+	// The API may return strings and what not. We only care about the digits.
+	retVal := make(map[string]float64)
+	for k, v := range unmarshalled.Items {
+		switch vv := v.(type) {
+		case float64:
+			retVal[k] = vv
+
+		case float32:
+			retVal[k] = float64(vv)
+		}
+	}
+
+	return retVal, nil
 }
 
 func (c *client) newParseReceiptRequest(data []byte) (*http.Request, error) {
@@ -93,9 +106,6 @@ func (c *client) newParseReceiptRequest(data []byte) (*http.Request, error) {
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 	req.Header.Set("Content-Length", fmt.Sprintf("%d", body.Len()))
 	req.Header.Set("Authorization", c.AuthToken)
-
-	log.Println("headers", fmt.Sprintf("%+v", req.Header))
-	log.Println("mime headers", fmt.Sprintf("%+v", h))
 
 	return req, nil
 }
