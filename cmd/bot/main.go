@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -16,6 +17,8 @@ import (
 	"github.com/manzanit0/mcduck/pkg/tgram"
 	"github.com/olekukonko/tablewriter"
 )
+
+const defaultCurrency = "€"
 
 func main() {
 	r := gin.Default()
@@ -138,13 +141,21 @@ func NewBreakdownTgramMessage(amounts map[string]float64) string {
 
 	table.SetHeader([]string{"Item", "Amount"})
 
+	var total float64
 	for k, v := range amounts {
-		table.Append([]string{k, fmt.Sprintf("%.2f", v)})
+		// We're trimming the item name because we want the table to render
+		// properly on small phones. The reference is an iPhone SE.
+		item := strings.TrimSpace(strings.Title(strings.ToLower(fmt.Sprintf("%.14s", k))))
+		table.Append([]string{item, fmt.Sprintf("%.2f%s", v, defaultCurrency)})
+		total += v
 	}
 
-	table.SetRowLine(true)
+	// table.SetRowLine(true)
+	table.SetAlignment(tablewriter.ALIGN_LEFT)
 	table.SetRowSeparator("-")
 	table.SetAutoFormatHeaders(false)
+	table.SetBorder(false)
+	table.SetFooter([]string{"TOTAL", fmt.Sprintf("%.2f%s", total, defaultCurrency)})
 
 	table.Render()
 
