@@ -10,5 +10,7 @@ CREATE TABLE expenses(
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
-    CONSTRAINT fk_user_email FOREIGN KEY (user_email) REFERENCES users(email) ON DELETE CASCADE
+    CONSTRAINT fk_user_email
+    FOREIGN KEY (user_email)
+    REFERENCES users(email) ON DELETE CASCADE
 );
