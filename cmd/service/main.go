@@ -67,6 +67,13 @@ func main() {
 	r.SetHTMLTemplate(t)
 	r.StaticFS("/public", http.FS(assets))
 
+	// Used for healthcheck
+	r.GET("/ping", func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"message": "pong",
+		})
+	})
+
 	// Auto-instruments every endpoint
 	r.Use(otelgin.Middleware(serviceName))
 
