@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"log"
@@ -11,7 +12,9 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/manzanit0/mcduck/pkg/invx"
 	"github.com/manzanit0/mcduck/pkg/tgram"
+	"github.com/olekukonko/tablewriter"
 )
 
 func main() {
@@ -23,7 +26,10 @@ func main() {
 		})
 	})
 
-	r.POST("/telegram/webhook", telegramWebhookController())
+	invxClient := invx.NewClient(os.Getenv("INVX_HOST"), os.Getenv("INVX_AUTH_TOKEN"))
+	tgramClient := tgram.NewClient(http.DefaultClient, os.Getenv("TELEGRAM_BOT_TOKEN"))
+
+	r.POST("/telegram/webhook", telegramWebhookController(tgramClient, invxClient))
 
 	// background job to ping users on weather changes
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -70,7 +76,7 @@ func webhookResponse(p *tgram.WebhookRequest, text string) gin.H {
 	}
 }
 
-func telegramWebhookController() func(c *gin.Context) {
+func telegramWebhookController(tgramClient tgram.Client, invxClient invx.Client) func(c *gin.Context) {
 	return func(c *gin.Context) {
 		var r tgram.WebhookRequest
 		if err := c.ShouldBindJSON(&r); err != nil {
@@ -79,7 +85,64 @@ func telegramWebhookController() func(c *gin.Context) {
 			})
 			return
 		}
+
+		if r.Message == nil || len(r.Message.Photos) == 0 {
+			c.JSON(http.StatusOK, webhookResponse(&r, "Hey! Just send me a picture with a receipt ;-)"))
+			return
+		}
+
+		// Get the biggest photo: this will ensure better parsing by invx service.
+		var fileID string
+		var fileSize int64
+		for _, p := range r.Message.Photos {
+			if p.FileSize != nil && *p.FileSize > fileSize {
+				fileID = p.FileID
+				fileSize = *p.FileSize
+			}
+		}
+
+		file, err := tgramClient.GetFile(tgram.GetFileRequest{FileID: fileID})
+		if err != nil {
+			c.JSON(http.StatusOK, webhookResponse(&r, fmt.Sprintf("unable to get file from Telegram servers: %s", err.Error())))
+			return
+		}
+
+		fileData, err := tgramClient.DownloadFile(file)
+		if err != nil {
+			c.JSON(http.StatusOK, webhookResponse(&r, fmt.Sprintf("unable to download file from Telegram servers: %s", err.Error())))
+			return
+		}
+
+		if len(fileData) == 0 {
+			c.JSON(http.StatusOK, webhookResponse(&r, "empty file"))
+			return
+		}
+
+		amounts, err := invxClient.ParseReceipt(c.Request.Context(), fileData)
+		if err != nil {
+			c.JSON(http.StatusOK, webhookResponse(&r, fmt.Sprintf("unable to parser receipt: %s", err.Error())))
+			return
+		}
+
+		c.JSON(http.StatusOK, webhookResponse(&r, NewBreakdownTgramMessage(amounts)))
 	}
 }
 
+func NewBreakdownTgramMessage(amounts map[string]float64) string {
+	b := bytes.NewBuffer([]byte{})
+	table := tablewriter.NewWriter(b)
 
+	table.SetHeader([]string{"Item", "Amount"})
+
+	for k, v := range amounts {
+		table.Append([]string{k, fmt.Sprintf("%.2f", v)})
+	}
+
+	table.SetRowLine(true)
+	table.SetRowSeparator("-")
+	table.SetAutoFormatHeaders(false)
+
+	table.Render()
+
+	return fmt.Sprintf("```%s```", b.String())
+}
