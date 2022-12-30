@@ -16,3 +16,7 @@ earthly +docker
 # Runs the service
 docker run -p 8080:8080 --env-file cmd/service/docker.env --network service_mcduck --rm mcduck:latest
 ```
+
+## The bot
+
+McDuck app also has a telegram bot to parse receipts.
