@@ -2,7 +2,7 @@ VERSION 0.6
 FROM golang:1.19.1-alpine3.15
 WORKDIR /mcduck
 RUN apk add build-base bash postgresql-client
- 
+
 project-files:
     COPY go.mod go.mod
     COPY go.sum go.sum
@@ -26,7 +26,7 @@ unit-test:
 
 integration-test:
     FROM +project-files
-    COPY cmd/service/docker-compose.yml ./ 
+    COPY docker-compose.yml ./
     WITH DOCKER --compose docker-compose.yml
         RUN while ! pg_isready --host=localhost --port=5431 --dbname=postgres --username=root; do sleep 1; done ;\
             go test ./...

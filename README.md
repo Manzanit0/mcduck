@@ -8,7 +8,7 @@ Run everything in docker:
 
 ```sh
 # Spins up service dependencies, such as postgres within a network called "service_mcduck".
-docker compose -f cmd/service/docker-compose.yml up -d
+docker compose -f docker-compose.yml up -d
 
 # Builds a docker image of the service
 earthly +docker
