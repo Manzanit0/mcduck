@@ -10,15 +10,25 @@ project-files:
     COPY pkg pkg
     COPY internal internal
 
-build:
+service-build:
     FROM +project-files
     RUN go build -o build/mcduck cmd/service/main.go
     SAVE ARTIFACT build/mcduck /mcduck AS LOCAL build/mcduck
 
-docker:
-    COPY +build/mcduck .
+service-docker:
+    COPY +service-build/mcduck .
     ENTRYPOINT ["/mcduck/mcduck"]
     SAVE IMAGE mcduck:latest
+
+bot-build:
+    FROM +project-files
+    RUN go build -o build/mcduck-bot cmd/bot/main.go
+    SAVE ARTIFACT build/mcduck-bot /mcduck-bot AS LOCAL build/mcduck-bot
+
+bot-docker:
+    COPY +bot-build/mcduck-bot .
+    ENTRYPOINT ["/mcduck-bot/mcduck-bot"]
+    SAVE IMAGE mcduck-bot:latest
 
 unit-test:
     FROM +project-files
@@ -33,6 +43,7 @@ integration-test:
     END
 
 all:
-    BUILD +build
+    BUILD +service-build
+    BUILD +bot-build
     BUILD +unit-test
     BUILD +integration-test

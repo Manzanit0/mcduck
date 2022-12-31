@@ -11,10 +11,16 @@ Run everything in docker:
 docker compose -f docker-compose.yml up -d
 
 # Builds a docker image of the service
-earthly +docker
+earthly +service-docker
 
 # Runs the service
 docker run -p 8080:8080 --env-file cmd/service/docker.env --network service_mcduck --rm mcduck:latest
+
+# Builds a docker image of the bot
+earthly +service-docker
+
+# Runs the bot
+docker run -p 8080:8080 --env-file cmd/bot/docker.env --network service_mcduck --rm mcduck-bot:latest
 ```
 
 ## The bot
