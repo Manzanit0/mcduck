@@ -15,12 +15,28 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/manzanit0/mcduck/pkg/invx"
 	"github.com/manzanit0/mcduck/pkg/tgram"
+	"github.com/manzanit0/mcduck/pkg/trace"
 	"github.com/olekukonko/tablewriter"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
-const defaultCurrency = "€"
+const (
+	serviceName     = "tgram-bot"
+	defaultCurrency = "€"
+)
 
 func main() {
+	tp, err := initTracerProvider()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer func() {
+		err := tp.Shutdown(context.Background())
+		if err != nil {
+			log.Printf("shutdown tracer: %s\n", err.Error())
+		}
+	}()
+
 	r := gin.Default()
 
 	r.GET("/ping", func(c *gin.Context) {
@@ -160,4 +176,20 @@ func NewBreakdownTgramMessage(amounts map[string]float64) string {
 	table.Render()
 
 	return fmt.Sprintf("```%s```", b.String())
+}
+
+func initTracerProvider() (*sdktrace.TracerProvider, error) {
+	endpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+	headers := os.Getenv("OTEL_EXPORTER_OTLP_HEADERS")
+	if endpoint == "" || headers == "" {
+		return nil, fmt.Errorf("missing OTEL_EXPORTER_* environment variables")
+	}
+
+	opts := trace.NewExporterOptions(endpoint, headers)
+	tp, err := trace.InitTracer(context.Background(), serviceName, opts)
+	if err != nil {
+		return nil, fmt.Errorf("init tracer: %s", err.Error())
+	}
+
+	return tp, nil
 }
