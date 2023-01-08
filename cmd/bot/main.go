@@ -113,7 +113,7 @@ func telegramWebhookController(tgramClient tgram.Client, invxClient invx.Client)
 		}
 
 		if r.Message == nil || len(r.Message.Photos) == 0 {
-			c.JSON(http.StatusOK, webhookResponse(&r, "Hey! Just send me a picture with a receipt ;-)"))
+			c.JSON(http.StatusOK, webhookResponse(&r, "Hey\\! Just send me a picture with a receipt, and I'll do the rest\\!"))
 			return
 		}
 
