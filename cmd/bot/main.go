@@ -88,24 +88,24 @@ func telegramWebhookController(tgramClient tgram.Client, invxClient invx.Client)
 	return func(c *gin.Context) {
 		var r tgram.WebhookRequest
 		if err := c.ShouldBindJSON(&r); err != nil {
-			log.Println(err.Error())
+			log.Println("[ERROR] bind Telegram webhook payload:", err.Error())
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error": fmt.Errorf("payload does not conform with telegram contract: %w", err).Error(),
 			})
 			return
 		}
 
-		if r.Message != nil && strings.HasPrefix(*r.Message.Text, "/login") {
+		switch {
+
+		case r.Message != nil && strings.HasPrefix(*r.Message.Text, "/login"):
 			c.JSON(http.StatusOK, bot.LoginLink(&r))
-			return
-		}
 
-		if r.Message == nil || len(r.Message.Photos) == 0 {
+		case r.Message == nil || len(r.Message.Photos) > 0:
+			c.JSON(http.StatusOK, bot.ParseReceipt(c.Request.Context(), tgramClient, invxClient, &r))
+
+		default:
 			c.JSON(http.StatusOK, tgram.NewMarkdownResponse("Hey\\! Just send me a picture with a receipt, and I'll do the rest\\!", r.GetFromID()))
-			return
 		}
-
-		c.JSON(http.StatusOK, bot.ParseReceipt(c.Request.Context(), tgramClient, invxClient, &r))
 	}
 }
 
