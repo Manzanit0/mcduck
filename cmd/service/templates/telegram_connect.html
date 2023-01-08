@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+  {{template "head"}}
+  <body>
+    {{template "navbar" .}}
+    <div>
+      <h1>Connect your Telegram account</h1>
+    </div>
+    <div class="login-form-container">
+      <form
+        class="login-form"
+        method="POST"
+        action="/login"
+        id="form-login-user"
+      >
+        <input
+          class="login-form-element"
+          id="email"
+          name="email"
+          type="email"
+          placeholder="Enter your email"
+        />
+        <input
+          class="login-form-element"
+          id="password"
+          name="password"
+          type="password"
+          placeholder="Write your password"
+        />
+
+        <input
+          class="login-form-element"
+          id="telegram_chat_id"
+          name="telegram_chat_id"
+          type="hidden"
+          value="{{ .TelegramChatID }}"
+          placeholder="Write your password"
+        />
+        <button class="login-form-element" id="btn-login-account">Login</button>
+      </form>
+    </div>
+  </body>
+</html>

@@ -21,6 +21,7 @@ import (
 	"github.com/manzanit0/mcduck/cmd/service/api"
 	"github.com/manzanit0/mcduck/internal/expense"
 	"github.com/manzanit0/mcduck/pkg/auth"
+	"github.com/manzanit0/mcduck/pkg/tgram"
 	"github.com/manzanit0/mcduck/pkg/trace"
 )
 
@@ -58,6 +59,8 @@ func main() {
 		}
 	}()
 
+	tgramClient := tgram.NewClient(http.DefaultClient, os.Getenv("TELEGRAM_BOT_TOKEN"))
+
 	t, err := template.ParseFS(templates, "templates/*.html")
 	if err != nil {
 		log.Fatal(err)
@@ -85,12 +88,14 @@ func main() {
 	loggedIn := r.Group("/").Use(api.ForceLogin)
 	loggedInAndAuthorised := r.Group("/").Use(api.ForceLogin, api.ExpenseOwnershipWall(expenseRepository))
 
-	controller := api.RegistrationController{DB: dbx.GetSQLX()}
+	controller := api.RegistrationController{DB: dbx.GetSQLX(), Telegram: tgramClient}
 	r.GET("/register", controller.GetRegisterForm)
 	r.POST("/register", controller.RegisterUser)
 	r.GET("/login", controller.GetLoginForm)
 	r.POST("/login", controller.LoginUser)
 	r.GET("/signout", controller.Signout)
+	r.GET("/connect", controller.GetConnectForm)
+	r.POST("/connect", controller.ConnectUser)
 
 	data, err := readSampleData()
 	if err != nil {

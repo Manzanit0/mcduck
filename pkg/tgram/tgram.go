@@ -14,6 +14,22 @@ type WebhookRequest struct {
 	EditedMessage *Message `json:"edited_message"`
 }
 
+type WebhookResponse struct {
+	ChatID    int       `json:"chat_id,omitempty"`
+	Text      string    `json:"text,omitempty"`
+	ParseMode ParseMode `json:"parse_mode,omitempty"`
+	Method    string    `json:"method,omitempty"`
+}
+
+func NewMarkdownResponse(text string, chatID int) *WebhookResponse {
+	return &WebhookResponse{
+		ChatID:    chatID,
+		Text:      text,
+		Method:    "sendMessage",
+		ParseMode: ParseModeMarkdownV2,
+	}
+}
+
 func (w WebhookRequest) GetFromUsername() string {
 	if w.Message != nil {
 		return w.Message.From.Username

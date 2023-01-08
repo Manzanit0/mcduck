@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/manzanit0/mcduck/cmd/bot/internal/bot"
 	"github.com/manzanit0/mcduck/pkg/invx"
 	"github.com/manzanit0/mcduck/pkg/tgram"
 	"github.com/manzanit0/mcduck/pkg/trace"
@@ -103,6 +104,11 @@ func telegramWebhookController(tgramClient tgram.Client, invxClient invx.Client)
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error": fmt.Errorf("payload does not conform with telegram contract: %w", err).Error(),
 			})
+			return
+		}
+
+		if r.Message != nil && strings.HasPrefix(*r.Message.Text, "/login") {
+			c.JSON(http.StatusOK, bot.LoginLink(&r))
 			return
 		}
 
