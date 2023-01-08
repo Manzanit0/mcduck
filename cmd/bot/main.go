@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"log"
@@ -17,7 +16,6 @@ import (
 	"github.com/manzanit0/mcduck/pkg/invx"
 	"github.com/manzanit0/mcduck/pkg/tgram"
 	"github.com/manzanit0/mcduck/pkg/trace"
-	"github.com/olekukonko/tablewriter"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
@@ -86,16 +84,6 @@ func main() {
 	log.Printf("server exited")
 }
 
-// @see https://core.telegram.org/bots/api#markdownv2-style
-func webhookResponse(p *tgram.WebhookRequest, text string) gin.H {
-	return gin.H{
-		"method":     "sendMessage",
-		"chat_id":    p.GetFromID(),
-		"text":       text,
-		"parse_mode": "MarkdownV2",
-	}
-}
-
 func telegramWebhookController(tgramClient tgram.Client, invxClient invx.Client) func(c *gin.Context) {
 	return func(c *gin.Context) {
 		var r tgram.WebhookRequest
@@ -113,75 +101,12 @@ func telegramWebhookController(tgramClient tgram.Client, invxClient invx.Client)
 		}
 
 		if r.Message == nil || len(r.Message.Photos) == 0 {
-			c.JSON(http.StatusOK, webhookResponse(&r, "Hey\\! Just send me a picture with a receipt, and I'll do the rest\\!"))
+			c.JSON(http.StatusOK, tgram.NewMarkdownResponse("Hey\\! Just send me a picture with a receipt, and I'll do the rest\\!", r.GetFromID()))
 			return
 		}
 
-		// Get the biggest photo: this will ensure better parsing by invx service.
-		var fileID string
-		var fileSize int64
-		for _, p := range r.Message.Photos {
-			if p.FileSize != nil && *p.FileSize > fileSize {
-				fileID = p.FileID
-				fileSize = *p.FileSize
-			}
-		}
-
-		file, err := tgramClient.GetFile(tgram.GetFileRequest{FileID: fileID})
-		if err != nil {
-			log.Println(err.Error())
-			c.JSON(http.StatusOK, webhookResponse(&r, fmt.Sprintf("unable to get file from Telegram servers: %s", err.Error())))
-			return
-		}
-
-		fileData, err := tgramClient.DownloadFile(file)
-		if err != nil {
-			log.Println(err.Error())
-			c.JSON(http.StatusOK, webhookResponse(&r, fmt.Sprintf("unable to download file from Telegram servers: %s", err.Error())))
-			return
-		}
-
-		if len(fileData) == 0 {
-			c.JSON(http.StatusOK, webhookResponse(&r, "empty file"))
-			return
-		}
-
-		amounts, err := invxClient.ParseReceipt(c.Request.Context(), fileData)
-		if err != nil {
-			log.Println(err.Error())
-			c.JSON(http.StatusOK, webhookResponse(&r, fmt.Sprintf("unable to parser receipt: %s", err.Error())))
-			return
-		}
-
-		c.JSON(http.StatusOK, webhookResponse(&r, NewBreakdownTgramMessage(amounts)))
+		c.JSON(http.StatusOK, bot.ParseReceipt(c.Request.Context(), tgramClient, invxClient, &r))
 	}
-}
-
-func NewBreakdownTgramMessage(amounts map[string]float64) string {
-	b := bytes.NewBuffer([]byte{})
-	table := tablewriter.NewWriter(b)
-
-	table.SetHeader([]string{"Item", "Amount"})
-
-	var total float64
-	for k, v := range amounts {
-		// We're trimming the item name because we want the table to render
-		// properly on small phones. The reference is an iPhone SE.
-		item := strings.TrimSpace(strings.Title(strings.ToLower(fmt.Sprintf("%.14s", k))))
-		table.Append([]string{item, fmt.Sprintf("%.2f%s", v, defaultCurrency)})
-		total += v
-	}
-
-	// table.SetRowLine(true)
-	table.SetAlignment(tablewriter.ALIGN_LEFT)
-	table.SetRowSeparator("-")
-	table.SetAutoFormatHeaders(false)
-	table.SetBorder(false)
-	table.SetFooter([]string{"TOTAL", fmt.Sprintf("%.2f%s", total, defaultCurrency)})
-
-	table.Render()
-
-	return fmt.Sprintf("```%s```", b.String())
 }
 
 func initTracerProvider() (*sdktrace.TracerProvider, error) {
