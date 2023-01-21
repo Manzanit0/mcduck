@@ -96,8 +96,7 @@ func telegramWebhookController(tgramClient tgram.Client, invxClient invx.Client)
 		}
 
 		switch {
-
-		case r.Message != nil && strings.HasPrefix(*r.Message.Text, "/login"):
+		case r.Message != nil && r.Message.Text != nil && strings.HasPrefix(*r.Message.Text, "/login"):
 			c.JSON(http.StatusOK, bot.LoginLink(&r))
 
 		case r.Message == nil || len(r.Message.Photos) > 0:
