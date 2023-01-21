@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 )
 
@@ -194,7 +194,7 @@ func (c *client) SendMessage(m SendMessageRequest) error {
 		return nil
 	}
 
-	data, err := ioutil.ReadAll(res.Body)
+	data, err := io.ReadAll(res.Body)
 	if err != nil {
 		return fmt.Errorf("request failed with status %d, but unable to read body: %w", res.StatusCode, err)
 	}
@@ -210,6 +210,7 @@ type GetFileResponse struct {
 	Ok     bool `json:"ok"`
 	Result File `json:"result"`
 }
+
 type File struct {
 	ID       string `json:"file_id"`
 	UniqueID string `json:"file_unique_id"`
@@ -244,7 +245,7 @@ func (c *client) GetFile(m GetFileRequest) (*File, error) {
 	}
 
 	defer res.Body.Close()
-	data, err := ioutil.ReadAll(res.Body)
+	data, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, fmt.Errorf("read body: %w", err)
 	}
@@ -278,7 +279,7 @@ func (c *client) DownloadFile(file *File) ([]byte, error) {
 	}
 
 	defer res.Body.Close()
-	data, err := ioutil.ReadAll(res.Body)
+	data, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, fmt.Errorf("read body: %w", err)
 	}
