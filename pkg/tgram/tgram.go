@@ -15,10 +15,20 @@ type WebhookRequest struct {
 }
 
 type WebhookResponse struct {
-	ChatID    int       `json:"chat_id,omitempty"`
-	Text      string    `json:"text,omitempty"`
-	ParseMode ParseMode `json:"parse_mode,omitempty"`
-	Method    string    `json:"method,omitempty"`
+	ChatID      int         `json:"chat_id,omitempty"`
+	Text        string      `json:"text,omitempty"`
+	ParseMode   ParseMode   `json:"parse_mode,omitempty"`
+	Method      string      `json:"method,omitempty"`
+	ReplyMarkup ReplyMarkup `json:"reply_markup,omitempty"`
+}
+
+type ReplyMarkup struct {
+	InlineKeyboard [][]InlineKeyboardElement `json:"inline_keyboard,omitempty"`
+}
+
+type InlineKeyboardElement struct {
+	Text         string `json:"text,omitempty"`
+	CallbackData string `json:"callback_data,omitempty"`
 }
 
 func NewMarkdownResponse(text string, chatID int) *WebhookResponse {
@@ -28,6 +38,19 @@ func NewMarkdownResponse(text string, chatID int) *WebhookResponse {
 		Method:    "sendMessage",
 		ParseMode: ParseModeMarkdownV2,
 	}
+}
+
+func NewInlineKeyboardButton(text, callback string) (InlineKeyboardElement, error) {
+	if b := []byte(callback); len(b) > 64 {
+		return InlineKeyboardElement{}, fmt.Errorf("callback_data exceeds 64 bytes")
+	}
+
+	return InlineKeyboardElement{Text: text, CallbackData: callback}, nil
+}
+
+func (w *WebhookResponse) WithInlineKeyboard(elements [][]InlineKeyboardElement) *WebhookResponse {
+	w.ReplyMarkup = ReplyMarkup{InlineKeyboard: elements}
+	return w
 }
 
 func (w WebhookRequest) GetFromUsername() string {
