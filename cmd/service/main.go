@@ -113,14 +113,39 @@ func main() {
 	loggedInAndAuthorised.PATCH("/expenses/:id", expensesController.UpdateExpense)
 	loggedInAndAuthorised.DELETE("/expenses/:id", expensesController.DeleteExpense)
 
+
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
 	var port string
 	if port = os.Getenv("PORT"); port == "" {
 		port = "8080"
 	}
 
-	if err := r.Run(fmt.Sprintf(":%s", port)); err != nil {
-		log.Fatal(err)
+	srv := &http.Server{Addr: fmt.Sprintf(":%s", port), Handler: r}
+	go func() {
+		log.Printf("serving HTTP on :%s", port)
+
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Printf("server ended abruptly: %s", err.Error())
+		} else {
+			log.Printf("server ended gracefully")
+		}
+
+		stop()
+	}()
+
+	// Listen for OS interrupt
+	<-ctx.Done()
+	stop()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Fatal("server forced to shutdown: ", err)
 	}
+
+	log.Printf("server exited")
 }
 
 func openDB() (isqlx.DBX, error) {
