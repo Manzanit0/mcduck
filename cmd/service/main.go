@@ -14,9 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/manzanit0/isqlx"
-	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 	"go.opentelemetry.io/otel"
-	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 
 	"github.com/manzanit0/mcduck/cmd/service/api"
 	"github.com/manzanit0/mcduck/internal/expense"
@@ -37,7 +35,7 @@ var assets embed.FS
 var sampleData embed.FS
 
 func main() {
-	tp, err := initTracerProvider()
+	tp, err := trace.TracerFromEnv(context.Background(), serviceName)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -78,7 +76,7 @@ func main() {
 	})
 
 	// Auto-instruments every endpoint
-	r.Use(otelgin.Middleware(serviceName))
+	r.Use(tp.TraceRequests())
 
 	r.GET("/", api.LandingPage)
 	r.Use(auth.CookieMiddleware)
