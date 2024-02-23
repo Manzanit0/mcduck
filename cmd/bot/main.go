@@ -16,7 +16,6 @@ import (
 	"github.com/manzanit0/mcduck/pkg/invx"
 	"github.com/manzanit0/mcduck/pkg/tgram"
 	"github.com/manzanit0/mcduck/pkg/trace"
-	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
 const (
@@ -108,7 +107,7 @@ func telegramWebhookController(tgramClient tgram.Client, invxClient invx.Client)
 	}
 }
 
-func initTracerProvider() (*sdktrace.TracerProvider, error) {
+func initTracerProvider() (*trace.Provider, error) {
 	endpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
 	headers := os.Getenv("OTEL_EXPORTER_OTLP_HEADERS")
 	if endpoint == "" || headers == "" {
