@@ -23,6 +23,8 @@ type ExpenseViewModel struct {
 	Amount      string
 	Category    string
 	Subcategory string
+	Description string
+	ReceiptID   uint64
 }
 
 func MapExpenses(expenses []expense.Expense) (models []ExpenseViewModel) {
@@ -33,6 +35,8 @@ func MapExpenses(expenses []expense.Expense) (models []ExpenseViewModel) {
 			Amount:      fmt.Sprintf("%0.2f", e.Amount),
 			Category:    strings.Title(e.Category),
 			Subcategory: strings.Title(e.Subcategory),
+			Description: e.Description,
+			ReceiptID:   e.ReceiptID,
 		})
 	}
 
@@ -59,6 +63,8 @@ type UpdateExpense struct {
 	Amount      *float32 `json:"amount,string"`
 	Category    *string  `json:"category"`
 	Subcategory *string  `json:"subcategory"`
+	Description *string  `json:"description"`
+	ReceiptID   *uint64  `json:"receipt_id,string"` // TODO: this update isn't working as expected.
 }
 
 func (d *ExpensesController) UpdateExpense(c *gin.Context) {
@@ -92,8 +98,9 @@ func (d *ExpensesController) UpdateExpense(c *gin.Context) {
 		Amount:      payload.Amount,
 		Category:    payload.Category,
 		Subcategory: payload.Subcategory,
+		Description: payload.Description,
+		ReceiptID:   payload.ReceiptID,
 	})
-
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable to update expense: %s", err.Error())})
 		return
@@ -130,7 +137,6 @@ func (d *ExpensesController) CreateExpense(c *gin.Context) {
 		Date:      date,
 		Amount:    payload.Amount,
 	})
-
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable to create expense: %s", err.Error())})
 		return

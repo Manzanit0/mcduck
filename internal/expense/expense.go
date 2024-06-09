@@ -6,6 +6,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
+	"log"
 	"math"
 	"sort"
 	"strconv"
@@ -17,24 +18,28 @@ import (
 )
 
 type Expense struct {
-	ID          int64
+	ID          uint64
 	Date        time.Time
 	Amount      float32
 	Category    string
 	Subcategory string
 	UserEmail   string
+	ReceiptID   uint64
+	Description string
 }
 
 // dbExpense is the representation of an expense in the database. For instance,
 // the amount is saved as an integer in the DB, but presented to the user as a
 // float32.
 type dbExpense struct {
-	ID          int64     `db:"id"`
+	ID          uint64    `db:"id"`
 	Date        time.Time `db:"expense_date"`
 	Amount      int32     `db:"amount"`
 	Category    *string   `db:"category"`
 	Subcategory *string   `db:"sub_category"`
 	UserEmail   string    `db:"user_email"`
+	ReceiptID   *uint64   `db:"receipt_id"`
+	Description *string   `db:"description"`
 }
 
 func (e Expense) MonthYear() string {
@@ -53,7 +58,7 @@ func FindMostRecentTime(expenses []Expense) time.Time {
 		}
 	}
 
-  return mostRecent
+	return mostRecent
 }
 
 func CalculateTotalsPerCategory(expenses []Expense) map[string]map[string]float32 {
@@ -232,11 +237,32 @@ type ExpensesBatch struct {
 }
 
 func (r *Repository) CreateExpenses(ctx context.Context, e ExpensesBatch) error {
+	return CreateExpenses(ctx, r.dbx, e)
+}
+
+func CreateExpenses(ctx context.Context, tx isqlx.Querier, e ExpensesBatch) error {
 	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
 
-	builder := psql.Insert("expenses").Columns("user_email", "expense_date", "amount", "category", "sub_category")
+	builder := psql.Insert("expenses").Columns(
+		"user_email",
+		"expense_date",
+		"amount",
+		"category",
+		"sub_category",
+		"description",
+		"receipt_id",
+	)
+
 	for _, expense := range e.Records {
-		builder = builder.Values(e.UserEmail, expense.Date, ConvertToCents(expense.Amount), expense.Category, expense.Subcategory)
+		builder = builder.Values(
+			e.UserEmail,
+			expense.Date,
+			ConvertToCents(expense.Amount),
+			expense.Category,
+			expense.Subcategory,
+			expense.Description,
+			expense.ReceiptID,
+		)
 	}
 
 	query, args, err := builder.ToSql()
@@ -244,7 +270,9 @@ func (r *Repository) CreateExpenses(ctx context.Context, e ExpensesBatch) error 
 		return fmt.Errorf("unable to build query: %w", err)
 	}
 
-	_, err = r.dbx.ExecContext(ctx, query, args...)
+	log.Println(query, args)
+
+	_, err = tx.ExecContext(ctx, query, args...)
 	if err != nil {
 		return fmt.Errorf("unable to execute query: %w", err)
 	}
@@ -281,6 +309,8 @@ type UpdateExpenseRequest struct {
 	Amount      *float32
 	Category    *string
 	Subcategory *string
+	Description *string
+	ReceiptID   *uint64
 }
 
 func (r *Repository) UpdateExpense(ctx context.Context, e UpdateExpenseRequest) error {
@@ -302,6 +332,16 @@ func (r *Repository) UpdateExpense(ctx context.Context, e UpdateExpenseRequest) 
 
 	if e.Subcategory != nil {
 		builder = builder.Set("sub_category", *e.Subcategory)
+		shouldUpdate = true
+	}
+
+	if e.Description != nil {
+		builder = builder.Set("description", *e.Description)
+		shouldUpdate = true
+	}
+
+	if e.ReceiptID != nil {
+		builder = builder.Set("receipt_id", *e.ReceiptID)
 		shouldUpdate = true
 	}
 
@@ -377,7 +417,7 @@ func (r *Repository) DeleteExpense(ctx context.Context, id int64) error {
 
 func (r *Repository) ListExpenses(ctx context.Context, email string) ([]Expense, error) {
 	var expenses []dbExpense
-	err := r.dbx.SelectContext(ctx, &expenses, `SELECT id, amount, expense_date, category, sub_category FROM expenses WHERE user_email = $1 ORDER BY expense_date desc`, email)
+	err := r.dbx.SelectContext(ctx, &expenses, `SELECT id, amount, expense_date, category, sub_category, description, receipt_id FROM expenses WHERE user_email = $1 ORDER BY expense_date desc`, email)
 	if err != nil {
 		return nil, fmt.Errorf("unable to execute query: %w", err)
 	}
@@ -416,6 +456,14 @@ func toDomainExpense(expense dbExpense) Expense {
 
 	if expense.Subcategory != nil {
 		e.Subcategory = *expense.Subcategory
+	}
+
+	if expense.ReceiptID != nil {
+		e.ReceiptID = *expense.ReceiptID
+	}
+
+	if expense.Description != nil {
+		e.Description = *expense.Description
 	}
 
 	return e

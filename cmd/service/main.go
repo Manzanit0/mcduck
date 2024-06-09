@@ -9,7 +9,10 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/jackc/pgx/v4/stdlib"
@@ -18,7 +21,9 @@ import (
 
 	"github.com/manzanit0/mcduck/cmd/service/api"
 	"github.com/manzanit0/mcduck/internal/expense"
+	"github.com/manzanit0/mcduck/internal/receipt"
 	"github.com/manzanit0/mcduck/pkg/auth"
+	"github.com/manzanit0/mcduck/pkg/invx"
 	"github.com/manzanit0/mcduck/pkg/tgram"
 	"github.com/manzanit0/mcduck/pkg/trace"
 )
@@ -111,6 +116,12 @@ func main() {
 	loggedInAndAuthorised.PATCH("/expenses/:id", expensesController.UpdateExpense)
 	loggedInAndAuthorised.DELETE("/expenses/:id", expensesController.DeleteExpense)
 
+	// TODO: find a better authwall story, or duplicate the expenses one?
+	invxClient := invx.NewClient(os.Getenv("INVX_HOST"), os.Getenv("INVX_AUTH_TOKEN"))
+	receiptsController := api.ReceiptsController{Receipts: receipt.NewRepository(dbx), Invx: invxClient}
+	r.POST("/receipts", receiptsController.CreateReceipt)
+	r.GET("/receipts", receiptsController.ListReceipts)
+	r.PATCH("/receipts/:id", receiptsController.UpdateReceipt)
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -170,22 +181,6 @@ func openDB() (isqlx.DBX, error) {
 	}
 
 	return dbx, nil
-}
-
-func initTracerProvider() (*sdktrace.TracerProvider, error) {
-	endpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
-	headers := os.Getenv("OTEL_EXPORTER_OTLP_HEADERS")
-	if endpoint == "" || headers == "" {
-		return nil, fmt.Errorf("missing OTEL_EXPORTER_* environment variables")
-	}
-
-	opts := trace.NewExporterOptions(endpoint, headers)
-	tp, err := trace.InitTracer(context.Background(), serviceName, opts)
-	if err != nil {
-		return nil, fmt.Errorf("init tracer: %s", err.Error())
-	}
-
-	return tp, nil
 }
 
 func readSampleData() ([]expense.Expense, error) {

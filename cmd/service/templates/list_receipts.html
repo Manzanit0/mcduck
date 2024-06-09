@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+  {{template "head"}}
+  <body>
+    {{template "navbar" .}}
+    <div>
+      <h1>Receipts</h1>
+      <p>You can upload receipts through our Telegram bot :)</p>
+    </div>
+    <div>
+      <div>
+        <table id="receipts-table">
+          <thead id="expenses-table-head">
+            <tr>
+              <th colspan="1">Date</th>
+              <th colspan="1">Vendor</th>
+              <th colspan="1">Pending Review</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="receipts-table-body">
+            {{range $e := .Receipts}}
+            <tr>
+              <td>
+                <input
+                  style="border: 0; outline: 0"
+                  type="date"
+                  name="date"
+                  id="date-{{$e.Date}}"
+                  value="{{$e.Date}}"
+                />
+              </td>
+              <td>
+                <input
+                  style="border: 0; outline: 0"
+                  type="text"
+                  name="vendor"
+                  id="vendor-{{$e.ID}}"
+                  value="{{$e.Vendor}}"
+                />
+              </td>
+              <td>
+                <input
+                  style="border: 0; outline: 0"
+                  type="text"
+                  name="pending-review"
+                  id="pending_review-{{$e.ID}}"
+                  value="{{$e.PendingReview}}"
+                />
+              </td>
+              <td>
+                <img src="data:image/png;base64,{{$e.Image}}" style="max-width: 30%" />
+              </td>
+              <td>
+                // TODO: view associated expenses
+              </td>
+            </tr>
+            {{end}}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <script>
+      const throwOnError = (response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        return response;
+      };
+
+      const doRequest = (req) => fetch(req).then(throwOnError);
+
+      const updateReceipt = (id, receiptField, value) =>
+        doRequest(
+          new Request(`/receipts/${id}`, {
+            method: "PATCH",
+            headers: { Accept: "application/json" },
+            body: JSON.stringify({ [receiptField]: value }),
+          })
+        );
+
+      const addListenersToTableCell = (input) => {
+        input.addEventListener("focus", (event) => {
+          if (!input.parentElement.classList.contains("cell--selected")) {
+            input.parentElement.classList.add("cell--selected");
+          }
+
+          if (input.parentElement.classList.contains("cell--pending")) {
+            input.parentElement.classList.remove("cell--pending");
+          }
+        });
+
+        input.addEventListener("focusout", (event) => {
+          if (input.parentElement.classList.contains("cell--selected")) {
+            input.parentElement.classList.remove("cell--selected");
+          }
+
+          const inputIsRequiredAndEmpty =
+            (input.value === null || input.value === "") &&
+            (input.id.includes("date") || input.id.includes("amount"));
+
+          if (inputIsRequiredAndEmpty) {
+            input.parentElement.classList.add("cell--pending");
+          }
+        });
+
+        input.addEventListener("change", (event) => {
+          const [receiptField, receiptId, ts] = input.id.split("-");
+            updateReceipt(receiptId, receiptField, event.target.value);
+        });
+      };
+
+      // FIXME: this should just be row inputs.
+      const addListenersToTable = () =>
+        document.querySelectorAll("input").forEach(addListenersToTableCell);
+
+      addListenersToTable();
+    </script>
+  </body>
+</html>
