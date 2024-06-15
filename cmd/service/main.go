@@ -113,15 +113,17 @@ func main() {
 	expensesController := api.ExpensesController{Expenses: expenseRepository}
 	loggedIn.GET("/expenses", expensesController.ListExpenses)
 	loggedIn.PUT("/expenses", expensesController.CreateExpense)
+	loggedIn.POST("/expenses/merge", expensesController.MergeExpenses)
 	loggedInAndAuthorised.PATCH("/expenses/:id", expensesController.UpdateExpense)
 	loggedInAndAuthorised.DELETE("/expenses/:id", expensesController.DeleteExpense)
 
 	// TODO: find a better authwall story, or duplicate the expenses one?
 	invxClient := invx.NewClient(os.Getenv("INVX_HOST"), os.Getenv("INVX_AUTH_TOKEN"))
-	receiptsController := api.ReceiptsController{Receipts: receipt.NewRepository(dbx), Invx: invxClient}
+	receiptsController := api.ReceiptsController{Receipts: receipt.NewRepository(dbx), Invx: invxClient, Expenses: expenseRepository}
 	r.POST("/receipts", receiptsController.CreateReceipt)
 	r.GET("/receipts", receiptsController.ListReceipts)
 	r.PATCH("/receipts/:id", receiptsController.UpdateReceipt)
+	r.GET("/receipts/:id/review", receiptsController.ReviewReceipt)
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()

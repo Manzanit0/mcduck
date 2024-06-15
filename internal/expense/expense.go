@@ -284,7 +284,7 @@ func (r *Repository) FindExpense(ctx context.Context, id int64) (*Expense, error
 	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
 
 	builder := psql.
-		Select("id, expense_Date, amount, category, sub_category, user_email").
+		Select("id, expense_Date, amount, category, sub_category, user_email", "receipt_id").
 		From("expenses").
 		Where(sq.Eq{"id": id})
 
@@ -371,6 +371,7 @@ type CreateExpenseRequest struct {
 	UserEmail string
 	Date      time.Time
 	Amount    float32
+	ReceiptID *uint64
 }
 
 func (r *Repository) CreateExpense(ctx context.Context, e CreateExpenseRequest) (int64, error) {
@@ -378,8 +379,8 @@ func (r *Repository) CreateExpense(ctx context.Context, e CreateExpenseRequest) 
 
 	builder := psql.
 		Insert("expenses").
-		Columns("user_email", "amount, expense_date").
-		Values(e.UserEmail, ConvertToCents(e.Amount), e.Date).
+		Columns("user_email", "amount, expense_date", "receipt_id").
+		Values(e.UserEmail, ConvertToCents(e.Amount), e.Date, e.ReceiptID).
 		Suffix("RETURNING \"id\"")
 
 	query, args, err := builder.ToSql()
@@ -418,6 +419,32 @@ func (r *Repository) DeleteExpense(ctx context.Context, id int64) error {
 func (r *Repository) ListExpenses(ctx context.Context, email string) ([]Expense, error) {
 	var expenses []dbExpense
 	err := r.dbx.SelectContext(ctx, &expenses, `SELECT id, amount, expense_date, category, sub_category, description, receipt_id FROM expenses WHERE user_email = $1 ORDER BY expense_date desc`, email)
+	if err != nil {
+		return nil, fmt.Errorf("unable to execute query: %w", err)
+	}
+
+	var expensesList []Expense
+	for _, expense := range expenses {
+		expensesList = append(expensesList, toDomainExpense(expense))
+	}
+
+	return expensesList, nil
+}
+
+func (r *Repository) ListExpensesForReceipt(ctx context.Context, receiptID uint64) ([]Expense, error) {
+	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
+
+	query, args, err := psql.
+		Select("id", "expense_date", "amount", "category", "sub_category", "description").
+		From("expenses").
+		Where(sq.Eq{"receipt_id": receiptID}).
+		ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("compile query: %w", err)
+	}
+
+	var expenses []dbExpense
+	err = r.dbx.SelectContext(ctx, &expenses, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("unable to execute query: %w", err)
 	}

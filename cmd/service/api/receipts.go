@@ -11,12 +11,14 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/manzanit0/mcduck/internal/expense"
 	"github.com/manzanit0/mcduck/internal/receipt"
 	"github.com/manzanit0/mcduck/pkg/auth"
 	"github.com/manzanit0/mcduck/pkg/invx"
 )
 
 type ReceiptsController struct {
+	Expenses *expense.Repository
 	Receipts *receipt.Repository
 	Invx     invx.Client
 }
@@ -127,6 +129,35 @@ func (d *ReceiptsController) UpdateReceipt(c *gin.Context) {
 	c.JSON(http.StatusAccepted, "")
 }
 
+func (d *ReceiptsController) ReviewReceipt(c *gin.Context) {
+	userEmail := auth.GetUserEmail(c)
+
+	id := c.Param("id")
+	receiptID, err := strconv.ParseUint(id, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("unable to parse expense id: %s", err.Error())})
+		return
+	}
+
+	receipt, err := d.Receipts.GetReceipt(c.Request.Context(), receiptID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable to retrieve receipt: %s", err.Error())})
+		return
+	}
+
+	expenses, err := d.Expenses.ListExpensesForReceipt(c.Request.Context(), receiptID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable to list expenses: %s", err.Error())})
+		return
+	}
+
+	c.HTML(http.StatusOK, "review_receipt.html", gin.H{
+		"User":     userEmail,
+		"Receipt":  ToSingleReceiptViewModel(receipt),
+		"Expenses": MapExpenses(expenses),
+	})
+}
+
 type ReceiptViewModel struct {
 	ID            string
 	Date          string
@@ -138,19 +169,25 @@ type ReceiptViewModel struct {
 
 func ToReceiptViewModel(receipts []receipt.Receipt) (models []ReceiptViewModel) {
 	for _, r := range receipts {
-		pendingReview := "No"
-		if r.PendingReview {
-			pendingReview = "Yes"
-		}
-		encoded := base64.StdEncoding.EncodeToString(r.Image)
-		models = append(models, ReceiptViewModel{
-			ID:            fmt.Sprint(r.ID),
-			Date:          r.CreatedAt.Format("2006-01-02"),
-			Vendor:        strings.Title(r.Vendor),
-			PendingReview: pendingReview,
-			Image:         encoded,
-		})
+		models = append(models, ToSingleReceiptViewModel(&r))
 	}
 
 	return
+}
+
+func ToSingleReceiptViewModel(r *receipt.Receipt) ReceiptViewModel {
+	pendingReview := "No"
+	if r.PendingReview {
+		pendingReview = "Yes"
+	}
+
+	encoded := base64.StdEncoding.EncodeToString(r.Image)
+
+	return ReceiptViewModel{
+		ID:            fmt.Sprint(r.ID),
+		Date:          r.CreatedAt.Format("2006-01-02"),
+		Vendor:        strings.Title(r.Vendor),
+		PendingReview: pendingReview,
+		Image:         encoded,
+	}
 }

@@ -64,7 +64,7 @@ type UpdateExpense struct {
 	Category    *string  `json:"category"`
 	Subcategory *string  `json:"subcategory"`
 	Description *string  `json:"description"`
-	ReceiptID   *uint64  `json:"receipt_id,string"` // TODO: this update isn't working as expected.
+	ReceiptID   *uint64  `json:"receipt_id,string"`
 }
 
 func (d *ExpensesController) UpdateExpense(c *gin.Context) {
@@ -110,8 +110,9 @@ func (d *ExpensesController) UpdateExpense(c *gin.Context) {
 }
 
 type CreateExpensePayload struct {
-	Date   string  `json:"date"`
-	Amount float32 `json:"amount,string"`
+	Date      string  `json:"date"`
+	Amount    float32 `json:"amount,string"`
+	ReceiptID *uint64 `json:"receipt_id,string"`
 }
 
 type CreateExpenseResponse struct {
@@ -136,6 +137,7 @@ func (d *ExpensesController) CreateExpense(c *gin.Context) {
 		UserEmail: auth.GetUserEmail(c),
 		Date:      date,
 		Amount:    payload.Amount,
+		ReceiptID: payload.ReceiptID,
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable to create expense: %s", err.Error())})
@@ -160,4 +162,60 @@ func (d *ExpensesController) DeleteExpense(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusNoContent, "")
+}
+
+type MergeExpensesPayload struct {
+	ReceiptID  uint64  `json:"receipt_id,string"`
+	ExpenseIDs []int64 `json:"expense_ids"`
+}
+
+func (d *ExpensesController) MergeExpenses(c *gin.Context) {
+	payload := MergeExpensesPayload{}
+	err := c.ShouldBindJSON(&payload)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("unable to parse request body: %s", err.Error())})
+		return
+	}
+
+	var total float32
+	expenses := []*expense.Expense{}
+	for _, id := range payload.ExpenseIDs {
+		expense, err := d.Expenses.FindExpense(c.Request.Context(), int64(id))
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable to fetch expense: %s", err.Error())})
+			return
+		}
+
+		if expense.ReceiptID != payload.ReceiptID {
+			errorMessage := fmt.Sprintf("expense with ID %d doesn't belong to receipt %d", expense.ID, payload.ReceiptID)
+			c.JSON(http.StatusBadRequest, gin.H{"error": errorMessage})
+			return
+		}
+
+		// FIXME: this operation should not be done with floats.
+		total += expense.Amount
+		expenses = append(expenses, expense)
+	}
+
+	// FIXME: create and delete should be done atomically
+	expenseID, err := d.Expenses.CreateExpense(c.Request.Context(), expense.CreateExpenseRequest{
+		UserEmail: auth.GetUserEmail(c),
+		Date:      time.Now(),
+		Amount:    total,
+		ReceiptID: &payload.ReceiptID,
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable to create expense: %s", err.Error())})
+		return
+	}
+
+	for _, id := range payload.ExpenseIDs {
+		err = d.Expenses.DeleteExpense(c.Request.Context(), int64(id))
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable to delete expense: %s", err.Error())})
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"expense_id": expenseID})
 }

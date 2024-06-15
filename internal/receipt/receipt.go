@@ -174,3 +174,24 @@ func (r *Repository) ListReceipts(ctx context.Context, email string) ([]Receipt,
 
 	return domainReceipts, nil
 }
+
+func (r *Repository) GetReceipt(ctx context.Context, receiptID uint64) (*Receipt, error) {
+	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
+
+	query, args, err := psql.
+		Select("id", "vendor", "pending_review", "created_at", "receipt_image").
+		From("receipts").
+		Where(sq.Eq{"id": receiptID}).
+		ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("compile query: %w", err)
+	}
+
+	var receipt dbReceipt
+	err = r.dbx.GetContext(ctx, &receipt, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("select receipts: %w", err)
+	}
+
+	return receipt.MapReceipt(), nil
+}
