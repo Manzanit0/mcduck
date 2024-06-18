@@ -1,6 +1,27 @@
-version: "3"
-
 services:
+  service:
+    image: cosmtrek/air
+    working_dir: /app
+    ports:
+      - 8080:8080
+    environment:
+      - PGUSER=root
+      - PGPASSWORD=password
+      - PGDATABASE=mcduck_db
+      - PGHOST=postgresql
+      - PGPORT=5432
+      - INVX_HOST=${INVX_HOST}
+      - INVX_AUTH_TOKEN=${INVX_AUTH_TOKEN}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=179a673634434f80a47b5f70a137ea24.apm.us-central1.gcp.cloud.es.io:443
+      - OTEL_EXPORTER_OTLP_HEADERS=Authorization=Bearer ih1At6THjsYkT4ojZF
+      - OTEL_LOGS_EXPORTER=otlp
+      - OTEL_METRICS_EXPORTER=otlp
+      - OTEL_RESOURCE_ATTRIBUTES="service.name=<app-name>,service.version=<app-version>,deployment.environment=production"
+    volumes:
+      - ./:/app
+    networks:
+      - mcduck
+
   postgresql:
     image: postgres:13-alpine
     healthcheck:

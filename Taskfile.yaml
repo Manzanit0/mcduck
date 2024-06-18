@@ -1,0 +1,63 @@
+version: "3"
+tasks:
+  up:
+    silent: false
+    vars:
+      INVX_HOST:
+        sh: railway variables -s tgram-bot --json | jq -r .INVX_HOST
+      INVX_AUTH_TOKEN:
+        sh: railway variables -s tgram-bot --json | jq -r .INVX_AUTH_TOKEN
+    cmds:
+      - INVX_HOST={{.INVX_HOST}} INVX_AUTH_TOKEN={{.INVX_AUTH_TOKEN}} docker compose up
+
+  rw-pgcli:
+    vars:
+      DATABASE_URL:
+        sh: railway variables -s mcduck --json | jq -r .DATABASE_URL
+    cmds:
+      - pgcli "{{.DATABASE_URL}}"
+
+  rw-migrate:
+    silent: false
+    vars:
+      PGHOST:
+        sh: railway variables -s mcduck --json | jq -r .PGHOST
+      PGPORT:
+        sh: railway variables -s mcduck --json | jq -r .PGPORT
+      PGDATABASE:
+        sh: railway variables -s mcduck --json | jq -r .PGDATABASE
+      PGUSER:
+        sh: railway variables -s mcduck --json | jq -r .PGUSER
+      PGPASSWORD:
+        sh: railway variables -s mcduck --json | jq -r .PGPASSWORD
+    cmds:
+      - |
+        docker run --rm -v `pwd`/migrations:/flyway/sql flyway/flyway:7.14.0 \
+            -url="jdbc:postgresql://{{.PGHOST}}:{{.PGPORT}}/{{.PGDATABASE}}" \
+            -user="{{.PGUSER}}" \
+            -password="{{.PGPASSWORD}}" \
+            -schemas=public \
+            -connectRetries=60 \
+            migrate
+  rw-repair:
+    silent: false
+    vars:
+      PGHOST:
+        sh: railway variables -s mcduck --json | jq -r .PGHOST
+      PGPORT:
+        sh: railway variables -s mcduck --json | jq -r .PGPORT
+      PGDATABASE:
+        sh: railway variables -s mcduck --json | jq -r .PGDATABASE
+      PGUSER:
+        sh: railway variables -s mcduck --json | jq -r .PGUSER
+      PGPASSWORD:
+        sh: railway variables -s mcduck --json | jq -r .PGPASSWORD
+    cmds:
+      - |
+        docker run --rm -v `pwd`/migrations:/flyway/sql flyway/flyway:7.14.0 \
+            -url="jdbc:postgresql://{{.PGHOST}}:{{.PGPORT}}/{{.PGDATABASE}}" \
+            -user="{{.PGUSER}}" \
+            -password="{{.PGPASSWORD}}" \
+            -schemas=public \
+            -connectRetries=60 \
+            repair
