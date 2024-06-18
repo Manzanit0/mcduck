@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/manzanit0/mcduck/internal/client"
-	"github.com/manzanit0/mcduck/pkg/invx"
 	"github.com/manzanit0/mcduck/pkg/tgram"
 	"github.com/olekukonko/tablewriter"
 )
@@ -17,7 +16,7 @@ const (
 	defaultCurrency = "€"
 )
 
-func ParseReceipt(ctx context.Context, tgramClient tgram.Client, invxClient invx.Client, mcduckClient client.McDuckClient, r *tgram.WebhookRequest) *tgram.WebhookResponse {
+func ParseReceipt(ctx context.Context, tgramClient tgram.Client, mcduckClient client.McDuckClient, r *tgram.WebhookRequest) *tgram.WebhookResponse {
 	// Get the biggest photo: this will ensure better parsing by invx service.
 	var fileID string
 	var fileSize int64
@@ -44,19 +43,13 @@ func ParseReceipt(ctx context.Context, tgramClient tgram.Client, invxClient invx
 		return tgram.NewHTMLResponse("empty file", r.GetFromID())
 	}
 
-	amounts, err := invxClient.ParseReceipt(ctx, fileData)
-	if err != nil {
-		log.Println("[ERROR] invx.ParseReceipt", err.Error())
-		return tgram.NewHTMLResponse(fmt.Sprintf("unable to parser receipt: %s", err.Error()), r.GetFromID())
-	}
-
-	_, err = mcduckClient.CreateReceipt(ctx, fileData)
+	res, err := mcduckClient.CreateReceipt(ctx, fileData)
 	if err != nil {
 		log.Println("[ERROR] mcduck.CreateReceipt", err.Error())
 		return tgram.NewHTMLResponse(fmt.Sprintf("unable to parser receipt: %s", err.Error()), r.GetFromID())
 	}
 
-	return tgram.NewMarkdownResponse(newBreakdownTgramMessage(amounts), r.GetFromID())
+	return tgram.NewMarkdownResponse(newBreakdownTgramMessage(res.Amounts), r.GetFromID())
 }
 
 func newBreakdownTgramMessage(amounts map[string]float64) string {

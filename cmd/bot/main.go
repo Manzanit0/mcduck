@@ -14,7 +14,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/manzanit0/mcduck/cmd/bot/internal/bot"
 	"github.com/manzanit0/mcduck/internal/client"
-	"github.com/manzanit0/mcduck/pkg/invx"
 	"github.com/manzanit0/mcduck/pkg/tgram"
 	"github.com/manzanit0/mcduck/pkg/trace"
 )
@@ -44,10 +43,9 @@ func main() {
 		})
 	})
 
-	invxClient := invx.NewClient(os.Getenv("INVX_HOST"), os.Getenv("INVX_AUTH_TOKEN"))
 	tgramClient := tgram.NewClient(http.DefaultClient, os.Getenv("TELEGRAM_BOT_TOKEN"))
 	mcduckClient := client.NewMcDuckClient(os.Getenv("MCDUCK_HOST"), os.Getenv("MCDUCK_AUTH_TOKEN"))
-	r.POST("/telegram/webhook", telegramWebhookController(tgramClient, invxClient, mcduckClient))
+	r.POST("/telegram/webhook", telegramWebhookController(tgramClient, mcduckClient))
 
 	// background job to ping users on weather changes
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -84,7 +82,7 @@ func main() {
 	log.Printf("server exited")
 }
 
-func telegramWebhookController(tgramClient tgram.Client, invxClient invx.Client, mcduck client.McDuckClient) func(c *gin.Context) {
+func telegramWebhookController(tgramClient tgram.Client, mcduck client.McDuckClient) func(c *gin.Context) {
 	return func(c *gin.Context) {
 		var r tgram.WebhookRequest
 		if err := c.ShouldBindJSON(&r); err != nil {
@@ -100,7 +98,7 @@ func telegramWebhookController(tgramClient tgram.Client, invxClient invx.Client,
 			c.JSON(http.StatusOK, bot.LoginLink(&r))
 
 		case r.Message == nil || len(r.Message.Photos) > 0:
-			c.JSON(http.StatusOK, bot.ParseReceipt(c.Request.Context(), tgramClient, invxClient, mcduck, &r))
+			c.JSON(http.StatusOK, bot.ParseReceipt(c.Request.Context(), tgramClient, mcduck, &r))
 
 		default:
 			c.JSON(http.StatusOK, tgram.NewMarkdownResponse("Hey\\! Just send me a picture with a receipt, and I'll do the rest\\!", r.GetFromID()))
