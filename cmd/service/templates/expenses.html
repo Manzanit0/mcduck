@@ -28,6 +28,8 @@
               <th colspan="1">Amount</th>
               <th colspan="1">Category</th>
               <th colspan="1">SubCategory</th>
+              <th colspan="1">Description</th>
+              <th colspan="1">Receipt ID</th>
               <th></th>
             </tr>
           </thead>
@@ -73,28 +75,79 @@
                 />
               </td>
               <td>
-                <div style="max-width: 25px; max-height: 25px">
-                  <a
-                    style="display: block"
-                    id="delete-expense-{{$e.ID}}"
-                    href="#"
+                <input
+                  style="border: 0; outline: 0"
+                  type="text"
+                  name="description"
+                  id="description-{{$e.ID}}"
+                  value="{{$e.Description}}"
+                />
+              </td>
+              <td>
+                <div style="display: flex">
+                  <input
+                    style="border: 0; outline: 0"
+                    type="text"
+                    name="receipt-id"
+                    id="receipt_id-{{$e.ID}}"
+                    value="{{$e.ReceiptID}}"
+                    disabled
+                  />
+                  <div
+                    id="open-receipt-container"
+                    style="max-width: 25px; max-height: 25px; min-width: 25px"
                   >
-                    <!-- Rubbish bin SVG-->
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke-width="1.5"
-                      stroke="currentColor"
-                      class="w-6 h-6"
+                    <a
+                      style="display: block"
+                      id="delete-expense-{{$e.ID}}"
+                      href="/receipts/{{$e.ReceiptID}}/review"
                     >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"
-                      />
-                    </svg>
-                  </a>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke-width="1.5"
+                        stroke="currentColor"
+                        class="size-6"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"
+                        />
+                      </svg>
+                    </a>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div id="links-container" style="display: flex">
+                  <div
+                    id="delete-container"
+                    style="max-width: 25px; max-height: 25px; min-width: 25px"
+                  >
+                    <a
+                      style="display: block"
+                      id="delete-expense-{{$e.ID}}"
+                      href="#"
+                    >
+                      <!-- Rubbish bin SVG-->
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke-width="1.5"
+                        stroke="currentColor"
+                        class="w-6 h-6"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"
+                        />
+                      </svg>
+                    </a>
+                  </div>
                 </div>
               </td>
             </tr>
@@ -200,6 +253,9 @@
                   document.getElementById(
                     `subcategory-new-${ts}`
                   ).id = `subcategory-${id}`;
+                  document.getElementById(
+                    `description-new-${ts}`
+                  ).id = `description-${id}`;
                 });
             }
           } else {
@@ -210,7 +266,9 @@
 
       // FIXME: this should just be row inputs.
       const addListenersToTable = () =>
-        document.querySelectorAll("input").forEach(addListenersToTableCell);
+        document
+          .querySelectorAll("input:not([name=receipt-id])")
+          .forEach(addListenersToTableCell);
 
       const addListenersToDeleteLinks = () =>
         document
@@ -259,6 +317,22 @@
                   id="subcategory-new-${timestamp}"
                 />
               </td>
+              <td>
+                <input
+                  style="border: 0; outline: 0"
+                  type="text"
+                  name="description"
+                  id="description-new-${timestamp}"
+                />
+              </td>
+              <td>
+                <input
+                  style="border: 0; outline: 0"
+                  type="text"
+                  name="receipt-id"
+                  id="receipt_id-new-${timestamp}"
+                />
+              </td>
         `;
         const rowNode = document.createElement("tr");
         rowNode.innerHTML = rowHTML;
@@ -277,6 +351,9 @@
         );
         addListenersToTableCell(
           document.getElementById(`subcategory-new-${timestamp}`)
+        );
+        addListenersToTableCell(
+          document.getElementById(`description-new-${timestamp}`)
         );
       };
 
