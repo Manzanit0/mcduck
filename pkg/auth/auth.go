@@ -2,6 +2,7 @@ package auth
 
 import (
 	"log"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -40,7 +41,6 @@ func ValidateJWT(tokenString string) (string, bool) {
 	token, err := jwt.ParseWithClaims(tokenString, &jwt.RegisteredClaims{}, func(token *jwt.Token) (interface{}, error) {
 		return []byte(signingKey), nil
 	})
-
 	if err != nil {
 		return "", false
 	}
@@ -53,10 +53,17 @@ func ValidateJWT(tokenString string) (string, bool) {
 	return "", false
 }
 
-const authCookieName string = "_mcduck_key"
-const userContextKey string = "user.email"
+const (
+	authCookieName string = "_mcduck_key"
+	userContextKey string = "user.email"
+)
 
 func CookieMiddleware(c *gin.Context) {
+	if _, exists := c.Get(userContextKey); exists {
+		c.Next()
+		return
+	}
+
 	token, err := c.Cookie(authCookieName)
 	if err != nil {
 		c.Next()
@@ -64,6 +71,30 @@ func CookieMiddleware(c *gin.Context) {
 	}
 
 	email, isValid := ValidateJWT(token)
+	if !isValid {
+		c.Next()
+		return
+	}
+
+	log.Printf("user %s logged in\n", email)
+	c.Set(userContextKey, email)
+	c.Next()
+}
+
+func BearerMiddleware(c *gin.Context) {
+	if _, exists := c.Get(userContextKey); exists {
+		c.Next()
+		return
+	}
+
+	header := c.GetHeader("authorization")
+	s := strings.Split(header, " ")
+	if len(s) != 2 {
+		c.Next()
+		return
+	}
+
+	email, isValid := ValidateJWT(s[1])
 	if !isValid {
 		c.Next()
 		return

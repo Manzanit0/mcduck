@@ -70,6 +70,10 @@ func main() {
 	}
 
 	r := gin.Default()
+
+	// Auto-instruments every endpoint
+	r.Use(tp.TraceRequests())
+
 	r.SetHTMLTemplate(t)
 	r.StaticFS("/public", http.FS(assets))
 
@@ -80,51 +84,74 @@ func main() {
 		})
 	})
 
-	// Auto-instruments every endpoint
-	r.Use(tp.TraceRequests())
-
-	r.GET("/", api.LandingPage)
-	r.Use(auth.CookieMiddleware)
+	registrationController := api.RegistrationController{DB: dbx.GetSQLX(), Telegram: tgramClient}
 
 	expenseRepository := expense.NewRepository(dbx)
+	expensesController := api.ExpensesController{Expenses: expenseRepository}
 
-	loggedIn := r.Group("/").Use(api.ForceLogin)
-	loggedInAndAuthorised := r.Group("/").Use(api.ForceLogin, api.ExpenseOwnershipWall(expenseRepository))
-
-	controller := api.RegistrationController{DB: dbx.GetSQLX(), Telegram: tgramClient}
-	r.GET("/register", controller.GetRegisterForm)
-	r.POST("/register", controller.RegisterUser)
-	r.GET("/login", controller.GetLoginForm)
-	r.POST("/login", controller.LoginUser)
-	r.GET("/signout", controller.Signout)
-	r.GET("/connect", controller.GetConnectForm)
-	r.POST("/connect", controller.ConnectUser)
+	invxClient := invx.NewClient(os.Getenv("INVX_HOST"), os.Getenv("INVX_AUTH_TOKEN"))
+	receiptsRepository := receipt.NewRepository(dbx)
+	receiptsController := api.ReceiptsController{Receipts: receiptsRepository, Invx: invxClient, Expenses: expenseRepository}
 
 	data, err := readSampleData()
 	if err != nil {
 		log.Fatalf("read sample data: %s", err.Error())
 	}
-
 	dashController := api.DashboardController{Expenses: expenseRepository, SampleData: data}
-	r.GET("/live_demo", dashController.LiveDemo)
-	r.POST("/upload", dashController.UploadExpenses)
+
+	nologin := r.
+		Group("/").
+		Use(auth.CookieMiddleware)
+
+	nologin.GET("/", api.LandingPage)
+	nologin.GET("/register", registrationController.GetRegisterForm)
+	nologin.POST("/register", registrationController.RegisterUser)
+	nologin.GET("/login", registrationController.GetLoginForm)
+	nologin.POST("/login", registrationController.LoginUser)
+	nologin.GET("/signout", registrationController.Signout)
+	nologin.GET("/connect", registrationController.GetConnectForm)
+	nologin.POST("/connect", registrationController.ConnectUser)
+	nologin.GET("/live_demo", dashController.LiveDemo)
+	nologin.POST("/upload", dashController.UploadExpenses)
+
+	loggedIn := r.
+		Group("/").
+		Use(auth.CookieMiddleware).
+		Use(api.ForceLogin)
+
 	loggedIn.GET("/dashboard", dashController.Dashboard)
-
-	expensesController := api.ExpensesController{Expenses: expenseRepository}
+	loggedIn.GET("/receipts", receiptsController.ListReceipts)
+	loggedIn.GET("/receipts/:id/review", receiptsController.ReviewReceipt)
 	loggedIn.GET("/expenses", expensesController.ListExpenses)
-	loggedIn.PUT("/expenses", expensesController.CreateExpense)
-	loggedIn.POST("/expenses/merge", expensesController.MergeExpenses)
-	loggedInAndAuthorised.PATCH("/expenses/:id", expensesController.UpdateExpense)
-	loggedInAndAuthorised.DELETE("/expenses/:id", expensesController.DeleteExpense)
 
-	// TODO: find a better authwall story, or duplicate the expenses one?
-	invxClient := invx.NewClient(os.Getenv("INVX_HOST"), os.Getenv("INVX_AUTH_TOKEN"))
-	receiptsController := api.ReceiptsController{Receipts: receipt.NewRepository(dbx), Invx: invxClient, Expenses: expenseRepository}
-	r.POST("/receipts", receiptsController.CreateReceipt)
-	r.GET("/receipts", receiptsController.ListReceipts)
-	r.PATCH("/receipts/:id", receiptsController.UpdateReceipt)
-	r.GET("/receipts/:id/review", receiptsController.ReviewReceipt)
-	r.DELETE("/receipts/:id", receiptsController.DeleteReceipt)
+	apiG := r.
+		Group("/").
+		Use(auth.CookieMiddleware). // Add cookie auth so the frontend can talk easily with the backend.
+		Use(auth.BearerMiddleware).
+		Use(api.ForceAuthentication)
+
+	ownsReceipt := r.
+		Group("/").
+		Use(auth.CookieMiddleware).
+		Use(auth.BearerMiddleware).
+		Use(api.ForceAuthentication).
+		Use(api.ReceiptOwnershipWall(receiptsRepository))
+
+	ownsReceipt.PATCH("/receipts/:id", receiptsController.UpdateReceipt)
+	ownsReceipt.DELETE("/receipts/:id", receiptsController.DeleteReceipt)
+	apiG.POST("/receipts", receiptsController.CreateReceipt) // TODO: this should be a PUT?
+
+	ownsExpense := r.
+		Group("/").
+		Use(auth.CookieMiddleware).
+		Use(auth.BearerMiddleware).
+		Use(api.ForceAuthentication).
+		Use(api.ExpenseOwnershipWall(expenseRepository))
+
+	ownsExpense.PATCH("/expenses/:id", expensesController.UpdateExpense)
+	ownsExpense.DELETE("/expenses/:id", expensesController.DeleteExpense)
+	apiG.PUT("/expenses", expensesController.CreateExpense)
+	apiG.POST("/expenses/merge", expensesController.MergeExpenses) // TODO: this should be under receipts with authz?
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
