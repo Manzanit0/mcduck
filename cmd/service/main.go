@@ -130,6 +130,10 @@ func main() {
 		Use(auth.BearerMiddleware).
 		Use(api.ForceAuthentication)
 
+		// This is a quick hack to get around the fact that the API doesn't support
+		// PATs or similar mechanics.
+	nologin.POST("/x/login", registrationController.LoginAPI)
+
 	ownsReceipt := r.
 		Group("/").
 		Use(auth.CookieMiddleware).

@@ -78,6 +78,29 @@ func (r *RegistrationController) LoginUser(c *gin.Context) {
 	c.HTML(http.StatusOK, "index.html", gin.H{"User": user.Email})
 }
 
+func (r *RegistrationController) LoginAPI(c *gin.Context) {
+	payload := UserPayload{}
+	err := c.ShouldBind(&payload)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"error": err.Error()})
+		return
+	}
+
+	_, err = doLogin(c, r.DB, payload.Email, payload.Password)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"error": err.Error()})
+		return
+	}
+
+	token, err := auth.GenerateJWT(payload.Email)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"token": token})
+}
+
 // GetConnectForm returns the HTML form to connect a telegram account to a
 // mcduck account.
 func (r *RegistrationController) GetConnectForm(c *gin.Context) {
