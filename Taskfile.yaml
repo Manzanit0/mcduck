@@ -4,9 +4,9 @@ tasks:
     silent: false
     vars:
       INVX_HOST:
-        sh: railway variables -s tgram-bot --json | jq -r .INVX_HOST
+        sh: railway variables -s mcduck --json | jq -r .INVX_HOST
       INVX_AUTH_TOKEN:
-        sh: railway variables -s tgram-bot --json | jq -r .INVX_AUTH_TOKEN
+        sh: railway variables -s mcduck --json | jq -r .INVX_AUTH_TOKEN
     cmds:
       - INVX_HOST={{.INVX_HOST}} INVX_AUTH_TOKEN={{.INVX_AUTH_TOKEN}} docker compose up
 
