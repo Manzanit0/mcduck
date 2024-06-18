@@ -197,3 +197,41 @@ func (r *Repository) GetReceipt(ctx context.Context, receiptID uint64) (*Receipt
 
 	return receipt.MapReceipt(), nil
 }
+
+func (r *Repository) DeleteReceipt(ctx context.Context, id int64) error {
+	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
+
+	txn, err := r.dbx.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+
+	defer txn.TxClose(ctx)
+
+	query, args, err := psql.Delete("receipts").Where(sq.Eq{"id": id}).ToSql()
+	if err != nil {
+		return fmt.Errorf("unable to build query: %w", err)
+	}
+
+	_, err = r.dbx.ExecContext(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("unable to execute query to delete receipt: %w", err)
+	}
+
+	query, args, err = psql.Delete("expenses").Where(sq.Eq{"receipt_id": id}).ToSql()
+	if err != nil {
+		return fmt.Errorf("unable to build query: %w", err)
+	}
+
+	_, err = r.dbx.ExecContext(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("unable to execute query to delete expenses: %w", err)
+	}
+
+	err = txn.Commit(ctx)
+	if err != nil {
+		return fmt.Errorf("commit transaction: %w", err)
+	}
+
+	return nil
+}

@@ -124,6 +124,7 @@ func main() {
 	r.GET("/receipts", receiptsController.ListReceipts)
 	r.PATCH("/receipts/:id", receiptsController.UpdateReceipt)
 	r.GET("/receipts/:id/review", receiptsController.ReviewReceipt)
+	r.DELETE("/receipts/:id", receiptsController.DeleteReceipt)
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()

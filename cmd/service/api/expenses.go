@@ -157,7 +157,7 @@ func (d *ExpensesController) DeleteExpense(c *gin.Context) {
 
 	err = d.Expenses.DeleteExpense(c.Request.Context(), i)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable to create expense: %s", err.Error())})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable to delete expense: %s", err.Error())})
 		return
 	}
 

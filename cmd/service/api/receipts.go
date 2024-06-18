@@ -158,6 +158,23 @@ func (d *ReceiptsController) ReviewReceipt(c *gin.Context) {
 	})
 }
 
+func (d *ReceiptsController) DeleteReceipt(c *gin.Context) {
+	id := c.Param("id")
+	i, err := strconv.ParseInt(id, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("unable to parse receipt id: %s", err.Error())})
+		return
+	}
+
+	err = d.Receipts.DeleteReceipt(c.Request.Context(), i)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable to delete receipt: %s", err.Error())})
+		return
+	}
+
+	c.JSON(http.StatusNoContent, "")
+}
+
 type ReceiptViewModel struct {
 	ID            string
 	Date          string
