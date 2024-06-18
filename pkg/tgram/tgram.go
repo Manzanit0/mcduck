@@ -40,6 +40,15 @@ func NewMarkdownResponse(text string, chatID int) *WebhookResponse {
 	}
 }
 
+func NewHTMLResponse(text string, chatID int) *WebhookResponse {
+	return &WebhookResponse{
+		ChatID:    chatID,
+		Text:      text,
+		Method:    "sendMessage",
+		ParseMode: ParseModeHTML,
+	}
+}
+
 func NewInlineKeyboardButton(text, callback string) (InlineKeyboardElement, error) {
 	if b := []byte(callback); len(b) > 64 {
 		return InlineKeyboardElement{}, fmt.Errorf("callback_data exceeds 64 bytes")
