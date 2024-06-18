@@ -54,6 +54,10 @@ func NewRepository(dbx isqlx.DBX) *Repository {
 }
 
 func (r *Repository) CreateReceipt(ctx context.Context, receiptImage []byte, amounts map[string]float64, userEmail string) (*Receipt, error) {
+	if len(receiptImage) == 0 {
+		return nil, fmt.Errorf("empty receipt")
+	}
+
 	txn, err := r.dbx.Begin(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("begin transaction: %w", err)
@@ -80,25 +84,23 @@ func (r *Repository) CreateReceipt(ctx context.Context, receiptImage []byte, amo
 		return nil, fmt.Errorf("unable to execute query: %w", err)
 	}
 
-	e := expense.ExpensesBatch{
-		UserEmail: userEmail,
-	}
-	for item, amount := range amounts {
-		e.Records = append(e.Records, expense.Expense{
-			ReceiptID:   uint64(record.ID),
-			Date:        time.Now(),
-			Amount:      float32(amount),
-			UserEmail:   userEmail,
-			Description: item,
-			Category:    "Receipt Upload",
-		})
-	}
+	if len(amounts) > 0 {
+		e := expense.ExpensesBatch{UserEmail: userEmail}
+		for item, amount := range amounts {
+			e.Records = append(e.Records, expense.Expense{
+				ReceiptID:   uint64(record.ID),
+				Date:        time.Now(),
+				Amount:      float32(amount),
+				UserEmail:   userEmail,
+				Description: item,
+				Category:    "Receipt Upload",
+			})
+		}
 
-	fmt.Printf("%+v", e)
-
-	err = expense.CreateExpenses(ctx, txn, e)
-	if err != nil {
-		return nil, fmt.Errorf("unable to insert expenses: %w", err)
+		err = expense.CreateExpenses(ctx, txn, e)
+		if err != nil {
+			return nil, fmt.Errorf("unable to insert expenses: %w", err)
+		}
 	}
 
 	err = txn.Commit(ctx)
