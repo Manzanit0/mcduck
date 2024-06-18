@@ -24,7 +24,7 @@ services:
     ports:
       - "5431:5432"
     volumes:
-      - ./cmd/service/scripts/db:/docker-entrypoint-initdb.d/
+      - ./scripts/db:/docker-entrypoint-initdb.d/
     networks:
       - mcduck
 
@@ -33,7 +33,7 @@ services:
     command: -url=jdbc:postgresql://postgresql:5432/mcduck_db -schemas=public -user=docker -password=123 -connectRetries=60 migrate
     restart: on-failure
     volumes:
-      - ./cmd/service/migrations:/flyway/sql
+      - ./migrations:/flyway/sql
     depends_on:
       - postgresql
     networks:
