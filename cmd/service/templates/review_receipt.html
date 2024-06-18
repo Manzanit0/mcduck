@@ -13,11 +13,15 @@
           <img src="data:image/png;base64,{{.Receipt.Image}}" style="max-width: 90%" />
         </div>
       </div>
-      <div id="expenses" style="1">
+      <div id="expenses">
         <div>
           <h1>Expenses</h1>
         </div>
         <div>
+          <button id="delete-receipt-button" style="margin-bottom: 10px; width: 15%" class="btn btn-error f-right" >
+            Delete Receipt
+          </button>
+
           <button id="add-expense-button" style="margin-bottom: 10px; width: 15%" class="btn btn-default f-right" >
             Add Expense
           </button>
@@ -161,6 +165,9 @@
 
     const deleteExpense = (id) =>
       doRequest(new Request(`/expenses/${id}`, { method: "DELETE" }));
+
+      const deleteReceipt = (id) =>
+        doRequest(new Request(`/receipts/${id}`, { method: "DELETE" }));
 
     const addListenerToDeleteLink = (link) => {
       link.addEventListener("click", () => {
@@ -315,6 +322,14 @@
       document
         .getElementById("add-expense-button")
         .addEventListener("click", addTableRow);
+        
+      document
+        .getElementById("delete-receipt-button")
+        .addEventListener("click", () => {
+          const receiptId = window.location.pathname.split("/")[2]
+          deleteReceipt(receiptId).then(() => window.location.replace("/receipts"))
+        });
+
 
       document
         .getElementById("merge-expenses-button")
