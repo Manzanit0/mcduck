@@ -50,7 +50,7 @@ func (c *client) CreateReceipt(ctx context.Context, data []byte) (*CreateReceipt
 		return nil, fmt.Errorf("read response body: %w", err)
 	}
 
-	if res.StatusCode != 200 {
+	if res.StatusCode != 201 {
 		return nil, fmt.Errorf("request failed: %s - %s", res.Status, string(respBody))
 	}
 
