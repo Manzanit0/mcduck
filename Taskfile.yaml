@@ -10,6 +10,10 @@ tasks:
     cmds:
       - INVX_HOST={{.INVX_HOST}} INVX_AUTH_TOKEN={{.INVX_AUTH_TOKEN}} docker compose up
 
+  pgcli:
+    cmds:
+      - pgcli "postgresql://root:password@localhost:5431/mcduck_db"
+
   rw-pgcli:
     vars:
       DATABASE_URL:
