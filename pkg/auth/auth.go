@@ -10,7 +10,10 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-const signingKey = "AllYourBase"
+const (
+	signingKey = "AllYourBase"
+	threeDays  = time.Hour * 72
+)
 
 func HashPassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
@@ -25,12 +28,13 @@ func CheckPasswordHash(password, hash string) bool {
 func GenerateJWT(email string) (string, error) {
 	mySigningKey := []byte(signingKey)
 
+	now := time.Now()
 	claims := &jwt.RegisteredClaims{
-		ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 72)),
+		ExpiresAt: jwt.NewNumericDate(now.Add(threeDays)),
 		Issuer:    "mcduck",
 		Subject:   email,
-		NotBefore: jwt.NewNumericDate(time.Now()),
-		IssuedAt:  jwt.NewNumericDate(time.Now()),
+		NotBefore: jwt.NewNumericDate(now),
+		IssuedAt:  jwt.NewNumericDate(now),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
