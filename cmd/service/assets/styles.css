@@ -70,3 +70,11 @@
 .cell--pending {
   border: 3px solid #d20962 !important;
 }
+
+.hidden-card {
+  display: none;
+}
+
+.show-card-on-hover:hover + .hidden-card {
+  display: block;
+}

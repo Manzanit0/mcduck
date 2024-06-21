@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -32,10 +33,40 @@ func (d *ReceiptsController) ListReceipts(c *gin.Context) {
 		return
 	}
 
+	// Sort the most recent first
+	sort.Slice(receipts, func(i, j int) bool {
+		return receipts[i].CreatedAt.After(receipts[j].CreatedAt)
+	})
+
+	viewReceipts := ToReceiptViewModel(receipts)
+
+	// Note: awful stuff. We should probably do this in a single SQL query or something.
+	for i, r := range viewReceipts {
+		id, err := strconv.ParseUint(r.ID, 10, 64)
+		if err != nil {
+			c.HTML(http.StatusOK, "error.html", gin.H{"error": "We were unable to find your receipts - please try again."})
+			return
+		}
+
+		expenses, err := d.Expenses.ListExpensesForReceipt(c.Request.Context(), id)
+		if err != nil {
+			c.HTML(http.StatusOK, "error.html", gin.H{"error": "We were unable to find your receipts - please try again."})
+			return
+		}
+
+		var total float64
+		for _, e := range expenses {
+			total += float64(e.Amount)
+		}
+
+		viewReceipts[i].TotalAmount = fmt.Sprintf("%0.2f", total)
+	}
+
+	fmt.Println(viewReceipts[1].TotalAmount)
 	c.HTML(http.StatusOK, "list_receipts.html", gin.H{
 		"User":        userEmail,
 		"HasReceipts": len(receipts) > 0,
-		"Receipts":    ToReceiptViewModel(receipts),
+		"Receipts":    viewReceipts,
 	})
 }
 
@@ -181,6 +212,7 @@ type ReceiptViewModel struct {
 	PendingReview string
 	Image         string
 	ReceiptID     int
+	TotalAmount   string
 }
 
 func ToReceiptViewModel(receipts []receipt.Receipt) (models []ReceiptViewModel) {

@@ -8,12 +8,15 @@
       <p>You can upload receipts through our Telegram bot :)</p>
     </div>
     <div>
+      {{range $e := .Receipts}}
+      {{end}}
       <div>
         <table id="receipts-table">
           <thead id="expenses-table-head">
             <tr>
               <th colspan="1">Date</th>
               <th colspan="1">Vendor</th>
+              <th colspan="1">Total Amount</th>
               <th colspan="1">Pending Review</th>
               <th></th>
             </tr>
@@ -42,6 +45,16 @@
               <td>
                 <input
                   style="border: 0; outline: 0"
+                  type="number"
+                  name="amount"
+                  id="amount-{{$e.ID}}"
+                  value="{{$e.TotalAmount}}"
+                  placeholder="0.00"
+                  disabled />
+              </td>
+              <td>
+                <input
+                  style="border: 0; outline: 0"
                   type="text"
                   name="pending-review"
                   id="pending_review-{{$e.ID}}"
@@ -49,10 +62,23 @@
                 />
               </td>
               <td>
-                <img
-                  src="data:image/png;base64,{{$e.Image}}"
-                  style="max-width: 30%"
-                />
+                <div>
+                  <a id="show-image-link-{{$e.ID}}" style="display: block; max-width: 25px; max-height: 25px; min-width: 25px">
+                    <!-- Expand SVG-->
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+                    </svg>
+                  </a>
+                </div>
+                <div class="terminal-card hidden-card" id="image-card-{{$e.ID}}">
+                  <header>Receipt ID: {{$e.ID}}</header>
+                  <div style="display: flex; justify-content: center;">
+                    <img
+                      src="data:image/png;base64,{{$e.Image}}"
+                      style="max-width: 30%"
+                    />
+                  </div>
+                </div>
               </td>
               <td>
                 <div id="links-container" style="display: flex">
@@ -192,6 +218,19 @@
 
       addListenersToTable();
       addListenersToDeleteLinks();
+
+      document
+        .querySelectorAll('[id*="show-image-link"]')
+        .forEach((link) => {
+          const receiptId = link.id.split("-")[3]
+          link.onclick = () => {
+            // Hide the button
+            link.style.display='none'
+
+            // Show the receipt
+            document.getElementById(`image-card-${receiptId}`).style.display='block';
+          };
+        })
     </script>
   </body>
 </html>
