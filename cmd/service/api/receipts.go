@@ -72,8 +72,7 @@ func (d *ReceiptsController) CreateReceipt(c *gin.Context) {
 		return
 	}
 
-	// email := auth.GetUserEmail(c)
-	email := "javier@garcia.com"
+	email := auth.GetUserEmail(c)
 	rcpt, err := d.Receipts.CreateReceipt(c.Request.Context(), data, amounts, email)
 	if err != nil {
 		log.Println("CreateReceipt:", "insert receipt:", err.Error())

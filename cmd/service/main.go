@@ -157,6 +157,9 @@ func main() {
 	apiG.PUT("/expenses", expensesController.CreateExpense)
 	apiG.POST("/expenses/merge", expensesController.MergeExpenses) // TODO: this should be under receipts with authz?
 
+	usersCtrl := api.UsersController{DB: dbx.GetSQLX()}
+	apiG.GET("/users", usersCtrl.SearchUser) // TODO: this should be a system call and not available to users.
+
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 

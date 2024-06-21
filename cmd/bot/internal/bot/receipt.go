@@ -43,7 +43,18 @@ func ParseReceipt(ctx context.Context, tgramClient tgram.Client, mcduckClient cl
 		return tgram.NewHTMLResponse("empty file", r.GetFromID())
 	}
 
-	res, err := mcduckClient.CreateReceipt(ctx, fileData)
+	// FIXME: this is a bit of a hack - since user validity isn't validated
+	// against the database, this API call should work. This hack, however, won't
+	// work for other requests that use the user to fetch user-bound data.
+	onBehalfOf := "bot@mcduck.com"
+	resp, err := mcduckClient.SearchUserByChatID(ctx, onBehalfOf, r.GetFromID())
+	if err != nil {
+		log.Println("[ERROR] mcduck.SearchUserByChatID:", err.Error())
+		return tgram.NewHTMLResponse(fmt.Sprintf("unable to find user: %s", err.Error()), r.GetFromID())
+	}
+
+	onBehalfOf = resp.User.Email
+	res, err := mcduckClient.CreateReceipt(ctx, onBehalfOf, fileData)
 	if err != nil {
 		log.Println("[ERROR] mcduck.CreateReceipt", err.Error())
 		return tgram.NewHTMLResponse(fmt.Sprintf("unable to parser receipt: %s", err.Error()), r.GetFromID())

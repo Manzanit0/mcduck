@@ -44,7 +44,7 @@ func main() {
 	})
 
 	tgramClient := tgram.NewClient(http.DefaultClient, os.Getenv("TELEGRAM_BOT_TOKEN"))
-	mcduckClient := client.NewMcDuckClient(os.Getenv("MCDUCK_HOST"), os.Getenv("MCDUCK_AUTH_TOKEN"))
+	mcduckClient := client.NewMcDuckClient(os.Getenv("MCDUCK_HOST"))
 	r.POST("/telegram/webhook", telegramWebhookController(tgramClient, mcduckClient))
 
 	// background job to ping users on weather changes

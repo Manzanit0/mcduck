@@ -10,22 +10,24 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
+
+	"github.com/manzanit0/mcduck/pkg/auth"
 )
 
 type McDuckClient interface {
-	CreateReceipt(ctx context.Context, data []byte) (*CreateReceiptResponse, error)
+	CreateReceipt(ctx context.Context, onBehalfOfEmail string, data []byte) (*CreateReceiptResponse, error)
+	SearchUserByChatID(ctx context.Context, onBehalfOfEmail string, chatID int) (*SearchUserResponse, error)
 }
 
 type client struct {
-	AuthToken string
-	Host      string
-	h         *http.Client
+	Host string
+	h    *http.Client
 }
 
 var _ McDuckClient = (*client)(nil)
 
-func NewMcDuckClient(host, token string) *client {
-	return &client{Host: host, AuthToken: token, h: http.DefaultClient}
+func NewMcDuckClient(host string) *client {
+	return &client{Host: host, h: http.DefaultClient}
 }
 
 type CreateReceiptResponse struct {
@@ -33,8 +35,55 @@ type CreateReceiptResponse struct {
 	Amounts   map[string]float64 `json:"receipt_amounts"`
 }
 
-func (c *client) CreateReceipt(ctx context.Context, data []byte) (*CreateReceiptResponse, error) {
-	req, err := c.newCreateReceiptRequest(ctx, data)
+type SearchUserResponse struct {
+	User struct {
+		Email          string `json:"email"`
+		TelegramChatID int    `json:"telegram_chat_id"`
+	} `json:"user"`
+}
+
+func (c *client) SearchUserByChatID(ctx context.Context, onBehalfOfEmail string, chatID int) (*SearchUserResponse, error) {
+	url := fmt.Sprintf("%s/users?chat_id=%d", c.Host, chatID)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+
+	token, err := auth.GenerateJWT(onBehalfOfEmail)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+	req.Header.Set("Content-Type", "application/json")
+
+	res, err := c.h.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("do request: %w", err)
+	}
+
+	defer res.Body.Close()
+	respBody, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read response body: %w", err)
+	}
+
+	if res.StatusCode != 200 {
+		return nil, fmt.Errorf("request failed: %s - %s", res.Status, string(respBody))
+	}
+
+	var unmarshalled SearchUserResponse
+	err = json.Unmarshal(respBody, &unmarshalled)
+	if err != nil {
+		log.Println("body which was unmarsheable", string(respBody))
+		return nil, fmt.Errorf("unmarshal response body: %w", err)
+	}
+
+	return &unmarshalled, nil
+}
+
+func (c *client) CreateReceipt(ctx context.Context, onBehalfOfEmail string, data []byte) (*CreateReceiptResponse, error) {
+	req, err := c.newCreateReceiptRequest(ctx, data, onBehalfOfEmail)
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
@@ -64,7 +113,7 @@ func (c *client) CreateReceipt(ctx context.Context, data []byte) (*CreateReceipt
 	return &unmarshalled, nil
 }
 
-func (c *client) newCreateReceiptRequest(ctx context.Context, data []byte) (*http.Request, error) {
+func (c *client) newCreateReceiptRequest(ctx context.Context, data []byte, email string) (*http.Request, error) {
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 
@@ -93,9 +142,14 @@ func (c *client) newCreateReceiptRequest(ctx context.Context, data []byte) (*htt
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 
+	token, err := auth.GenerateJWT(email)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 	req.Header.Set("Content-Length", fmt.Sprintf("%d", body.Len()))
-	req.Header.Set("Authorization", c.AuthToken)
 
 	return req, nil
 }

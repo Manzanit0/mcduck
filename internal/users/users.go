@@ -41,6 +41,16 @@ func Find(ctx context.Context, db *sqlx.DB, email string) (*User, error) {
 	return &u, nil
 }
 
+func FindByChatID(ctx context.Context, db *sqlx.DB, chatID string) (*User, error) {
+	var u User
+	err := db.GetContext(ctx, &u, `SELECT email, hashed_password, telegram_chat_id FROM users WHERE telegram_chat_id = $1`, chatID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &u, nil
+}
+
 func UpdateTelegramChatID(ctx context.Context, db *sqlx.DB, u *User, chatID int64) error {
 	_, err := db.ExecContext(ctx, `UPDATE users SET telegram_chat_id=$1 WHERE email=$2`, chatID, u.Email)
 	if err != nil {
