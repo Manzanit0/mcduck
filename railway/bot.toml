@@ -1,6 +1,6 @@
 [build]
 builder = "nixpacks"
-watchPatterns = ["cmd/bot/**", "pkg", "railway", "go.mod", "go.sum"]
+watchPatterns = ["cmd/bot/**", "pkg/**", "railway", "go.mod", "go.sum"]
 buildCommand = "go build -o bin/bot ./cmd/bot"
 
 [deploy]
