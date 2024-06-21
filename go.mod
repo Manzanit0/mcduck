@@ -6,6 +6,7 @@ go 1.22.2
 require (
 	github.com/Masterminds/squirrel v1.5.3
 	github.com/gin-gonic/gin v1.8.1
+	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/manzanit0/isqlx v0.0.4
 	github.com/olekukonko/tablewriter v0.0.5
 	go.opentelemetry.io/otel v1.11.0
@@ -41,7 +42,6 @@ require (
 	github.com/go-playground/universal-translator v0.18.0 // indirect
 	github.com/go-playground/validator/v10 v10.11.0 // indirect
 	github.com/goccy/go-json v0.9.10 // indirect
-	github.com/golang-jwt/jwt/v4 v4.4.2
 	github.com/jackc/pgx/v4 v4.16.1
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/json-iterator/go v1.1.12 // indirect
