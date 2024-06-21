@@ -21,8 +21,8 @@ tasks:
     desc: Deploys the local workspace version of the code of all services to railway.app
     prompt: Are you sure you want to deploy to railway.app?
     cmds:
-      - railway up -s mcduck
-      - railway up -s bot
+      - railway up -s mcduck --detach
+      - railway up -s tgram-bot --detach
 
   rw-pgcli:
     desc: Connects to the railway.app cloud postgres database via "pgcli"
