@@ -125,6 +125,14 @@ type UpdateReceiptRequest struct {
 
 func (r *Repository) UpdateReceipt(ctx context.Context, e UpdateReceiptRequest) error {
 	var shouldUpdate bool
+	var shouldUpdateExpenseDates bool
+
+	txn, err := r.dbx.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+
+	defer txn.TxClose(ctx)
 
 	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
 
@@ -143,6 +151,7 @@ func (r *Repository) UpdateReceipt(ctx context.Context, e UpdateReceiptRequest) 
 	if e.Date != nil {
 		builder = builder.Set("receipt_date", *e.Date)
 		shouldUpdate = true
+		shouldUpdateExpenseDates = true
 	}
 
 	if !shouldUpdate {
@@ -151,12 +160,29 @@ func (r *Repository) UpdateReceipt(ctx context.Context, e UpdateReceiptRequest) 
 
 	query, args, err := builder.ToSql()
 	if err != nil {
-		return fmt.Errorf("compile query: %w", err)
+		return fmt.Errorf("compile receipts query: %w", err)
 	}
 
-	_, err = r.dbx.ExecContext(ctx, query, args...)
+	_, err = txn.ExecContext(ctx, query, args...)
 	if err != nil {
 		return fmt.Errorf("execute query: %w", err)
+	}
+
+	if shouldUpdateExpenseDates {
+		query, args, err = psql.Update("expenses").Where(sq.Eq{"receipt_id": e.ID}).Set("expense_date", *e.Date).ToSql()
+		if err != nil {
+			return fmt.Errorf("compile expenses query: %w", err)
+		}
+
+		_, err = txn.ExecContext(ctx, query, args...)
+		if err != nil {
+			return fmt.Errorf("execute expenses query: %w", err)
+		}
+	}
+
+	err = txn.Commit(ctx)
+	if err != nil {
+		return fmt.Errorf("commit: %w", err)
 	}
 
 	return nil
