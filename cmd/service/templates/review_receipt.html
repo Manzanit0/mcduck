@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
   {{template "head"}}
-  <body>
+  <body x-data="component()">
     {{template "navbar" .}}
     <div>
       <h1>Review Receipt</h1>
@@ -18,15 +18,24 @@
           <h1>Expenses</h1>
         </div>
         <div>
-          <button id="delete-receipt-button" style="margin-bottom: 10px; width: 15%" class="btn btn-error f-right" >
+          <button 
+            style="margin-bottom: 10px; width: 15%" 
+            class="btn btn-error f-right"
+            x-on:click="deleteReceipt('{{.Receipt.ID}}')">
             Delete Receipt
           </button>
 
-          <button id="add-expense-button" style="margin-bottom: 10px; width: 15%" class="btn btn-default f-right" >
+          <button
+            style="margin-bottom: 10px; width: 15%" 
+            class="btn btn-default f-right"
+            x-on:click="addTableRow()">
             Add Expense
           </button>
 
-          <button id="merge-expenses-button" style="margin-bottom: 10px; width: 15%" class="btn btn-default f-right" >
+          <button
+            style="margin-bottom: 10px; width: 15%"
+            class="btn btn-default f-right"
+            x-on:click="mergeExpenses()">
             Merge Expenses
           </button>
         </div>
@@ -56,6 +65,9 @@
                   value="{{$e.Amount}}"
                   min="0"
                   placeholder="42,00"
+                  x-on:focus="selectCell($el)"
+                  x-on:focusout="deselectCell($el)"
+                  x-on:change="updateRecord($el)"
                 />
               </td>
               <td>
@@ -65,6 +77,9 @@
                   name="category"
                   id="category-{{$e.ID}}"
                   value="{{$e.Category}}"
+                  x-on:focus="selectCell($el)"
+                  x-on:focusout="deselectCell($el)"
+                  x-on:change="updateRecord($el)"
                 />
               </td>
               <td>
@@ -74,6 +89,9 @@
                   name="subcategory"
                   id="subcategory-{{$e.ID}}"
                   value="{{$e.Subcategory}}"
+                  x-on:focus="selectCell($el)"
+                  x-on:focusout="deselectCell($el)"
+                  x-on:change="updateRecord($el)"
                 />
               </td>
               <td>
@@ -83,6 +101,9 @@
                   name="description"
                   id="description-{{$e.ID}}"
                   value="{{$e.Description}}"
+                  x-on:focus="selectCell($el)"
+                  x-on:focusout="deselectCell($el)"
+                  x-on:change="updateRecord($el)"
                 />
               </td>
               <td>
@@ -91,6 +112,7 @@
                     style="display: block"
                     id="delete-expense-{{$e.ID}}"
                     href="#"
+                    x-on:click="deleteExpense('{{$e.ID}}')"
                   >
                     <!-- Rubbish bin SVG-->
                     <svg
@@ -118,239 +140,182 @@
     </div>
   </body>
   <script>
-    const throwOnError = (response) => {
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
-      return response;
-    };
-
-    const doRequest = (req) => fetch(req).then(throwOnError);
-
-    const updateExpense = (id, expenseField, value) =>
-      doRequest(
-        new Request(`/expenses/${id}`, {
-          method: "PATCH",
-          headers: { Accept: "application/json" },
-          body: JSON.stringify({ [expenseField]: value }),
-        })
-      );
-
-    const createExpense = (date, amount) =>
-      doRequest(
-        new Request("/expenses", {
-          method: "PUT",
-          headers: { Accept: "application/json" },
-          body: JSON.stringify({ date: date, amount: amount }),
-        })
-      );
-
-    const createExpenseForReceipt = (date, amount, receiptId) =>
-      doRequest(
-        new Request("/expenses", {
-          method: "PUT",
-          headers: { Accept: "application/json" },
-          body: JSON.stringify({ date: date, amount: amount, receipt_id: receiptId}),
-        })
-      );
-
-    const mergeExpenses = (receiptId, expenses) =>
-      doRequest(
-        new Request("/expenses/merge", {
-          method: "POST",
-          headers: { Accept: "application/json" },
-          body: JSON.stringify({ receipt_id: receiptId, expense_ids: expenses }),
-        })
-      );
-
-    const deleteExpense = (id) =>
-      doRequest(new Request(`/expenses/${id}`, { method: "DELETE" }));
-
-      const deleteReceipt = (id) =>
-        doRequest(new Request(`/receipts/${id}`, { method: "DELETE" }));
-
-    const addListenerToDeleteLink = (link) => {
-      link.addEventListener("click", () => {
-        const expenseId = link.id.split("-")[2];
-        deleteExpense(expenseId).then(() => window.location.reload());
-      });
-    };
-
-    const addListenersToTableCell = (input) => {
-      input.addEventListener("focus", (event) => {
-        if (!input.parentElement.classList.contains("cell--selected")) {
-          input.parentElement.classList.add("cell--selected");
+    function component() {
+      const throwOnError = (response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
         }
+        return response;
+      };
 
-        if (input.parentElement.classList.contains("cell--pending")) {
-          input.parentElement.classList.remove("cell--pending");
-        }
-      });
+      const doRequest = (req) => fetch(req).then(throwOnError);
 
-      input.addEventListener("focusout", (event) => {
-        if (input.parentElement.classList.contains("cell--selected")) {
-          input.parentElement.classList.remove("cell--selected");
-        }
+      const updateExpense = (id, expenseField, value) =>
+        doRequest(
+          new Request(`/expenses/${id}`, {
+            method: "PATCH",
+            headers: { Accept: "application/json" },
+            body: JSON.stringify({ [expenseField]: value }),
+          })
+        );
 
-        const inputIsRequiredAndEmpty =
-          (input.value === null || input.value === "") &&
-          (input.id.includes("date") || input.id.includes("amount"));
+      const createExpenseForReceipt = (date, amount, receiptId) =>
+        doRequest(
+          new Request("/expenses", {
+            method: "PUT",
+            headers: { Accept: "application/json" },
+            body: JSON.stringify({ date: date, amount: amount, receipt_id: receiptId}),
+          })
+        )
 
-        if (inputIsRequiredAndEmpty) {
-          input.parentElement.classList.add("cell--pending");
-        }
-      });
+      return {
+        deleteExpense: (id) => 
+          doRequest(new Request(`/expenses/${id}`, { method: "DELETE" })).then(() => window.location.reload()),
 
-      input.addEventListener("change", (event) => {
-        const [expenseField, expenseId, ts] = input.id.split("-");
-        if (expenseId === "new") {
-          const amount = document.getElementById(`amount-new-${ts}`).value;
-          if (amount) {
-            // TODO: technically this should be the date of the other expenses.
-            const d = new Date();
-            const month = d.getMonth() > 9 ? d.getMonth() : `0${d.getMonth()}`
-            const date = `${d.getFullYear()}-${month}-${d.getDate()}`
-            const receiptId = window.location.pathname.split("/")[2]
-            createExpenseForReceipt(date, amount, receiptId)
-              .then((res) => res.json())
-              .then(({ id: id }) => {
-                // Update the row to contain the ID of the newly created expense.
-                document.getElementById(`selected-new-${ts}`).id = `selected-${id}`;
-                document.getElementById(`amount-new-${ts}`).id = `amount-${id}`;
-                document.getElementById(`category-new-${ts}`).id = `category-${id}`;
-                document.getElementById(`subcategory-new-${ts}`).id = `subcategory-${id}`;
-                document.getElementById(`description-new-${ts}`).id = `description-${id}`;
-              });
-          }
-        } else {
-          updateExpense(expenseId, expenseField, event.target.value);
-        }
-      });
-    };
+        deleteReceipt: (id) =>
+          doRequest(new Request(`/receipts/${id}`, { method: "DELETE" })).then(() => window.location.replace('/receipts')),
 
-    // FIXME: this should just be row inputs.
-    const addListenersToTable = () =>
-      document.querySelectorAll("input:not([type=checkbox],[type=button])").forEach(addListenersToTableCell);
-
-    const addListenersToDeleteLinks = () =>
-      document
-        .querySelectorAll('[id*="delete-expense"]')
-        .forEach(addListenerToDeleteLink);
-
-    const addTableRow = () => {
-      // NOTE: Programatically speaking, this is broken... but it's good
-      // enough as long as humans use the UI.
-      //
-      // The reason is that if you click the button within less than a
-      // millisecond, two rows with the same ID will be created.
-      const timestamp = Date.now();
-      const rowHTML = `
-            <td>
-              <input 
-                style="border: 0; outline: 0"
-                type="checkbox" 
-                name="expense-checkbox" 
-                id="selected-new-${timestamp}" unchecked />
-            </td>
-            <td class="cell--pending">
-              <input
-                style="border: 0; outline: 0"
-                type="number"
-                name="amount"
-                id="amount-new-${timestamp}"
-                min="0"
-                placeholder="42,00"
-              />
-            </td>
-            <td>
-              <input
-                style="border: 0; outline: 0"
-                type="text"
-                name="category"
-                id="category-new-${timestamp}"
-              />
-            </td>
-            <td>
-              <input
-                style="border: 0; outline: 0"
-                type="text"
-                name="subcategory"
-                id="subcategory-new-${timestamp}"
-              />
-            </td>
-            <td>
-              <input
-                style="border: 0; outline: 0"
-                type="text"
-                name="description"
-                id="description-new-${timestamp}"
-              />
-            </td>
-            <td>
-              <input
-                style="border: 0; outline: 0"
-                type="text"
-                name="receipt-id"
-                id="receipt_id-new-${timestamp}"
-              />
-            </td>
-      `;
-      const rowNode = document.createElement("tr");
-      rowNode.innerHTML = rowHTML;
-
-      const table = document.getElementById("expenses-table-body");
-      table.prepend(rowNode);
-
-      addListenersToTableCell(
-        document.getElementById(`amount-new-${timestamp}`)
-      );
-      addListenersToTableCell(
-        document.getElementById(`category-new-${timestamp}`)
-      );
-      addListenersToTableCell(
-        document.getElementById(`subcategory-new-${timestamp}`)
-      );
-      addListenersToTableCell(
-        document.getElementById(`description-new-${timestamp}`)
-      );
-      addListenersToTableCell(
-        document.getElementById(`receipt_id-new-${timestamp}`)
-      );
-    };
-
-    const addListenersToButtons = () => {
-      document
-        .getElementById("add-expense-button")
-        .addEventListener("click", addTableRow);
-        
-      document
-        .getElementById("delete-receipt-button")
-        .addEventListener("click", () => {
-          const receiptId = window.location.pathname.split("/")[2]
-          deleteReceipt(receiptId).then(() => window.location.replace("/receipts"))
-        });
-
-
-      document
-        .getElementById("merge-expenses-button")
-        .addEventListener("click", () => {
+        mergeExpenses: () => {
           const nodeList = document.getElementsByName('expense-checkbox')
           const expensesToMerge = Array.from(nodeList).reduce((acc, checkbox) => {
-              if (checkbox.checked) {
-                const id = checkbox.id.split("-")[1] 
-                return acc.concat([parseInt(id)])
-              }
+            if (checkbox.checked) {
+              const id = checkbox.id.split("-")[1] 
+              return acc.concat([parseInt(id)])
+            }
 
-              return acc
+            return acc
           }, [])
 
           const receiptId = window.location.pathname.split("/")[2]
-          mergeExpenses(receiptId, expensesToMerge).then(() => window.location.reload(true))
-        });
-    }
 
-    addListenersToTable();
-    addListenersToButtons();
-    addListenersToDeleteLinks();
+          doRequest(
+            new Request("/expenses/merge", {
+              method: "POST",
+              headers: { Accept: "application/json" },
+              body: JSON.stringify({ receipt_id: receiptId, expense_ids: expensesToMerge }),
+            })
+          ).then(() => window.location.reload(true))
+        },
+
+        selectCell: (input) => {
+          if (!input.parentElement.classList.contains("cell--selected")) {
+            input.parentElement.classList.add("cell--selected");
+          }
+
+          if (input.parentElement.classList.contains("cell--pending")) {
+            input.parentElement.classList.remove("cell--pending");
+          }
+        },
+
+        deselectCell: (input) => {
+          if (input.parentElement.classList.contains("cell--selected")) {
+            input.parentElement.classList.remove("cell--selected");
+          }
+
+          const inputIsRequiredAndEmpty =
+            (input.value === null || input.value === "") &&
+            (input.id.includes("date") || input.id.includes("amount"));
+
+          if (inputIsRequiredAndEmpty) {
+            input.parentElement.classList.add("cell--pending");
+          }
+        },
+
+        updateRecord: (input) => {
+          const [expenseField, expenseId, ts] = input.id.split("-");
+          if (expenseId === "new") {
+            const amount = document.getElementById(`amount-new-${ts}`).value;
+            if (amount) {
+              // TODO: technically this should be the date of the other expenses.
+              const d = new Date();
+              const month = d.getMonth() > 9 ? d.getMonth() : `0${d.getMonth()}`
+              const date = `${d.getFullYear()}-${month}-${d.getDate()}`
+              const receiptId = window.location.pathname.split("/")[2]
+              createExpenseForReceipt(date, amount, receiptId)
+                .then((res) => res.json())
+                .then(({ id: id }) => {
+                  // Update the row to contain the ID of the newly created expense.
+                  document.getElementById(`selected-new-${ts}`).id = `selected-${id}`;
+                  document.getElementById(`amount-new-${ts}`).id = `amount-${id}`;
+                  document.getElementById(`category-new-${ts}`).id = `category-${id}`;
+                  document.getElementById(`subcategory-new-${ts}`).id = `subcategory-${id}`;
+                  document.getElementById(`description-new-${ts}`).id = `description-${id}`;
+                });
+            }
+          } else {
+            updateExpense(expenseId, expenseField, event.target.value);
+          }
+        },
+
+        addTableRow: () => {
+          // NOTE: Programatically speaking, this is broken... but it's good
+          // enough as long as humans use the UI.
+          //
+          // The reason is that if you click the button within less than a
+          // millisecond, two rows with the same ID will be created.
+          const timestamp = Date.now();
+          const rowHTML = `
+                <td>
+                  <input 
+                    style="border: 0; outline: 0"
+                    type="checkbox" 
+                    name="expense-checkbox" 
+                    id="selected-new-${timestamp}" unchecked />
+                </td>
+                <td class="cell--pending">
+                  <input
+                    style="border: 0; outline: 0"
+                    type="number"
+                    name="amount"
+                    id="amount-new-${timestamp}"
+                    min="0"
+                    placeholder="42,00"
+                    x-on:focus="selectCell($el)"
+                    x-on:focusout="deselectCell($el)"
+                    x-on:change="updateRecord($el)"
+                  />
+                </td>
+                <td>
+                  <input
+                    style="border: 0; outline: 0"
+                    type="text"
+                    name="category"
+                    id="category-new-${timestamp}"
+                    x-on:focus="selectCell($el)"
+                    x-on:focusout="deselectCell($el)"
+                    x-on:change="updateRecord($el)"
+                  />
+                </td>
+                <td>
+                  <input
+                    style="border: 0; outline: 0"
+                    type="text"
+                    name="subcategory"
+                    id="subcategory-new-${timestamp}"
+                    x-on:focus="selectCell($el)"
+                    x-on:focusout="deselectCell($el)"
+                    x-on:change="updateRecord($el)"
+                  />
+                </td>
+                <td>
+                  <input
+                    style="border: 0; outline: 0"
+                    type="text"
+                    name="description"
+                    id="description-new-${timestamp}"
+                    x-on:focus="selectCell($el)"
+                    x-on:focusout="deselectCell($el)"
+                    x-on:change="updateRecord($el)"
+                  />
+                </td>
+          `;
+          const rowNode = document.createElement("tr");
+          rowNode.innerHTML = rowHTML;
+
+          const table = document.getElementById("expenses-table-body");
+          table.prepend(rowNode);
+        },
+      }
+    }
   </script>
 </html>
