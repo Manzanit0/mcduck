@@ -62,7 +62,6 @@ func (d *ReceiptsController) ListReceipts(c *gin.Context) {
 		viewReceipts[i].TotalAmount = fmt.Sprintf("%0.2f", total)
 	}
 
-	fmt.Println(viewReceipts[1].TotalAmount)
 	c.HTML(http.StatusOK, "list_receipts.html", gin.H{
 		"User":        userEmail,
 		"HasReceipts": len(receipts) > 0,
