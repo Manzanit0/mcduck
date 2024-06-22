@@ -16,6 +16,7 @@ type Receipt struct {
 	Image         []byte
 	Vendor        string
 	UserEmail     string
+	Date          time.Time
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
 }
@@ -27,6 +28,7 @@ type dbReceipt struct {
 	UserEmail     string  `db:"user_email"`
 	Vendor        *string `db:"vendor"`
 
+	Date      time.Time `db:"receipt_date"`
 	CreatedAt time.Time `db:"created_at"`
 	UpdatedAt time.Time `db:"updated_at"`
 }
@@ -40,6 +42,7 @@ func (r *dbReceipt) MapReceipt() *Receipt {
 		ID:            r.ID,
 		PendingReview: r.PendingReview,
 		Image:         r.Image,
+		Date:          r.Date,
 		CreatedAt:     r.CreatedAt,
 		UpdatedAt:     r.UpdatedAt,
 		Vendor:        vendor,
@@ -71,8 +74,8 @@ func (r *Repository) CreateReceipt(ctx context.Context, receiptImage []byte, amo
 
 	builder := psql.
 		Insert("receipts").
-		Columns("receipt_image", "pending_review", "user_email").
-		Values(receiptImage, true, userEmail).
+		Columns("receipt_image", "pending_review", "user_email", "receipt_date").
+		Values(receiptImage, true, userEmail, time.Now()).
 		Suffix("RETURNING \"id\"")
 
 	query, args, err := builder.ToSql()
@@ -117,6 +120,7 @@ type UpdateReceiptRequest struct {
 	ID            int64
 	Vendor        *string
 	PendingReview *bool
+	Date          *time.Time
 }
 
 func (r *Repository) UpdateReceipt(ctx context.Context, e UpdateReceiptRequest) error {
@@ -133,6 +137,11 @@ func (r *Repository) UpdateReceipt(ctx context.Context, e UpdateReceiptRequest) 
 
 	if e.PendingReview != nil {
 		builder = builder.Set("pending_review", *e.PendingReview)
+		shouldUpdate = true
+	}
+
+	if e.Date != nil {
+		builder = builder.Set("receipt_date", *e.Date)
 		shouldUpdate = true
 	}
 
@@ -157,7 +166,7 @@ func (r *Repository) ListReceipts(ctx context.Context, email string) ([]Receipt,
 	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
 
 	query, args, err := psql.
-		Select("id", "vendor", "pending_review", "created_at", "receipt_image").
+		Select("id", "vendor", "pending_review", "receipt_date", "receipt_image").
 		From("receipts").
 		Where(sq.Eq{"user_email": email}).
 		ToSql()
@@ -183,7 +192,7 @@ func (r *Repository) GetReceipt(ctx context.Context, receiptID uint64) (*Receipt
 	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
 
 	query, args, err := psql.
-		Select("id", "vendor", "pending_review", "created_at", "receipt_image", "user_email").
+		Select("id", "vendor", "pending_review", "created_at", "receipt_image", "user_email", "receipt_date").
 		From("receipts").
 		Where(sq.Eq{"id": receiptID}).
 		ToSql()

@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/manzanit0/mcduck/internal/expense"
@@ -35,7 +36,7 @@ func (d *ReceiptsController) ListReceipts(c *gin.Context) {
 
 	// Sort the most recent first
 	sort.Slice(receipts, func(i, j int) bool {
-		return receipts[i].CreatedAt.After(receipts[j].CreatedAt)
+		return receipts[i].Date.After(receipts[j].Date)
 	})
 
 	viewReceipts := ToReceiptViewModel(receipts)
@@ -119,6 +120,7 @@ func (d *ReceiptsController) CreateReceipt(c *gin.Context) {
 type UpdateReceiptRequest struct {
 	Vendor        *string `json:"vendor"`
 	PendingReview *string `json:"pending_review"`
+	Date          *string `json:"date"`
 }
 
 func (d *ReceiptsController) UpdateReceipt(c *gin.Context) {
@@ -145,10 +147,21 @@ func (d *ReceiptsController) UpdateReceipt(c *gin.Context) {
 		pendingReview = &b
 	}
 
+	var date *time.Time
+	if payload.Date != nil {
+		d, err := time.Parse("2006-01-02", *payload.Date)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("unable to parse date: %s", err.Error())})
+			return
+		}
+		date = &d
+	}
+
 	err = d.Receipts.UpdateReceipt(c.Request.Context(), receipt.UpdateReceiptRequest{
 		ID:            i,
 		Vendor:        payload.Vendor,
 		PendingReview: pendingReview,
+		Date:          date,
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable to update receipt: %s", err.Error())})
@@ -232,7 +245,7 @@ func ToSingleReceiptViewModel(r *receipt.Receipt) ReceiptViewModel {
 
 	return ReceiptViewModel{
 		ID:            fmt.Sprint(r.ID),
-		Date:          r.CreatedAt.Format("2006-01-02"),
+		Date:          r.Date.Format("2006-01-02"),
 		Vendor:        strings.Title(r.Vendor),
 		PendingReview: pendingReview,
 		Image:         encoded,
