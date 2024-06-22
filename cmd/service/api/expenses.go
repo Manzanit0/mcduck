@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -50,6 +51,11 @@ func (d *ExpensesController) ListExpenses(c *gin.Context) {
 		c.HTML(http.StatusOK, "error.html", gin.H{"error": err.Error()})
 		return
 	}
+
+	// Sort the most recent first
+	sort.Slice(expenses, func(i, j int) bool {
+		return expenses[i].Date.After(expenses[j].Date)
+	})
 
 	c.HTML(http.StatusOK, "expenses.html", gin.H{
 		"User":        user,
