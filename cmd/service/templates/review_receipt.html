@@ -67,7 +67,7 @@
                   placeholder="42,00"
                   x-on:focus="selectCell($el)"
                   x-on:focusout="deselectCell($el)"
-                  x-on:change="updateRecord($el, '{{ .Receipt.Date }}')"
+                  x-on:change="updateRecord($el, '{{ $.Receipt.ID }}', '{{ $.Receipt.Date }}')"
                 />
               </td>
               <td>
@@ -79,7 +79,7 @@
                   value="{{$e.Category}}"
                   x-on:focus="selectCell($el)"
                   x-on:focusout="deselectCell($el)"
-                  x-on:change="updateRecord($el, '{{ .Receipt.Date }}')"
+                  x-on:change="updateRecord($el, '{{ $.Receipt.ID }}', '{{ $.Receipt.Date }}')"
                 />
               </td>
               <td>
@@ -91,7 +91,7 @@
                   value="{{$e.Subcategory}}"
                   x-on:focus="selectCell($el)"
                   x-on:focusout="deselectCell($el)"
-                  x-on:change="updateRecord($el, '{{ .Receipt.Date }}')"
+                  x-on:change="updateRecord($el, '{{ $.Receipt.ID }}', '{{ $.Receipt.Date }}')"
                 />
               </td>
               <td>
@@ -103,7 +103,7 @@
                   value="{{$e.Description}}"
                   x-on:focus="selectCell($el)"
                   x-on:focusout="deselectCell($el)"
-                  x-on:change="updateRecord($el, '{{ .Receipt.Date }}')"
+                  x-on:change="updateRecord($el, '{{ $.Receipt.ID }}', '{{ $.Receipt.Date }}')"
                 />
               </td>
               <td>
@@ -140,6 +140,15 @@
     </div>
   </body>
   <script>
+ <!--    document.addEventListener('alpine:init', () => { -->
+ <!--        Alpine.data('review_receipt', () => ({ -->
+ <!--            open: false, -->
+ <!--  -->
+ <!--            toggle() { -->
+ <!--                this.open = ! this.open -->
+ <!--            }, -->
+ <!--        })) -->
+ <!--    }) -->
     function component() {
       const throwOnError = (response) => {
         if (!response.ok) {
@@ -221,12 +230,11 @@
           }
         },
 
-        updateRecord: (input, receiptDate) => {
+        updateRecord: (input, receiptId, receiptDate) => {
           const [expenseField, expenseId, ts] = input.id.split("-");
           if (expenseId === "new") {
             const amount = document.getElementById(`amount-new-${ts}`).value;
             if (amount) {
-              const receiptId = window.location.pathname.split("/")[2]
               createExpenseForReceipt(receiptDate, amount, receiptId)
                 .then((res) => res.json())
                 .then(({ id: id }) => {
@@ -268,7 +276,7 @@
                     placeholder="42,00"
                     x-on:focus="selectCell($el)"
                     x-on:focusout="deselectCell($el)"
-                    x-on:change="updateRecord($el, '{{ .Receipt.Date }}')"
+                    x-on:change="updateRecord($el, '{{ .Receipt.ID }}', '{{ .Receipt.Date }}')"
                   />
                 </td>
                 <td>
@@ -279,7 +287,7 @@
                     id="category-new-${timestamp}"
                     x-on:focus="selectCell($el)"
                     x-on:focusout="deselectCell($el)"
-                    x-on:change="updateRecord($el)"
+                    x-on:change="updateRecord($el, '{{ .Receipt.ID }}', '{{ .Receipt.Date }}')"
                   />
                 </td>
                 <td>
@@ -290,7 +298,7 @@
                     id="subcategory-new-${timestamp}"
                     x-on:focus="selectCell($el)"
                     x-on:focusout="deselectCell($el)"
-                    x-on:change="updateRecord($el)"
+                    x-on:change="updateRecord($el, '{{ .Receipt.ID }}', '{{ .Receipt.Date }}')"
                   />
                 </td>
                 <td>
@@ -301,7 +309,7 @@
                     id="description-new-${timestamp}"
                     x-on:focus="selectCell($el)"
                     x-on:focusout="deselectCell($el)"
-                    x-on:change="updateRecord($el)"
+                    x-on:change="updateRecord($el, '{{ .Receipt.ID }}', '{{ .Receipt.Date }}')"
                   />
                 </td>
           `;
