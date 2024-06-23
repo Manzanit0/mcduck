@@ -1,7 +1,7 @@
 package auth
 
 import (
-	"log"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -80,7 +80,7 @@ func CookieMiddleware(c *gin.Context) {
 		return
 	}
 
-	log.Printf("user %s logged in\n", email)
+	slog.Info("user logged in", "email", email)
 	c.Set(userContextKey, email)
 	c.Next()
 }
@@ -104,7 +104,7 @@ func BearerMiddleware(c *gin.Context) {
 		return
 	}
 
-	log.Printf("user %s logged in\n", email)
+	slog.Info("user logged in", "email", email)
 	c.Set(userContextKey, email)
 	c.Next()
 }

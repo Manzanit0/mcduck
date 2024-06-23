@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
@@ -75,7 +75,7 @@ func (c *client) SearchUserByChatID(ctx context.Context, onBehalfOfEmail string,
 	var unmarshalled SearchUserResponse
 	err = json.Unmarshal(respBody, &unmarshalled)
 	if err != nil {
-		log.Println("body which was unmarsheable", string(respBody))
+		slog.Debug("body which was unmarsheable", "body", string(respBody), "error", err.Error())
 		return nil, fmt.Errorf("unmarshal response body: %w", err)
 	}
 
@@ -106,7 +106,7 @@ func (c *client) CreateReceipt(ctx context.Context, onBehalfOfEmail string, data
 	var unmarshalled CreateReceiptResponse
 	err = json.Unmarshal(respBody, &unmarshalled)
 	if err != nil {
-		log.Println("body which was unmarsheable", string(respBody))
+		slog.Debug("body which was unmarsheable", "body", string(respBody), "error", err.Error())
 		return nil, fmt.Errorf("unmarshal response body: %w", err)
 	}
 

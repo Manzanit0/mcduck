@@ -6,7 +6,6 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
-	"log"
 	"math"
 	"sort"
 	"strconv"
@@ -269,8 +268,6 @@ func CreateExpenses(ctx context.Context, tx isqlx.Querier, e ExpensesBatch) erro
 	if err != nil {
 		return fmt.Errorf("unable to build query: %w", err)
 	}
-
-	log.Println(query, args)
 
 	_, err = tx.ExecContext(ctx, query, args...)
 	if err != nil {

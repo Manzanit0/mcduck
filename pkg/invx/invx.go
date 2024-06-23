@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
@@ -55,7 +55,7 @@ func (c *client) ParseReceipt(_ context.Context, data []byte) (map[string]float6
 
 	err = json.Unmarshal(respBody, &unmarshalled)
 	if err != nil {
-		log.Println("body which was unmarsheable", string(respBody))
+		slog.Error("body which was unmarsheable", "body", string(respBody), "error", err.Error())
 		return nil, fmt.Errorf("unmarshal response body: %w", err)
 	}
 

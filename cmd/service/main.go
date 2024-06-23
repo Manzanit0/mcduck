@@ -6,7 +6,7 @@ import (
 	"embed"
 	"fmt"
 	"html/template"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -40,25 +40,37 @@ var assets embed.FS
 var sampleData embed.FS
 
 func main() {
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	logger = logger.With("service", serviceName)
+	slog.SetDefault(logger)
+
+	if err := run(); err != nil {
+		slog.Error("exiting server", "error", err.Error())
+		os.Exit(1)
+	}
+}
+
+func run() error {
 	tp, err := trace.TracerFromEnv(context.Background(), serviceName)
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("get tracer from env: %w", err)
 	}
+
 	defer func() {
 		err := tp.Shutdown(context.Background())
 		if err != nil {
-			log.Printf("shutdown tracer: %s\n", err.Error())
+			slog.Error("fail to shutdown tracer", "error", err.Error())
 		}
 	}()
 
 	dbx, err := openDB()
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("open database: %w", err)
 	}
 	defer func() {
 		err = dbx.GetSQLX().Close()
 		if err != nil {
-			log.Printf("closing postgres connection: %s\n", err.Error())
+			slog.Error("fail to close postgres connection", "error", err.Error())
 		}
 	}()
 
@@ -66,7 +78,7 @@ func main() {
 
 	t, err := template.ParseFS(templates, "templates/*.html")
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("parse templates: %w", err)
 	}
 
 	r := gin.Default()
@@ -95,7 +107,7 @@ func main() {
 
 	data, err := readSampleData()
 	if err != nil {
-		log.Fatalf("read sample data: %s", err.Error())
+		return fmt.Errorf("read sample data: %w", err)
 	}
 	dashController := api.DashboardController{Expenses: expenseRepository, SampleData: data}
 
@@ -170,12 +182,12 @@ func main() {
 
 	srv := &http.Server{Addr: fmt.Sprintf(":%s", port), Handler: r}
 	go func() {
-		log.Printf("serving HTTP on :%s", port)
+		slog.Info("serving HTTP on :" + port)
 
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Printf("server ended abruptly: %s", err.Error())
+			slog.Error("server ended abruptly", "error", err.Error())
 		} else {
-			log.Printf("server ended gracefully")
+			slog.Info("server ended gracefully")
 		}
 
 		stop()
@@ -188,10 +200,12 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatal("server forced to shutdown: ", err)
+		return fmt.Errorf("server forced to shutdown: %w", err)
 	}
 
-	log.Printf("server exited")
+	slog.Info("server exited")
+
+	return nil
 }
 
 func openDB() (isqlx.DBX, error) {

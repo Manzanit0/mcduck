@@ -2,7 +2,7 @@ package api
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -174,12 +174,12 @@ func doConnect(c *gin.Context, db *sqlx.DB, tgramClient tgram.Client, user *user
 func doLogin(c *gin.Context, db *sqlx.DB, email, password string) (*users.User, error) {
 	user, err := users.Find(c.Request.Context(), db, email)
 	if err != nil {
-		log.Println("unable to find user ", email, ": ", err.Error())
+		slog.Error("unable to find user", "email", email, "error", err.Error())
 		return nil, fmt.Errorf("invalid email or password")
 	}
 
 	if !auth.CheckPasswordHash(password, user.HashedPassword) {
-		log.Println("invalid password: ", user.Email)
+		slog.Error("invalid password", "email", email, "error", "hashed password doesn't match")
 		return nil, fmt.Errorf("invalid email or password")
 	}
 

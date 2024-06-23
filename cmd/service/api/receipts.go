@@ -3,7 +3,7 @@ package api
 import (
 	"encoding/base64"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -29,7 +29,7 @@ func (d *ReceiptsController) ListReceipts(c *gin.Context) {
 	userEmail := auth.GetUserEmail(c)
 	receipts, err := d.Receipts.ListReceipts(c.Request.Context(), userEmail)
 	if err != nil {
-		log.Println("ListPendingReceipts:", "query receipts:", err.Error())
+		slog.Error("failed to list receipts", "error", err.Error())
 		c.HTML(http.StatusOK, "error.html", gin.H{"error": "We were unable to find your receipts - please try again."})
 		return
 	}
@@ -45,12 +45,14 @@ func (d *ReceiptsController) ListReceipts(c *gin.Context) {
 	for i, r := range viewReceipts {
 		id, err := strconv.ParseUint(r.ID, 10, 64)
 		if err != nil {
+			slog.Error("failed to parse receipt ID", "error", err.Error())
 			c.HTML(http.StatusOK, "error.html", gin.H{"error": "We were unable to find your receipts - please try again."})
 			return
 		}
 
 		expenses, err := d.Expenses.ListExpensesForReceipt(c.Request.Context(), id)
 		if err != nil {
+			slog.Error("failed to list expenses for receipt", "error", err.Error())
 			c.HTML(http.StatusOK, "error.html", gin.H{"error": "We were unable to find your receipts - please try again."})
 			return
 		}
@@ -98,7 +100,7 @@ func (d *ReceiptsController) CreateReceipt(c *gin.Context) {
 
 	amounts, err := d.Invx.ParseReceipt(c.Request.Context(), data)
 	if err != nil {
-		log.Println("CreateReceipt:", "invx parse receipt:", err.Error())
+		slog.Error("failed to parse receipt through invx", "error", err.Error())
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable to parse receipt: %s", err.Error())})
 		return
 	}
@@ -106,7 +108,7 @@ func (d *ReceiptsController) CreateReceipt(c *gin.Context) {
 	email := auth.GetUserEmail(c)
 	rcpt, err := d.Receipts.CreateReceipt(c.Request.Context(), data, amounts, email)
 	if err != nil {
-		log.Println("CreateReceipt:", "insert receipt:", err.Error())
+		slog.Error("failed to insert receipt", "error", err.Error())
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable to create receipt: %s", err.Error())})
 		return
 	}
@@ -164,6 +166,7 @@ func (d *ReceiptsController) UpdateReceipt(c *gin.Context) {
 		Date:          date,
 	})
 	if err != nil {
+		slog.Error("failed to update receipt", "error", err.Error())
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable to update receipt: %s", err.Error())})
 		return
 	}
@@ -183,12 +186,14 @@ func (d *ReceiptsController) ReviewReceipt(c *gin.Context) {
 
 	receipt, err := d.Receipts.GetReceipt(c.Request.Context(), receiptID)
 	if err != nil {
+		slog.Error("failed to get receipt", "error", err.Error())
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable to retrieve receipt: %s", err.Error())})
 		return
 	}
 
 	expenses, err := d.Expenses.ListExpensesForReceipt(c.Request.Context(), receiptID)
 	if err != nil {
+		slog.Error("failed to list expenses for receipt", "error", err.Error())
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable to list expenses: %s", err.Error())})
 		return
 	}
@@ -210,6 +215,7 @@ func (d *ReceiptsController) DeleteReceipt(c *gin.Context) {
 
 	err = d.Receipts.DeleteReceipt(c.Request.Context(), i)
 	if err != nil {
+		slog.Error("failed to delete receipt", "error", err.Error())
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable to delete receipt: %s", err.Error())})
 		return
 	}
