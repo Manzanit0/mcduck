@@ -27,9 +27,9 @@ const (
 func main() {
 	xlog.InitSlog()
 
-	tp, err := initTracerProvider()
+	tp, err := trace.TracerFromEnv(context.Background(), serviceName)
 	if err != nil {
-		slog.Error("init tracer", "error", err.Error())
+		slog.Error("get tracer from env", "error", err.Error())
 		os.Exit(1)
 	}
 
@@ -111,20 +111,4 @@ func telegramWebhookController(tgramClient tgram.Client, mcduck client.McDuckCli
 			c.JSON(http.StatusOK, tgram.NewMarkdownResponse("Hey\\! Just send me a picture with a receipt, and I'll do the rest\\!", r.GetFromID()))
 		}
 	}
-}
-
-func initTracerProvider() (*trace.Provider, error) {
-	endpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
-	headers := os.Getenv("OTEL_EXPORTER_OTLP_HEADERS")
-	if endpoint == "" || headers == "" {
-		return nil, fmt.Errorf("missing OTEL_EXPORTER_* environment variables")
-	}
-
-	opts := trace.NewExporterOptions(endpoint, headers)
-	tp, err := trace.InitTracer(context.Background(), serviceName, opts)
-	if err != nil {
-		return nil, fmt.Errorf("init tracer: %s", err.Error())
-	}
-
-	return tp, nil
 }
