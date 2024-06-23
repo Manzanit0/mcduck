@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-slog/otelslog"
 	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/manzanit0/isqlx"
 	"go.opentelemetry.io/otel"
@@ -26,6 +27,7 @@ import (
 	"github.com/manzanit0/mcduck/pkg/invx"
 	"github.com/manzanit0/mcduck/pkg/tgram"
 	"github.com/manzanit0/mcduck/pkg/trace"
+	"github.com/manzanit0/mcduck/pkg/xlog"
 )
 
 const serviceName = "mcduck"
@@ -40,7 +42,12 @@ var assets embed.FS
 var sampleData embed.FS
 
 func main() {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	var handler slog.Handler
+	handler = slog.NewTextHandler(os.Stdout, nil) // logfmt
+	handler = otelslog.NewHandler(handler)
+	handler = xlog.NewDefaultContextHandler(handler)
+
+	logger := slog.New(handler)
 	logger = logger.With("service", serviceName)
 	slog.SetDefault(logger)
 
@@ -81,16 +88,22 @@ func run() error {
 		return fmt.Errorf("parse templates: %w", err)
 	}
 
-	r := gin.Default()
+	r := gin.New()
 
 	// Auto-instruments every endpoint
 	r.Use(tp.TraceRequests())
+	r.Use(func(gCtx *gin.Context) {
+		ctx := gCtx.Request.Context()
+		ctx = xlog.NewEnhancedContext(ctx, gCtx.Request)
+		gCtx.Request = gCtx.Request.Clone(ctx)
+	})
 
 	r.SetHTMLTemplate(t)
 	r.StaticFS("/public", http.FS(assets))
 
 	// Used for healthcheck
 	r.GET("/ping", func(c *gin.Context) {
+		slog.InfoContext(c.Request.Context(), "Just got pinged!")
 		c.JSON(200, gin.H{
 			"message": "pong",
 		})
