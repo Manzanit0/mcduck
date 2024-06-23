@@ -32,7 +32,6 @@ func main() {
 	handler = xlog.NewDefaultContextHandler(handler)
 
 	logger := slog.New(handler)
-	logger = logger.With("service", serviceName)
 	slog.SetDefault(logger)
 
 	tp, err := initTracerProvider()
