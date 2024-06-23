@@ -57,11 +57,10 @@ func InitTracer(ctx context.Context, service string, opts []otlptracegrpc.Option
 	}
 
 	// The service.name attribute is required.
-	resource :=
-		resource.NewWithAttributes(
-			semconv.SchemaURL,
-			semconv.ServiceNameKey.String(service),
-		)
+	resource := resource.NewWithAttributes(
+		semconv.SchemaURL,
+		semconv.ServiceNameKey.String(service),
+	)
 
 	tp := sdktrace.NewTracerProvider(
 		sdktrace.WithBatcher(exp),

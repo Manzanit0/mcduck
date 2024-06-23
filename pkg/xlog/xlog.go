@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
 type ContextHandler struct {
@@ -70,4 +72,11 @@ func NewEnhancedContext(ctx context.Context, r *http.Request) context.Context {
 	ctx = context.WithValue(ctx, requestPathKey{}, slog.String("http.request.path", r.URL.Path))
 	ctx = context.WithValue(ctx, requestMethodKey{}, slog.String("http.request.method", r.Method))
 	return ctx
+}
+
+func EnhanceContext(c *gin.Context) {
+	ctx := c.Request.Context()
+	ctx = NewEnhancedContext(ctx, c.Request)
+	c.Request = c.Request.Clone(ctx)
+	c.Next()
 }

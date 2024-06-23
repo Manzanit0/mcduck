@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -12,10 +12,12 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-slog/otelslog"
 	"github.com/manzanit0/mcduck/cmd/bot/internal/bot"
 	"github.com/manzanit0/mcduck/internal/client"
 	"github.com/manzanit0/mcduck/pkg/tgram"
 	"github.com/manzanit0/mcduck/pkg/trace"
+	"github.com/manzanit0/mcduck/pkg/xlog"
 )
 
 const (
@@ -24,18 +26,30 @@ const (
 )
 
 func main() {
+	var handler slog.Handler
+	handler = slog.NewTextHandler(os.Stdout, nil) // logfmt
+	handler = otelslog.NewHandler(handler)
+	handler = xlog.NewDefaultContextHandler(handler)
+
+	logger := slog.New(handler)
+	logger = logger.With("service", serviceName)
+	slog.SetDefault(logger)
+
 	tp, err := initTracerProvider()
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("init tracer", "error", err.Error())
+		os.Exit(1)
 	}
+
 	defer func() {
 		err := tp.Shutdown(context.Background())
 		if err != nil {
-			log.Printf("shutdown tracer: %s\n", err.Error())
+			slog.Error("fail to shutdown tracer", "error", err.Error())
 		}
 	}()
 
-	r := gin.Default()
+	r := gin.New()
+	r.Use(xlog.EnhanceContext)
 
 	r.GET("/ping", func(c *gin.Context) {
 		c.JSON(200, gin.H{
@@ -58,12 +72,12 @@ func main() {
 
 	srv := &http.Server{Addr: fmt.Sprintf(":%s", port), Handler: r}
 	go func() {
-		log.Printf("serving HTTP on :%s", port)
+		slog.Info("serving HTTP on :%s" + port)
 
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Printf("server ended abruptly: %s", err.Error())
+			slog.Error("server ended abruptly: %s", "error", err.Error())
 		} else {
-			log.Printf("server ended gracefully")
+			slog.Info("server ended gracefully")
 		}
 
 		stop()
@@ -76,17 +90,18 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatal("server forced to shutdown: ", err)
+		slog.Error("server forced to shutdown", "error", err)
+		os.Exit(1)
 	}
 
-	log.Printf("server exited")
+	slog.Info("server exited")
 }
 
 func telegramWebhookController(tgramClient tgram.Client, mcduck client.McDuckClient) func(c *gin.Context) {
 	return func(c *gin.Context) {
 		var r tgram.WebhookRequest
 		if err := c.ShouldBindJSON(&r); err != nil {
-			log.Println("[ERROR] bind Telegram webhook payload:", err.Error())
+			slog.Error("bind Telegram webhook payload", "error", err.Error())
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error": fmt.Errorf("payload does not conform with telegram contract: %w", err).Error(),
 			})

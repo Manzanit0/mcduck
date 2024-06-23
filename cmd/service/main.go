@@ -92,11 +92,7 @@ func run() error {
 
 	// Auto-instruments every endpoint
 	r.Use(tp.TraceRequests())
-	r.Use(func(gCtx *gin.Context) {
-		ctx := gCtx.Request.Context()
-		ctx = xlog.NewEnhancedContext(ctx, gCtx.Request)
-		gCtx.Request = gCtx.Request.Clone(ctx)
-	})
+	r.Use(xlog.EnhanceContext)
 
 	r.SetHTMLTemplate(t)
 	r.StaticFS("/public", http.FS(assets))
