@@ -47,7 +47,7 @@ func main() {
 		}
 	}()
 
-	r := gin.New()
+	r := gin.Default()
 	r.Use(xlog.EnhanceContext)
 
 	r.GET("/ping", func(c *gin.Context) {

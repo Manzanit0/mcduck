@@ -87,7 +87,7 @@ func run() error {
 		return fmt.Errorf("parse templates: %w", err)
 	}
 
-	r := gin.New()
+	r := gin.Default()
 
 	// Auto-instruments every endpoint
 	r.Use(tp.TraceRequests())
