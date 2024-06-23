@@ -5,9 +5,21 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-slog/otelslog"
 )
+
+func InitSlog() {
+	var handler slog.Handler
+	handler = slog.NewTextHandler(os.Stdout, nil) // logfmt
+	handler = otelslog.NewHandler(handler)
+	handler = NewDefaultContextHandler(handler)
+
+	logger := slog.New(handler)
+	slog.SetDefault(logger)
+}
 
 type ContextHandler struct {
 	slog.Handler

@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-slog/otelslog"
 	"github.com/manzanit0/mcduck/cmd/bot/internal/bot"
 	"github.com/manzanit0/mcduck/internal/client"
 	"github.com/manzanit0/mcduck/pkg/tgram"
@@ -26,13 +25,7 @@ const (
 )
 
 func main() {
-	var handler slog.Handler
-	handler = slog.NewTextHandler(os.Stdout, nil) // logfmt
-	handler = otelslog.NewHandler(handler)
-	handler = xlog.NewDefaultContextHandler(handler)
-
-	logger := slog.New(handler)
-	slog.SetDefault(logger)
+	xlog.InitSlog()
 
 	tp, err := initTracerProvider()
 	if err != nil {

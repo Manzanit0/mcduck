@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-slog/otelslog"
 	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/manzanit0/isqlx"
 	"go.opentelemetry.io/otel"
@@ -42,13 +41,7 @@ var assets embed.FS
 var sampleData embed.FS
 
 func main() {
-	var handler slog.Handler
-	handler = slog.NewTextHandler(os.Stdout, nil) // logfmt
-	handler = otelslog.NewHandler(handler)
-	handler = xlog.NewDefaultContextHandler(handler)
-
-	logger := slog.New(handler)
-	slog.SetDefault(logger)
+	xlog.InitSlog()
 
 	if err := run(); err != nil {
 		slog.Error("exiting server", "error", err.Error())
