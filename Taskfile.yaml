@@ -1,5 +1,8 @@
 version: "3"
 
+env:
+  SMEE_URL: https://smee.io/Yh2XnVMscjUHetc3
+
 tasks:
   smee:
     desc: sets up local webhook for Telegram bot
@@ -13,8 +16,6 @@ tasks:
         sh: railway variables -s parser --json | jq -r .OPENAI_API_KEY
     dotenv:
       - ".env" # This contains the TELEGRAM_BOT_TOKEN environment variable
-    env:
-      SMEE_URL: https://smee.io/Yh2XnVMscjUHetc3
     preconditions:
       - msg: Have you run "task smee" in a separate terminal?
         sh: pgrep -f "task smee"
