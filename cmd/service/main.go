@@ -20,10 +20,10 @@ import (
 	"go.opentelemetry.io/otel"
 
 	"github.com/manzanit0/mcduck/cmd/service/api"
+	"github.com/manzanit0/mcduck/internal/client"
 	"github.com/manzanit0/mcduck/internal/expense"
 	"github.com/manzanit0/mcduck/internal/receipt"
 	"github.com/manzanit0/mcduck/pkg/auth"
-	"github.com/manzanit0/mcduck/pkg/invx"
 	"github.com/manzanit0/mcduck/pkg/tgram"
 	"github.com/manzanit0/mcduck/pkg/trace"
 	"github.com/manzanit0/mcduck/pkg/xlog"
@@ -83,8 +83,8 @@ func run() error {
 	r := gin.Default()
 
 	// Auto-instruments every endpoint
-	r.Use(tp.TraceRequests())
 	r.Use(xlog.EnhanceContext)
+	r.Use(tp.TraceRequests())
 
 	r.SetHTMLTemplate(t)
 	r.StaticFS("/public", http.FS(assets))
@@ -102,9 +102,13 @@ func run() error {
 	expenseRepository := expense.NewRepository(dbx)
 	expensesController := api.ExpensesController{Expenses: expenseRepository}
 
-	invxClient := invx.NewClient(os.Getenv("INVX_HOST"), os.Getenv("INVX_AUTH_TOKEN"))
+	parserClient := client.NewParserClient(os.Getenv("PARSER_HOST"))
 	receiptsRepository := receipt.NewRepository(dbx)
-	receiptsController := api.ReceiptsController{Receipts: receiptsRepository, Invx: invxClient, Expenses: expenseRepository}
+	receiptsController := api.ReceiptsController{
+		Receipts: receiptsRepository,
+		Expenses: expenseRepository,
+		Parser:   parserClient,
+	}
 
 	data, err := readSampleData()
 	if err != nil {

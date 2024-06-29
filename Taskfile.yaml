@@ -2,15 +2,20 @@ version: "3"
 
 tasks:
   up:
-    desc: Runs the local docker-compose.yaml file while injecting some environment variables from the cloud environment, namely the INVX connection details.
+    desc: Runs the local docker-compose.yaml file while injecting some environment variables from the cloud environment, namely the PARSER connection details.
     silent: false
     vars:
-      INVX_HOST:
-        sh: railway variables -s mcduck --json | jq -r .INVX_HOST
-      INVX_AUTH_TOKEN:
-        sh: railway variables -s mcduck --json | jq -r .INVX_AUTH_TOKEN
-    cmds:
-      - INVX_HOST={{.INVX_HOST}} INVX_AUTH_TOKEN={{.INVX_AUTH_TOKEN}} docker compose up
+      PARSER_HOST:
+        sh: railway variables -s mcduck --json | jq -r .PARSER_HOST
+      OTEL_EXPORTER_OTLP_ENDPOINT:
+        sh: railway variables -s mcduck --json | jq -r .OTEL_EXPORTER_OTLP_ENDPOINT
+      OTEL_EXPORTER_OTLP_HEADERS:
+        sh: railway variables -s mcduck --json | jq -r .OTEL_EXPORTER_OTLP_HEADERS
+    cmd: |
+      OTEL_EXPORTER_OTLP_ENDPOINT={{.OTEL_EXPORTER_OTLP_ENDPOINT}} \
+      OTEL_EXPORTER_OTLP_HEADERS={{.OTEL_EXPORTER_OTLP_HEADERS}} \
+      PARSER_HOST={{.PARSER_HOST}} \
+      docker compose up
 
   pgcli:
     desc: Connects to the local Docker postgres database via "pgcli"
@@ -23,6 +28,7 @@ tasks:
     cmds:
       - railway up -s mcduck --detach
       - railway up -s tgram-bot --detach
+      - railway up -s parser --detach
 
   rw-pgcli:
     desc: Connects to the railway.app cloud postgres database via "pgcli"

@@ -13,16 +13,16 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/manzanit0/mcduck/internal/client"
 	"github.com/manzanit0/mcduck/internal/expense"
 	"github.com/manzanit0/mcduck/internal/receipt"
 	"github.com/manzanit0/mcduck/pkg/auth"
-	"github.com/manzanit0/mcduck/pkg/invx"
 )
 
 type ReceiptsController struct {
 	Expenses *expense.Repository
 	Receipts *receipt.Repository
-	Invx     invx.Client
+	Parser   client.ParserClient
 }
 
 func (d *ReceiptsController) ListReceipts(c *gin.Context) {
@@ -98,15 +98,29 @@ func (d *ReceiptsController) CreateReceipt(c *gin.Context) {
 		return
 	}
 
-	amounts, err := d.Invx.ParseReceipt(c.Request.Context(), data)
+	email := auth.GetUserEmail(c)
+
+	parsed, err := d.Parser.ParseReceipt(c.Request.Context(), email, data)
 	if err != nil {
-		slog.Error("failed to parse receipt through invx", "error", err.Error())
+		slog.Error("failed to parse receipt through parser service", "error", err.Error())
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable to parse receipt: %s", err.Error())})
 		return
 	}
 
-	email := auth.GetUserEmail(c)
-	rcpt, err := d.Receipts.CreateReceipt(c.Request.Context(), data, amounts, email)
+	parsedTime, err := time.Parse("02/01/2006", parsed.PurchaseDate)
+	if err != nil {
+		slog.Info("failed to parse receipt date. Defaulting to 'now' ", "error", err.Error())
+		parsedTime = time.Now()
+	}
+
+	rcpt, err := d.Receipts.CreateReceipt(c.Request.Context(), receipt.CreateReceiptRequest{
+		Amount:      parsed.Amount,
+		Description: parsed.Description,
+		Vendor:      parsed.Vendor,
+		Image:       data,
+		Date:        parsedTime,
+		Email:       email,
+	})
 	if err != nil {
 		slog.Error("failed to insert receipt", "error", err.Error())
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable to create receipt: %s", err.Error())})
@@ -115,7 +129,7 @@ func (d *ReceiptsController) CreateReceipt(c *gin.Context) {
 
 	c.JSON(http.StatusCreated, CreateReceiptResponse{
 		ReceiptID: rcpt.ID,
-		Amounts:   amounts,
+		Amounts:   map[string]float64{parsed.Description: parsed.Amount},
 	})
 }
 

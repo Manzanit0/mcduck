@@ -58,8 +58,17 @@ func NewRepository(dbx isqlx.DBX) *Repository {
 	return &Repository{dbx: dbx}
 }
 
-func (r *Repository) CreateReceipt(ctx context.Context, receiptImage []byte, amounts map[string]float64, userEmail string) (*Receipt, error) {
-	if len(receiptImage) == 0 {
+type CreateReceiptRequest struct {
+	Amount      float64
+	Description string
+	Vendor      string
+	Image       []byte
+	Date        time.Time
+	Email       string
+}
+
+func (r *Repository) CreateReceipt(ctx context.Context, input CreateReceiptRequest) (*Receipt, error) {
+	if len(input.Image) == 0 {
 		return nil, fmt.Errorf("empty receipt")
 	}
 
@@ -74,8 +83,8 @@ func (r *Repository) CreateReceipt(ctx context.Context, receiptImage []byte, amo
 
 	builder := psql.
 		Insert("receipts").
-		Columns("receipt_image", "pending_review", "user_email", "receipt_date").
-		Values(receiptImage, true, userEmail, time.Now()).
+		Columns("receipt_image", "pending_review", "user_email", "receipt_date", "vendor").
+		Values(input.Image, true, input.Email, input.Date, input.Vendor).
 		Suffix("RETURNING \"id\"")
 
 	query, args, err := builder.ToSql()
@@ -89,17 +98,17 @@ func (r *Repository) CreateReceipt(ctx context.Context, receiptImage []byte, amo
 		return nil, fmt.Errorf("unable to execute query: %w", err)
 	}
 
-	if len(amounts) > 0 {
-		e := expense.ExpensesBatch{UserEmail: userEmail}
-		for item, amount := range amounts {
-			e.Records = append(e.Records, expense.Expense{
+	if input.Amount > 0 {
+		e := expense.ExpensesBatch{
+			UserEmail: input.Email,
+			Records: []expense.Expense{{
 				ReceiptID:   uint64(record.ID),
-				Date:        time.Now(),
-				Amount:      float32(amount),
-				UserEmail:   userEmail,
-				Description: item,
+				Date:        input.Date,
+				Amount:      float32(input.Amount),
+				UserEmail:   input.Email,
+				Description: input.Description,
 				Category:    "Receipt Upload",
-			})
+			}},
 		}
 
 		err = expense.CreateExpenses(ctx, txn, e)

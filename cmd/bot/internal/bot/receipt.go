@@ -17,7 +17,7 @@ const (
 )
 
 func ParseReceipt(ctx context.Context, tgramClient tgram.Client, mcduckClient client.McDuckClient, r *tgram.WebhookRequest) *tgram.WebhookResponse {
-	// Get the biggest photo: this will ensure better parsing by invx service.
+	// Get the biggest photo: this will ensure better parsing by parser service.
 	var fileID string
 	var fileSize int64
 	for _, p := range r.Message.Photos {

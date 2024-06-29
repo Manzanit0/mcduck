@@ -10,8 +10,6 @@ services:
       - PGDATABASE=mcduck_db
       - PGHOST=postgresql
       - PGPORT=5432
-      - INVX_HOST=${INVX_HOST}
-      - INVX_AUTH_TOKEN=${INVX_AUTH_TOKEN}
       - OTEL_EXPORTER_OTLP_ENDPOINT=179a673634434f80a47b5f70a137ea24.apm.us-central1.gcp.cloud.es.io:443
       - OTEL_EXPORTER_OTLP_HEADERS=Authorization=Bearer ih1At6THjsYkT4ojZF
       - OTEL_LOGS_EXPORTER=otlp

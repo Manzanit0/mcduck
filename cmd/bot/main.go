@@ -42,6 +42,7 @@ func main() {
 
 	r := gin.Default()
 	r.Use(xlog.EnhanceContext)
+	r.Use(tp.TraceRequests())
 
 	r.GET("/ping", func(c *gin.Context) {
 		c.JSON(200, gin.H{
@@ -104,7 +105,7 @@ func telegramWebhookController(tgramClient tgram.Client, mcduck client.McDuckCli
 		case r.Message != nil && r.Message.Text != nil && strings.HasPrefix(*r.Message.Text, "/login"):
 			c.JSON(http.StatusOK, bot.LoginLink(&r))
 
-		case r.Message == nil || len(r.Message.Photos) > 0:
+		case r.Message != nil && len(r.Message.Photos) > 0:
 			c.JSON(http.StatusOK, bot.ParseReceipt(c.Request.Context(), tgramClient, mcduck, &r))
 
 		default:
