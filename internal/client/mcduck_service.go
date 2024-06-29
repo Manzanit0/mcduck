@@ -12,6 +12,7 @@ import (
 	"net/textproto"
 
 	"github.com/manzanit0/mcduck/pkg/auth"
+	"github.com/manzanit0/mcduck/pkg/xhttp"
 )
 
 type McDuckClient interface {
@@ -27,7 +28,8 @@ type client struct {
 var _ McDuckClient = (*client)(nil)
 
 func NewMcDuckClient(host string) *client {
-	return &client{Host: host, h: http.DefaultClient}
+	h := xhttp.NewClient()
+	return &client{Host: host, h: h}
 }
 
 type CreateReceiptResponse struct {

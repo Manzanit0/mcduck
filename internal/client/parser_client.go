@@ -12,6 +12,7 @@ import (
 	"net/textproto"
 
 	"github.com/manzanit0/mcduck/pkg/auth"
+	"github.com/manzanit0/mcduck/pkg/xhttp"
 )
 
 type ParserClient interface {
@@ -34,7 +35,8 @@ type parserClient struct {
 var _ ParserClient = (*parserClient)(nil)
 
 func NewParserClient(host string) *parserClient {
-	return &parserClient{Host: host, h: http.DefaultClient}
+	h := xhttp.NewClient()
+	return &parserClient{Host: host, h: h}
 }
 
 func (c *parserClient) ParseReceipt(ctx context.Context, onBehalfOfEmail string, data []byte) (*ParseReceiptResponse, error) {
