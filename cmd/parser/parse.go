@@ -1,12 +1,15 @@
 package main
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/manzanit0/mcduck/pkg/xhttp"
 )
 
 // -- Request structures
@@ -68,10 +71,10 @@ type Receipt struct {
 	PurchaseDate string  `json:"purchase_date"`
 }
 
-func parseReceipt(openaiToken string, imageData []byte) (*Receipt, error) {
+func parseReceipt(ctx context.Context, openaiToken string, imageData []byte) (*Receipt, error) {
 	initialPrompt := `
 You are an assistant that can read all kind of receipts and extract its
-contents. 
+contents.
 
 You will provide the total price paid, the currency, a summary of the items
 purchased and the vendor name.
@@ -125,7 +128,7 @@ The currency will be formatted following the ISO 4217 codes.
 		return nil, fmt.Errorf("Error marshalling payload: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", "https://api.openai.com/v1/chat/completions", strings.NewReader(string(payloadBytes)))
+	req, err := http.NewRequestWithContext(ctx, "POST", "https://api.openai.com/v1/chat/completions", strings.NewReader(string(payloadBytes)))
 	if err != nil {
 		return nil, fmt.Errorf("Error creating request: %w", err)
 	}
@@ -134,7 +137,8 @@ The currency will be formatted following the ISO 4217 codes.
 		req.Header.Set(key, value)
 	}
 
-	client := &http.Client{}
+	client := xhttp.NewClient()
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("Error making request: %w", err)

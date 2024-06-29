@@ -10,6 +10,7 @@ import (
 	"github.com/manzanit0/mcduck/internal/client"
 	"github.com/manzanit0/mcduck/pkg/tgram"
 	"github.com/olekukonko/tablewriter"
+	"go.opentelemetry.io/otel"
 )
 
 const (
@@ -27,17 +28,23 @@ func ParseReceipt(ctx context.Context, tgramClient tgram.Client, mcduckClient cl
 		}
 	}
 
+	tp := otel.GetTracerProvider().Tracer("tgram-bot")
+
+	_, span := tp.Start(ctx, "telegram.GetFile")
 	file, err := tgramClient.GetFile(tgram.GetFileRequest{FileID: fileID})
 	if err != nil {
 		slog.Error("tgram.GetFile", "error", err.Error())
 		return tgram.NewHTMLResponse(fmt.Sprintf("unable to get file from Telegram servers: %s", err.Error()), r.GetFromID())
 	}
+	span.End()
 
+	_, span = tp.Start(ctx, "telegram.DownloadFile")
 	fileData, err := tgramClient.DownloadFile(file)
 	if err != nil {
 		slog.Error("tgram.DownloadFile:", "error", err.Error())
 		return tgram.NewHTMLResponse(fmt.Sprintf("unable to download file from Telegram servers: %s", err.Error()), r.GetFromID())
 	}
+	span.End()
 
 	if len(fileData) == 0 {
 		return tgram.NewHTMLResponse("empty file", r.GetFromID())

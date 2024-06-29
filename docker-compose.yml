@@ -1,6 +1,7 @@
 services:
   service:
     image: cosmtrek/air
+    command: -c .air.service.toml
     working_dir: /app
     ports:
       - 8080:8080
@@ -10,15 +11,54 @@ services:
       - PGDATABASE=mcduck_db
       - PGHOST=postgresql
       - PGPORT=5432
-      - OTEL_EXPORTER_OTLP_ENDPOINT=179a673634434f80a47b5f70a137ea24.apm.us-central1.gcp.cloud.es.io:443
-      - OTEL_EXPORTER_OTLP_HEADERS=Authorization=Bearer ih1At6THjsYkT4ojZF
-      - OTEL_LOGS_EXPORTER=otlp
-      - OTEL_METRICS_EXPORTER=otlp
-      - OTEL_RESOURCE_ATTRIBUTES="service.name=<app-name>,service.version=<app-version>,deployment.environment=production"
+      - PARSER_HOST=http://parser:8080
+      - OTEL_EXPORTER_OTLP_ENDPOINT=jaeger:4317
+      - OTEL_EXPORTER_OTLP_INSECURE=true
+      - OTEL_RESOURCE_ATTRIBUTES="service.name=mcduck,service.version=latest,deployment.environment=local"
     volumes:
       - ./:/app
     networks:
       - mcduck
+    depends_on:
+      - jaeger
+
+  bot:
+    image: cosmtrek/air
+    command: -c .air.bot.toml
+    working_dir: /app
+    ports:
+      - 8081:8080
+    environment:
+      - MCDUCK_HOST=http://service:8080
+      - MCDUCK_AUTH_TOKEN=fake
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=jaeger:4317
+      - OTEL_EXPORTER_OTLP_INSECURE=true
+      - OTEL_RESOURCE_ATTRIBUTES="service.name=bot,service.version=latest,deployment.environment=local"
+    volumes:
+      - ./:/app
+    networks:
+      - mcduck
+    depends_on:
+      - jaeger
+
+  parser:
+    image: cosmtrek/air
+    command: -c .air.parser.toml
+    working_dir: /app
+    ports:
+      - 8082:8080
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=jaeger:4317
+      - OTEL_EXPORTER_OTLP_INSECURE=true
+      - OTEL_RESOURCE_ATTRIBUTES="service.name=parser,service.version=latest,deployment.environment=local"
+    volumes:
+      - ./:/app
+    networks:
+      - mcduck
+    depends_on:
+      - jaeger
 
   postgresql:
     image: postgres:13-alpine
@@ -55,6 +95,17 @@ services:
       - ./migrations:/flyway/sql
     depends_on:
       - postgresql
+    networks:
+      - mcduck
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - "16686:16686" # Web UI
+      - "4317:4317" # accept OTLP over GRPC
+    environment:
+      - LOG_LEVEL=debug
+      - COLLECTOR_OTLP_ENABLED=true
     networks:
       - mcduck
 

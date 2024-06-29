@@ -1,21 +1,29 @@
 version: "3"
 
 tasks:
+  smee:
+    desc: sets up local webhook for Telegram bot
+    cmd: smee -u "$SMEE_URL" -p 8081 -P /telegram/webhook
+
   up:
     desc: Runs the local docker-compose.yaml file while injecting some environment variables from the cloud environment, namely the PARSER connection details.
     silent: false
     vars:
-      PARSER_HOST:
-        sh: railway variables -s mcduck --json | jq -r .PARSER_HOST
-      OTEL_EXPORTER_OTLP_ENDPOINT:
-        sh: railway variables -s mcduck --json | jq -r .OTEL_EXPORTER_OTLP_ENDPOINT
-      OTEL_EXPORTER_OTLP_HEADERS:
-        sh: railway variables -s mcduck --json | jq -r .OTEL_EXPORTER_OTLP_HEADERS
-    cmd: |
-      OTEL_EXPORTER_OTLP_ENDPOINT={{.OTEL_EXPORTER_OTLP_ENDPOINT}} \
-      OTEL_EXPORTER_OTLP_HEADERS={{.OTEL_EXPORTER_OTLP_HEADERS}} \
-      PARSER_HOST={{.PARSER_HOST}} \
-      docker compose up
+      OPENAI_API_KEY:
+        sh: railway variables -s parser --json | jq -r .OPENAI_API_KEY
+    dotenv:
+      - ".env" # This contains the TELEGRAM_BOT_TOKEN environment variable
+    env:
+      SMEE_URL: https://smee.io/Yh2XnVMscjUHetc3
+    preconditions:
+      - msg: Have you run "task smee" in a separate terminal?
+        sh: pgrep -f "task smee"
+      - msg: Telegram webhook isn't set to $SMEE_URL. Make sure to set it through the setWebhook API call.
+        sh: test $(curl -s https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/getWebhookInfo | jq -r .result.url) = "$SMEE_URL"
+    cmds:
+      - |
+        OPENAI_API_KEY={{.OPENAI_API_KEY}} \
+        docker compose up
 
   pgcli:
     desc: Connects to the local Docker postgres database via "pgcli"

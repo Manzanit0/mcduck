@@ -32,11 +32,11 @@ func (tp Provider) TraceRequests() gin.HandlerFunc {
 
 func TracerFromEnv(ctx context.Context, service string) (*Provider, error) {
 	endpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
-	headers := os.Getenv("OTEL_EXPORTER_OTLP_HEADERS")
-	if endpoint == "" || headers == "" {
-		return nil, fmt.Errorf("missing OTEL_EXPORTER_* environment variables")
+	if endpoint == "" {
+		return nil, fmt.Errorf("missing OTEL_EXPORTER_ENDPOINT environment variable")
 	}
 
+	headers := os.Getenv("OTEL_EXPORTER_OTLP_HEADERS")
 	opts := NewExporterOptions(endpoint, headers)
 	tp, err := InitTracer(ctx, service, opts)
 	if err != nil {
@@ -82,13 +82,22 @@ func InitTracer(ctx context.Context, service string, opts []otlptracegrpc.Option
 }
 
 func NewExporterOptions(endpoint, headers string) []otlptracegrpc.Option {
-	headersMap := parseOTELHeaders(headers)
-	return []otlptracegrpc.Option{
+	headersMap := map[string]string{}
+	if headers != "" {
+		headersMap = parseOTELHeaders(headers)
+	}
+
+	options := []otlptracegrpc.Option{
 		otlptracegrpc.WithTimeout(5 * time.Second),
 		otlptracegrpc.WithEndpoint(endpoint),
 		otlptracegrpc.WithHeaders(headersMap),
-		otlptracegrpc.WithTLSCredentials(credentials.NewTLS(&tls.Config{})),
 	}
+
+	if insecure := os.Getenv("OTEL_EXPORTER_OTLP_INSECURE"); insecure != "true" {
+		options = append(options, otlptracegrpc.WithTLSCredentials(credentials.NewTLS(&tls.Config{})))
+	}
+
+	return options
 }
 
 func parseOTELHeaders(headers string) map[string]string {

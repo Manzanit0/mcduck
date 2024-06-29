@@ -73,7 +73,7 @@ func main() {
 			return
 		}
 
-		response, err := parseReceipt(apiKey, data)
+		response, err := parseReceipt(c.Request.Context(), apiKey, data)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable extract data from receipt: %s", err.Error())})
 			return

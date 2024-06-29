@@ -16,6 +16,7 @@ import (
 	"github.com/manzanit0/mcduck/internal/client"
 	"github.com/manzanit0/mcduck/pkg/tgram"
 	"github.com/manzanit0/mcduck/pkg/trace"
+	"github.com/manzanit0/mcduck/pkg/xhttp"
 	"github.com/manzanit0/mcduck/pkg/xlog"
 )
 
@@ -26,6 +27,18 @@ const (
 
 func main() {
 	xlog.InitSlog()
+
+	tgramToken := os.Getenv("TELEGRAM_BOT_TOKEN")
+	if tgramToken == "" {
+		slog.Error("TELEGRAM_BOT_TOKEN environment variable is empty")
+		os.Exit(1)
+	}
+
+	mcduckHost := os.Getenv("MCDUCK_HOST")
+	if mcduckHost == "" {
+		slog.Error("MCDUCK_HOST environment variable is empty")
+		os.Exit(1)
+	}
 
 	tp, err := trace.TracerFromEnv(context.Background(), serviceName)
 	if err != nil {
@@ -50,13 +63,10 @@ func main() {
 		})
 	})
 
-	tgramClient := tgram.NewClient(http.DefaultClient, os.Getenv("TELEGRAM_BOT_TOKEN"))
-	mcduckClient := client.NewMcDuckClient(os.Getenv("MCDUCK_HOST"))
+	h := xhttp.NewClient()
+	tgramClient := tgram.NewClient(h, tgramToken)
+	mcduckClient := client.NewMcDuckClient(mcduckHost)
 	r.POST("/telegram/webhook", telegramWebhookController(tgramClient, mcduckClient))
-
-	// background job to ping users on weather changes
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
 
 	var port string
 	if port = os.Getenv("PORT"); port == "" {
