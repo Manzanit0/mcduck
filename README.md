@@ -4,25 +4,9 @@ Simple tool to run analytics on personal finance records.
 
 ## Getting started
 
-Run everything in docker:
+1. Create `.env` file with an environment variable called `TELEGRAM_BOT_TOKEN`
+   for a bot of your choice.
+2. Run `task smee` in a terminal window.
+3. Run `task up` in a separate terminal window.
 
-```sh
-# Spins up service dependencies, such as postgres within a network called "service_mcduck".
-docker compose -f docker-compose.yml up -d
-
-# Builds a docker image of the service
-earthly +service-docker
-
-# Runs the service
-docker run -p 8080:8080 --env-file cmd/service/docker.env --network service_mcduck --rm mcduck:latest
-
-# Builds a docker image of the bot
-earthly +service-docker
-
-# Runs the bot
-docker run -p 8080:8080 --env-file cmd/bot/docker.env --network service_mcduck --rm mcduck-bot:latest
-```
-
-## The bot
-
-McDuck app also has a telegram bot to parse receipts.
+With that, you should be good to start testing e2e.
