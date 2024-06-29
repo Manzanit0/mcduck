@@ -1,103 +1,43 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
-	"os/signal"
 	"strings"
-	"syscall"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/manzanit0/mcduck/cmd/bot/internal/bot"
 	"github.com/manzanit0/mcduck/internal/client"
+	"github.com/manzanit0/mcduck/pkg/micro"
 	"github.com/manzanit0/mcduck/pkg/tgram"
-	"github.com/manzanit0/mcduck/pkg/trace"
 	"github.com/manzanit0/mcduck/pkg/xhttp"
-	"github.com/manzanit0/mcduck/pkg/xlog"
 )
 
 const (
-	serviceName     = "tgram-bot"
-	defaultCurrency = "€"
+	serviceName = "tgram-bot"
 )
 
 func main() {
-	xlog.InitSlog()
-
-	tgramToken := os.Getenv("TELEGRAM_BOT_TOKEN")
-	if tgramToken == "" {
-		slog.Error("TELEGRAM_BOT_TOKEN environment variable is empty")
-		os.Exit(1)
-	}
-
-	mcduckHost := os.Getenv("MCDUCK_HOST")
-	if mcduckHost == "" {
-		slog.Error("MCDUCK_HOST environment variable is empty")
-		os.Exit(1)
-	}
-
-	tp, err := trace.TracerFromEnv(context.Background(), serviceName)
+	svc, err := micro.NewGinService(serviceName)
 	if err != nil {
-		slog.Error("get tracer from env", "error", err.Error())
-		os.Exit(1)
+		panic(err)
 	}
 
-	defer func() {
-		err := tp.Shutdown(context.Background())
-		if err != nil {
-			slog.Error("fail to shutdown tracer", "error", err.Error())
-		}
-	}()
-
-	r := gin.Default()
-	r.Use(xlog.EnhanceContext)
-	r.Use(tp.TraceRequests())
-
-	r.GET("/ping", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"message": "pong",
-		})
-	})
+	tgramToken := micro.MustGetEnv("TELEGRAM_BOT_TOKEN")
+	mcduckHost := micro.MustGetEnv("MCDUCK_HOST")
 
 	h := xhttp.NewClient()
 	tgramClient := tgram.NewClient(h, tgramToken)
 	mcduckClient := client.NewMcDuckClient(mcduckHost)
-	r.POST("/telegram/webhook", telegramWebhookController(tgramClient, mcduckClient))
 
-	var port string
-	if port = os.Getenv("PORT"); port == "" {
-		port = "8080"
-	}
+	svc.Engine.POST("/telegram/webhook", telegramWebhookController(tgramClient, mcduckClient))
 
-	srv := &http.Server{Addr: fmt.Sprintf(":%s", port), Handler: r}
-	go func() {
-		slog.Info("serving HTTP on :%s" + port)
-
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			slog.Error("server ended abruptly: %s", "error", err.Error())
-		} else {
-			slog.Info("server ended gracefully")
-		}
-
-		stop()
-	}()
-
-	// Listen for OS interrupt
-	<-ctx.Done()
-	stop()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if err := srv.Shutdown(ctx); err != nil {
-		slog.Error("server forced to shutdown", "error", err)
+	if err := svc.Run(); err != nil {
+		slog.Error("run ended with error", "error", err.Error())
 		os.Exit(1)
 	}
-
-	slog.Info("server exited")
 }
 
 func telegramWebhookController(tgramClient tgram.Client, mcduck client.McDuckClient) func(c *gin.Context) {
