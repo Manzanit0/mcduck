@@ -44,7 +44,7 @@ func telegramWebhookController(tgramClient tgram.Client, mcduck client.McDuckCli
 	return func(c *gin.Context) {
 		var r tgram.WebhookRequest
 		if err := c.ShouldBindJSON(&r); err != nil {
-			slog.Error("bind Telegram webhook payload", "error", err.Error())
+			slog.ErrorContext(c.Request.Context(), "bind Telegram webhook payload", "error", err.Error())
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error": fmt.Errorf("payload does not conform with telegram contract: %w", err).Error(),
 			})

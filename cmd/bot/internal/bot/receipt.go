@@ -33,7 +33,7 @@ func ParseReceipt(ctx context.Context, tgramClient tgram.Client, mcduckClient cl
 	_, span := tp.Start(ctx, "telegram.GetFile")
 	file, err := tgramClient.GetFile(tgram.GetFileRequest{FileID: fileID})
 	if err != nil {
-		slog.Error("tgram.GetFile", "error", err.Error())
+		slog.ErrorContext(ctx, "tgram.GetFile", "error", err.Error())
 		return tgram.NewHTMLResponse(fmt.Sprintf("unable to get file from Telegram servers: %s", err.Error()), r.GetFromID())
 	}
 	span.End()
@@ -41,7 +41,7 @@ func ParseReceipt(ctx context.Context, tgramClient tgram.Client, mcduckClient cl
 	_, span = tp.Start(ctx, "telegram.DownloadFile")
 	fileData, err := tgramClient.DownloadFile(file)
 	if err != nil {
-		slog.Error("tgram.DownloadFile:", "error", err.Error())
+		slog.ErrorContext(ctx, "tgram.DownloadFile:", "error", err.Error())
 		return tgram.NewHTMLResponse(fmt.Sprintf("unable to download file from Telegram servers: %s", err.Error()), r.GetFromID())
 	}
 	span.End()
@@ -56,14 +56,14 @@ func ParseReceipt(ctx context.Context, tgramClient tgram.Client, mcduckClient cl
 	onBehalfOf := "bot@mcduck.com"
 	resp, err := mcduckClient.SearchUserByChatID(ctx, onBehalfOf, r.GetFromID())
 	if err != nil {
-		slog.Error("mcduck.SearchUserByChatID:", "error", err.Error())
+		slog.ErrorContext(ctx, "mcduck.SearchUserByChatID:", "error", err.Error())
 		return tgram.NewHTMLResponse(fmt.Sprintf("unable to find user: %s", err.Error()), r.GetFromID())
 	}
 
 	onBehalfOf = resp.User.Email
 	res, err := mcduckClient.CreateReceipt(ctx, onBehalfOf, fileData)
 	if err != nil {
-		slog.Error("mcduck.CreateReceipt", "error", err.Error())
+		slog.ErrorContext(ctx, "mcduck.CreateReceipt", "error", err.Error())
 		return tgram.NewHTMLResponse(fmt.Sprintf("unable to parser receipt: %s", err.Error()), r.GetFromID())
 	}
 
