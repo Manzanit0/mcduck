@@ -2,19 +2,14 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"embed"
 	"fmt"
 	"html/template"
 	"log/slog"
 	"net/http"
 	"os"
-	"os/signal"
 	"strconv"
-	"syscall"
-	"time"
 
-	"github.com/gin-gonic/gin"
 	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/manzanit0/isqlx"
 	"go.opentelemetry.io/otel"
@@ -24,9 +19,9 @@ import (
 	"github.com/manzanit0/mcduck/internal/expense"
 	"github.com/manzanit0/mcduck/internal/receipt"
 	"github.com/manzanit0/mcduck/pkg/auth"
+	"github.com/manzanit0/mcduck/pkg/micro"
 	"github.com/manzanit0/mcduck/pkg/tgram"
-	"github.com/manzanit0/mcduck/pkg/trace"
-	"github.com/manzanit0/mcduck/pkg/xlog"
+	"github.com/manzanit0/mcduck/pkg/xhttp"
 )
 
 const serviceName = "mcduck"
@@ -41,8 +36,6 @@ var assets embed.FS
 var sampleData embed.FS
 
 func main() {
-	xlog.InitSlog()
-
 	if err := run(); err != nil {
 		slog.Error("exiting server", "error", err.Error())
 		os.Exit(1)
@@ -50,17 +43,10 @@ func main() {
 }
 
 func run() error {
-	tp, err := trace.TracerFromEnv(context.Background(), serviceName)
+	svc, err := micro.NewGinService(serviceName)
 	if err != nil {
-		return fmt.Errorf("get tracer from env: %w", err)
+		return fmt.Errorf("new gin service: %w", err)
 	}
-
-	defer func() {
-		err := tp.Shutdown(context.Background())
-		if err != nil {
-			slog.Error("fail to shutdown tracer", "error", err.Error())
-		}
-	}()
 
 	dbx, err := openDB()
 	if err != nil {
@@ -73,36 +59,25 @@ func run() error {
 		}
 	}()
 
-	tgramClient := tgram.NewClient(http.DefaultClient, os.Getenv("TELEGRAM_BOT_TOKEN"))
+	tgramToken := micro.MustGetEnv("TELEGRAM_BOT_TOKEN") // TODO: shouldn't throw.
+	tgramClient := tgram.NewClient(xhttp.NewClient(), tgramToken)
 
 	t, err := template.ParseFS(templates, "templates/*.html")
 	if err != nil {
 		return fmt.Errorf("parse templates: %w", err)
 	}
 
-	r := gin.Default()
-
-	// Auto-instruments every endpoint
-	r.Use(xlog.EnhanceContext)
-	r.Use(tp.TraceRequests())
-
+	r := svc.Engine
 	r.SetHTMLTemplate(t)
 	r.StaticFS("/public", http.FS(assets))
-
-	// Used for healthcheck
-	r.GET("/ping", func(c *gin.Context) {
-		slog.InfoContext(c.Request.Context(), "Just got pinged!")
-		c.JSON(200, gin.H{
-			"message": "pong",
-		})
-	})
 
 	registrationController := api.RegistrationController{DB: dbx.GetSQLX(), Telegram: tgramClient}
 
 	expenseRepository := expense.NewRepository(dbx)
 	expensesController := api.ExpensesController{Expenses: expenseRepository}
 
-	parserClient := client.NewParserClient(os.Getenv("PARSER_HOST"))
+	parserHost := micro.MustGetEnv("PARSER_HOST") // TODO: shouldn't throw.
+	parserClient := client.NewParserClient(parserHost)
 	receiptsRepository := receipt.NewRepository(dbx)
 	receiptsController := api.ReceiptsController{
 		Receipts: receiptsRepository,
@@ -177,40 +152,7 @@ func run() error {
 	usersCtrl := api.UsersController{DB: dbx.GetSQLX()}
 	apiG.GET("/users", usersCtrl.SearchUser) // TODO: this should be a system call and not available to users.
 
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
-
-	var port string
-	if port = os.Getenv("PORT"); port == "" {
-		port = "8080"
-	}
-
-	srv := &http.Server{Addr: fmt.Sprintf(":%s", port), Handler: r}
-	go func() {
-		slog.Info("serving HTTP on :" + port)
-
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			slog.Error("server ended abruptly", "error", err.Error())
-		} else {
-			slog.Info("server ended gracefully")
-		}
-
-		stop()
-	}()
-
-	// Listen for OS interrupt
-	<-ctx.Done()
-	stop()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if err := srv.Shutdown(ctx); err != nil {
-		return fmt.Errorf("server forced to shutdown: %w", err)
-	}
-
-	slog.Info("server exited")
-
-	return nil
+	return svc.Run()
 }
 
 func openDB() (isqlx.DBX, error) {
