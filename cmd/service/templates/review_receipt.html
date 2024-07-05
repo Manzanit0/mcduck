@@ -5,6 +5,8 @@
     {{template "navbar" .}}
     <div>
       <h1>Review Receipt</h1>
+
+
       <p>Make sure all the expenses have been broken down correctly for the receipt! Merge or delete them as needed.</p>
     </div>
     <div id="container" style="display: flex;">
@@ -19,22 +21,25 @@
         </div>
         <div>
           <button 
-            style="margin-bottom: 10px; width: 15%" 
-            class="btn btn-error f-right"
+            x-show="'{{.Receipt.PendingReview}}' == 'Yes'"
+            class="btn btn-primary f-left review-receipt-btn"
+            x-on:click="markReviewed('{{.Receipt.ID}}')">
+            Mark Reviewed
+          </button>
+          <button 
+            class="btn btn-error f-left review-receipt-btn"
             x-on:click="deleteReceipt('{{.Receipt.ID}}')">
             Delete Receipt
           </button>
 
           <button
-            style="margin-bottom: 10px; width: 15%" 
-            class="btn btn-default f-right"
+            class="btn btn-default f-right review-receipt-btn"
             x-on:click="addTableRow()">
             Add Expense
           </button>
 
           <button
-            style="margin-bottom: 10px; width: 15%"
-            class="btn btn-default f-right"
+            class="btn btn-default f-right review-receipt-btn"
             x-on:click="mergeExpenses()">
             Merge Expenses
           </button>
@@ -174,6 +179,10 @@
 
         deleteReceipt: (id) =>
           doRequest(new Request(`/receipts/${id}`, { method: "DELETE" })).then(() => window.location.replace('/receipts')),
+
+        markReviewed: (id) =>
+          doRequest(new Request(`/receipts/${id}`, { method: "PATCH", body: JSON.stringify({ pending_review: "No" }) }))
+          .then(() => window.location.reload(true)),
 
         mergeExpenses: () => {
           const nodeList = document.getElementsByName('expense-checkbox')
