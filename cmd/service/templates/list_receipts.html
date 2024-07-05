@@ -73,10 +73,7 @@
                 <div class="terminal-card hidden-card" id="image-card-{{$e.ID}}">
                   <header>Receipt ID: {{$e.ID}}</header>
                   <div style="display: flex; justify-content: center;">
-                    <img
-                      src="data:image/png;base64,{{$e.Image}}"
-                      style="max-width: 30%"
-                    />
+                    <img style="max-width: 30%" src="/receipts/{{$e.ID}}/image" loading="lazy">
                   </div>
                 </div>
               </td>

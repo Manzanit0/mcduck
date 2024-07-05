@@ -219,6 +219,28 @@ func (d *ReceiptsController) ReviewReceipt(c *gin.Context) {
 	})
 }
 
+func (d *ReceiptsController) GetImage(c *gin.Context) {
+	id := c.Param("id")
+	receiptID, err := strconv.ParseUint(id, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("unable to parse receipt id: %s", err.Error())})
+		return
+	}
+
+	image, err := d.Receipts.GetReceiptImage(c.Request.Context(), receiptID)
+	if err != nil {
+		slog.Error("failed to get receipt", "error", err.Error())
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable to retrieve receipt: %s", err.Error())})
+		return
+	}
+
+	contentType := http.DetectContentType(image)
+	c.Writer.Header().Add("Content-Type", contentType)
+	c.Writer.Header().Add("Content-Length", strconv.Itoa(len(image)))
+
+	c.Writer.Write(image)
+}
+
 func (d *ReceiptsController) DeleteReceipt(c *gin.Context) {
 	id := c.Param("id")
 	i, err := strconv.ParseInt(id, 10, 64)

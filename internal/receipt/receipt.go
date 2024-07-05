@@ -201,7 +201,7 @@ func (r *Repository) ListReceipts(ctx context.Context, email string) ([]Receipt,
 	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
 
 	query, args, err := psql.
-		Select("id", "vendor", "pending_review", "receipt_date", "receipt_image").
+		Select("id", "vendor", "pending_review", "receipt_date").
 		From("receipts").
 		Where(sq.Eq{"user_email": email}).
 		ToSql()
@@ -242,6 +242,27 @@ func (r *Repository) GetReceipt(ctx context.Context, receiptID uint64) (*Receipt
 	}
 
 	return receipt.MapReceipt(), nil
+}
+
+func (r *Repository) GetReceiptImage(ctx context.Context, receiptID uint64) ([]byte, error) {
+	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
+
+	query, args, err := psql.
+		Select("receipt_image").
+		From("receipts").
+		Where(sq.Eq{"id": receiptID}).
+		ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("compile query: %w", err)
+	}
+
+	var receipt dbReceipt
+	err = r.dbx.GetContext(ctx, &receipt, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("select receipts: %w", err)
+	}
+
+	return receipt.Image, nil
 }
 
 func (r *Repository) DeleteReceipt(ctx context.Context, id int64) error {
