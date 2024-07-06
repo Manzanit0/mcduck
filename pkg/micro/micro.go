@@ -39,11 +39,15 @@ func NewGinService(name string) (Service, error) {
 		})
 	})
 
-	return Service{Name: name, Engine: r}, nil
+	return Service{Name: name, Engine: r, tp: tp}, nil
 }
 
 func (s *Service) Run() error {
 	defer func() {
+		if s.tp == nil {
+			return
+		}
+
 		err := s.tp.Shutdown(context.Background())
 		if err != nil {
 			slog.Error("fail to shutdown tracer", "error", err.Error())
