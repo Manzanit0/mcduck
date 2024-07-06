@@ -7,6 +7,10 @@
       <h1>Receipts</h1>
       <p>You can upload receipts through our Telegram bot :)</p>
     </div>
+    <div style="display: flex; justify-content: center; width: 100%;">
+      <button class="btn btn-primary f-left review-receipt-btn"> {{ .ReceiptsPendingReview }} Pending Review </button>
+      <button class="btn btn-default f-left review-receipt-btn"> {{ .ReceiptsReviewed }} Reviewed </button>
+    </div>
     <div>
       {{range $e := .Receipts}}
       {{end}}

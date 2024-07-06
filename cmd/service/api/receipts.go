@@ -41,6 +41,9 @@ func (d *ReceiptsController) ListReceipts(c *gin.Context) {
 
 	viewReceipts := ToReceiptViewModel(receipts)
 
+	var pendingReview []ReceiptViewModel
+	var reviewed []ReceiptViewModel
+
 	// Note: awful stuff. We should probably do this in a single SQL query or something.
 	for i, r := range viewReceipts {
 		id, err := strconv.ParseUint(r.ID, 10, 64)
@@ -63,12 +66,20 @@ func (d *ReceiptsController) ListReceipts(c *gin.Context) {
 		}
 
 		viewReceipts[i].TotalAmount = fmt.Sprintf("%0.2f", total)
+
+		if r.PendingReview == "Yes" {
+			pendingReview = append(pendingReview, r)
+		} else {
+			reviewed = append(reviewed, r)
+		}
 	}
 
 	c.HTML(http.StatusOK, "list_receipts.html", gin.H{
-		"User":        userEmail,
-		"HasReceipts": len(receipts) > 0,
-		"Receipts":    viewReceipts,
+		"User":                  userEmail,
+		"HasReceipts":           len(receipts) > 0,
+		"Receipts":              viewReceipts,
+		"ReceiptsPendingReview": len(pendingReview),
+		"ReceiptsReviewed":      len(reviewed),
 	})
 }
 
