@@ -17,6 +17,26 @@ const (
 	defaultCurrency = "€"
 )
 
+func GetDocument(ctx context.Context, tgramClient tgram.Client, fileID string) ([]byte, error) {
+	tp := otel.GetTracerProvider().Tracer("tgram-bot")
+
+	_, span := tp.Start(ctx, "telegram.GetFile")
+	file, err := tgramClient.GetFile(tgram.GetFileRequest{FileID: fileID})
+	if err != nil {
+		return nil, fmt.Errorf("get file: %w", err)
+	}
+	span.End()
+
+	_, span = tp.Start(ctx, "telegram.DownloadFile")
+	fileData, err := tgramClient.DownloadFile(file)
+	if err != nil {
+		return nil, fmt.Errorf("download file: %w", err)
+	}
+	span.End()
+
+	return fileData, nil
+}
+
 func ParseReceipt(ctx context.Context, tgramClient tgram.Client, mcduckClient client.McDuckClient, r *tgram.WebhookRequest) *tgram.WebhookResponse {
 	// Get the biggest photo: this will ensure better parsing by parser service.
 	var fileID string
@@ -28,23 +48,11 @@ func ParseReceipt(ctx context.Context, tgramClient tgram.Client, mcduckClient cl
 		}
 	}
 
-	tp := otel.GetTracerProvider().Tracer("tgram-bot")
-
-	_, span := tp.Start(ctx, "telegram.GetFile")
-	file, err := tgramClient.GetFile(tgram.GetFileRequest{FileID: fileID})
-	if err != nil {
-		slog.ErrorContext(ctx, "tgram.GetFile", "error", err.Error())
-		return tgram.NewHTMLResponse(fmt.Sprintf("unable to get file from Telegram servers: %s", err.Error()), r.GetFromID())
-	}
-	span.End()
-
-	_, span = tp.Start(ctx, "telegram.DownloadFile")
-	fileData, err := tgramClient.DownloadFile(file)
+	fileData, err := GetDocument(ctx, tgramClient, fileID)
 	if err != nil {
 		slog.ErrorContext(ctx, "tgram.DownloadFile:", "error", err.Error())
 		return tgram.NewHTMLResponse(fmt.Sprintf("unable to download file from Telegram servers: %s", err.Error()), r.GetFromID())
 	}
-	span.End()
 
 	if len(fileData) == 0 {
 		return tgram.NewHTMLResponse("empty file", r.GetFromID())
