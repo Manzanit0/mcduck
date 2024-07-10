@@ -71,7 +71,7 @@ type Receipt struct {
 	PurchaseDate string  `json:"purchase_date"`
 }
 
-func parseReceipt(ctx context.Context, openaiToken string, imageData []byte) (*Receipt, error) {
+func parseReceiptImage(ctx context.Context, openaiToken string, imageData []byte) (*Receipt, error) {
 	initialPrompt := `
 You are an assistant that can read all kind of receipts and extract its
 contents.

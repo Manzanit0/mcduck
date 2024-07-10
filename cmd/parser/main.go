@@ -45,10 +45,19 @@ func main() {
 			return
 		}
 
-		response, err := parseReceipt(c.Request.Context(), apiKey, data)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable extract data from receipt: %s", err.Error())})
+		var response *Receipt
+		switch http.DetectContentType(data) {
+		case "application/pdf":
+			c.JSON(http.StatusBadRequest, gin.H{"error": "PDF receipts are not supported"})
 			return
+
+		// Default to images
+		default:
+			response, err = parseReceiptImage(c.Request.Context(), apiKey, data)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable extract data from receipt: %s", err.Error())})
+				return
+			}
 		}
 
 		marshalled, _ := json.Marshal(response)
