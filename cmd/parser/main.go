@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/manzanit0/mcduck/pkg/micro"
+	"github.com/segmentio/ksuid"
 )
 
 const (
@@ -48,8 +49,13 @@ func main() {
 		var response *Receipt
 		switch http.DetectContentType(data) {
 		case "application/pdf":
-			c.JSON(http.StatusBadRequest, gin.H{"error": "PDF receipts are not supported"})
-			return
+			// Generate a unique file name for each receipt received.
+			filename := fmt.Sprintf("%s.pdf", ksuid.New().String())
+			response, err = parseReceiptPDF(c.Request.Context(), apiKey, filename, data)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable extract data from receipt: %s", err.Error())})
+				return
+			}
 
 		// Default to images
 		default:
