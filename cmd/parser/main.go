@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -8,12 +9,14 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/gin-gonic/gin"
 	"github.com/manzanit0/mcduck/pkg/micro"
 )
 
 const (
 	serviceName = "parser"
+	awsRegion   = "eu-west-1"
 )
 
 func main() {
@@ -23,6 +26,18 @@ func main() {
 	}
 
 	apiKey := micro.MustGetEnv("OPENAI_API_KEY")
+
+	// Just crash the service if these aren't available.
+	_ = micro.MustGetEnv("AWS_ACCESS_KEY")
+	_ = micro.MustGetEnv("AWS_SECRET_ACCESS_KEY")
+
+	config, err := config.LoadDefaultConfig(context.Background(), config.WithRegion(awsRegion))
+	if err != nil {
+		panic(err)
+	}
+
+	textractParser := NewTextractParser(config, apiKey)
+	aivisionParser := NewAIVisionParser(apiKey)
 
 	svc.Engine.POST("/receipt", func(c *gin.Context) {
 		file, err := c.FormFile("receipt")
@@ -48,12 +63,15 @@ func main() {
 		var response *Receipt
 		switch http.DetectContentType(data) {
 		case "application/pdf":
-			c.JSON(http.StatusBadRequest, gin.H{"error": "PDF receipts are not supported"})
-			return
+			response, err = textractParser.ExtractReceipt(c.Request.Context(), data)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable extract data from receipt: %s", err.Error())})
+				return
+			}
 
 		// Default to images
 		default:
-			response, err = parseReceiptImage(c.Request.Context(), apiKey, data)
+			response, err = aivisionParser.ExtractReceipt(c.Request.Context(), data)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable extract data from receipt: %s", err.Error())})
 				return
