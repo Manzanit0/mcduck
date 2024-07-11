@@ -103,34 +103,6 @@ type Receipt struct {
 	PurchaseDate string  `json:"purchase_date"`
 }
 
-func parseReceiptImage(ctx context.Context, openaiToken string, imageData []byte) (*Receipt, error) {
-	base64Image := base64.StdEncoding.EncodeToString(imageData)
-
-	payload := Request{
-		Model:     "gpt-4o",
-		MaxTokens: 300,
-		Messages: []Messages{
-			{
-				Role: "user",
-				Content: []Content{
-					{
-						Type: "text",
-						Text: initialPrompt,
-					},
-					{
-						Type: "image_url",
-						ImageURL: ImageURL{
-							URL: fmt.Sprintf("data:image/jpeg;base64,%s", base64Image),
-						},
-					},
-				},
-			},
-		},
-	}
-
-	return doOpenAIRequest(ctx, payload, openaiToken)
-}
-
 func trimMarkdownWrapper(s string) string {
 	s = strings.TrimPrefix(s, "```json")
 	s = strings.TrimSuffix(s, "```")
@@ -326,4 +298,44 @@ outer:
 	}
 
 	return extracted, nil
+}
+
+// AIVisionParser relies on OpenAI Vision to OCR receipts in image formats that
+// are then fed into chatGPT.
+type AIVisionParser struct {
+	openaiToken string
+}
+
+func NewAIVisionParser(openaiToken string) *AIVisionParser {
+	return &AIVisionParser{openaiToken: openaiToken}
+}
+
+var _ ReceiptParser = (*AIVisionParser)(nil)
+
+func (p AIVisionParser) ExtractReceipt(ctx context.Context, data []byte) (*Receipt, error) {
+	base64Image := base64.StdEncoding.EncodeToString(data)
+
+	payload := Request{
+		Model:     "gpt-4o",
+		MaxTokens: 300,
+		Messages: []Messages{
+			{
+				Role: "user",
+				Content: []Content{
+					{
+						Type: "text",
+						Text: initialPrompt,
+					},
+					{
+						Type: "image_url",
+						ImageURL: ImageURL{
+							URL: fmt.Sprintf("data:image/jpeg;base64,%s", base64Image),
+						},
+					},
+				},
+			},
+		},
+	}
+
+	return doOpenAIRequest(ctx, payload, p.openaiToken)
 }

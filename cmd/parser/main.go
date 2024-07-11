@@ -33,6 +33,7 @@ func main() {
 	}
 
 	textractParser := NewTextractParser(config, apiKey)
+	aivisionParser := NewAIVisionParser(apiKey)
 
 	svc.Engine.POST("/receipt", func(c *gin.Context) {
 		file, err := c.FormFile("receipt")
@@ -66,7 +67,7 @@ func main() {
 
 		// Default to images
 		default:
-			response, err = parseReceiptImage(c.Request.Context(), apiKey, data)
+			response, err = aivisionParser.ExtractReceipt(c.Request.Context(), data)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable extract data from receipt: %s", err.Error())})
 				return
