@@ -55,7 +55,8 @@ func telegramWebhookController(tgramClient tgram.Client, mcduck client.McDuckCli
 		case r.Message != nil && r.Message.Text != nil && strings.HasPrefix(*r.Message.Text, "/login"):
 			c.JSON(http.StatusOK, bot.LoginLink(&r))
 
-		case r.Message != nil && len(r.Message.Photos) > 0:
+			// The message has either photos or a doc.
+		case r.Message != nil && (len(r.Message.Photos) > 0 || r.Message.Document != nil):
 			c.JSON(http.StatusOK, bot.ParseReceipt(c.Request.Context(), tgramClient, mcduck, &r))
 
 		default:

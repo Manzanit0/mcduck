@@ -38,13 +38,19 @@ func GetDocument(ctx context.Context, tgramClient tgram.Client, fileID string) (
 }
 
 func ParseReceipt(ctx context.Context, tgramClient tgram.Client, mcduckClient client.McDuckClient, r *tgram.WebhookRequest) *tgram.WebhookResponse {
-	// Get the biggest photo: this will ensure better parsing by parser service.
 	var fileID string
 	var fileSize int64
-	for _, p := range r.Message.Photos {
-		if p.FileSize != nil && *p.FileSize > fileSize {
-			fileID = p.FileID
-			fileSize = *p.FileSize
+
+	if r.Message.Document != nil {
+		fileID = r.Message.Document.FileID
+		fileSize = *r.Message.Document.FileSize
+	} else if len(r.Message.Photos) > 0 {
+		// Get the biggest photo: this will ensure better parsing by parser service.
+		for _, p := range r.Message.Photos {
+			if p.FileSize != nil && *p.FileSize > fileSize {
+				fileID = p.FileID
+				fileSize = *p.FileSize
+			}
 		}
 	}
 
