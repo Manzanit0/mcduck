@@ -6,12 +6,10 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"strings"
 	"time"
 
-	"github.com/manzanit0/mcduck/pkg/xhttp"
+	"github.com/manzanit0/mcduck/cmd/parser/openai"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -45,122 +43,12 @@ as a number.
 The currency will be formatted following the ISO 4217 codes.
 `
 
-// -- Request structures
-type Request struct {
-	Model     string     `json:"model"`
-	Messages  []Messages `json:"messages"`
-	MaxTokens int        `json:"max_tokens"`
-}
-
-type ImageURL struct {
-	URL string `json:"url"`
-}
-
-type Content struct {
-	Type     string   `json:"type"`
-	Text     string   `json:"text,omitempty"`
-	ImageURL ImageURL `json:"image_url,omitempty"`
-}
-
-type Messages struct {
-	Role    string    `json:"role"`
-	Content []Content `json:"content"`
-}
-
-// -- Response structures
-type Response struct {
-	ID                string    `json:"id"`
-	Object            string    `json:"object"`
-	Created           int       `json:"created"`
-	Model             string    `json:"model"`
-	Choices           []Choices `json:"choices"`
-	Usage             Usage     `json:"usage"`
-	SystemFingerprint string    `json:"system_fingerprint"`
-}
-
-type Message struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
-}
-
-type Choices struct {
-	Index        int     `json:"index"`
-	Message      Message `json:"message"`
-	Logprobs     any     `json:"logprobs"`
-	FinishReason string  `json:"finish_reason"`
-}
-
-type Usage struct {
-	PromptTokens     int `json:"prompt_tokens"`
-	CompletionTokens int `json:"completion_tokens"`
-	TotalTokens      int `json:"total_tokens"`
-}
-
 type Receipt struct {
 	Amount       float64 `json:"amount"`
 	Currency     string  `json:"currency"`
 	Description  string  `json:"description"`
 	Vendor       string  `json:"vendor"`
 	PurchaseDate string  `json:"purchase_date"`
-}
-
-func trimMarkdownWrapper(s string) string {
-	s = strings.TrimPrefix(s, "```json")
-	s = strings.TrimSuffix(s, "```")
-	return s
-}
-
-func doOpenAIRequest(ctx context.Context, request Request, openaiToken string) (*Receipt, error) {
-	tp := otel.GetTracerProvider().Tracer("parser")
-	ctx, span := tp.Start(ctx, "OpenAI: Prompt Chat Completion")
-	defer span.End()
-
-	payload, err := json.Marshal(request)
-	if err != nil {
-		return nil, fmt.Errorf("Error marshalling payload: %w", err)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, "POST", "https://api.openai.com/v1/chat/completions", strings.NewReader(string(payload)))
-	if err != nil {
-		return nil, fmt.Errorf("Error creating request: %w", err)
-	}
-
-	headers := map[string]string{
-		"Content-Type":  "application/json",
-		"Authorization": fmt.Sprintf("Bearer %s", openaiToken),
-	}
-
-	for key, value := range headers {
-		req.Header.Set(key, value)
-	}
-
-	client := xhttp.NewClient()
-
-	res, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("Error making request: %w", err)
-	}
-	defer res.Body.Close()
-
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return nil, fmt.Errorf("Error reading response body: %w", err)
-	}
-
-	var result Response
-	if err := json.Unmarshal(body, &result); err != nil {
-		return nil, fmt.Errorf("Error unmarshalling response: %w", err)
-	}
-
-	j := trimMarkdownWrapper(result.Choices[0].Message.Content)
-
-	var receipt Receipt
-	err = json.Unmarshal([]byte(j), &receipt)
-	if err != nil {
-		return nil, fmt.Errorf("Error unmarshalling receipt: %w", err)
-	}
-
-	return &receipt, nil
 }
 
 type ReceiptParser interface {
@@ -206,13 +94,13 @@ func (p TextractParser) ExtractReceipt(ctx context.Context, data []byte) (*Recei
 		return nil, err
 	}
 
-	payload := Request{
+	payload := openai.Request{
 		Model:     "gpt-4o",
 		MaxTokens: 300,
-		Messages: []Messages{
+		Messages: []openai.Messages{
 			{
 				Role: "user",
-				Content: []Content{
+				Content: []openai.Content{
 					{
 						Type: "text",
 						Text: initialPrompt,
@@ -226,7 +114,12 @@ func (p TextractParser) ExtractReceipt(ctx context.Context, data []byte) (*Recei
 		},
 	}
 
-	return doOpenAIRequest(ctx, payload, p.openaiToken)
+	response, err := openai.Completions(ctx, p.openaiToken, payload)
+	if err != nil {
+		return nil, fmt.Errorf("get openai completions: %w", err)
+	}
+
+	return receiptFromResponse(response)
 }
 
 func (p TextractParser) StartDocumentTextDetection(ctx context.Context, data []byte) (string, error) {
@@ -319,20 +212,20 @@ var _ ReceiptParser = (*AIVisionParser)(nil)
 func (p AIVisionParser) ExtractReceipt(ctx context.Context, data []byte) (*Receipt, error) {
 	base64Image := base64.StdEncoding.EncodeToString(data)
 
-	payload := Request{
+	payload := openai.Request{
 		Model:     "gpt-4o",
 		MaxTokens: 300,
-		Messages: []Messages{
+		Messages: []openai.Messages{
 			{
 				Role: "user",
-				Content: []Content{
+				Content: []openai.Content{
 					{
 						Type: "text",
 						Text: initialPrompt,
 					},
 					{
 						Type: "image_url",
-						ImageURL: ImageURL{
+						ImageURL: openai.ImageURL{
 							URL: fmt.Sprintf("data:image/jpeg;base64,%s", base64Image),
 						},
 					},
@@ -341,7 +234,12 @@ func (p AIVisionParser) ExtractReceipt(ctx context.Context, data []byte) (*Recei
 		},
 	}
 
-	return doOpenAIRequest(ctx, payload, p.openaiToken)
+	response, err := openai.Completions(ctx, p.openaiToken, payload)
+	if err != nil {
+		return nil, fmt.Errorf("get openai completions: %w", err)
+	}
+
+	return receiptFromResponse(response)
 }
 
 // NaivePDFParser simply attempts to read the text from the PDF and pass it to
@@ -381,13 +279,13 @@ func (p NaivePDFParser) ExtractReceipt(ctx context.Context, data []byte) (*Recei
 	extractedText := buf.String()
 	span.End()
 
-	payload := Request{
+	payload := openai.Request{
 		Model:     "gpt-4o",
 		MaxTokens: 300,
-		Messages: []Messages{
+		Messages: []openai.Messages{
 			{
 				Role: "user",
-				Content: []Content{
+				Content: []openai.Content{
 					{
 						Type: "text",
 						Text: initialPrompt,
@@ -401,5 +299,28 @@ func (p NaivePDFParser) ExtractReceipt(ctx context.Context, data []byte) (*Recei
 		},
 	}
 
-	return doOpenAIRequest(ctx, payload, p.openaiToken)
+	response, err := openai.Completions(ctx, p.openaiToken, payload)
+	if err != nil {
+		return nil, fmt.Errorf("get openai completions: %w", err)
+	}
+
+	return receiptFromResponse(response)
+}
+
+func receiptFromResponse(response *openai.Response) (*Receipt, error) {
+	j := trimMarkdownWrapper(response.Choices[0].Message.Content)
+
+	var receipt Receipt
+	err := json.Unmarshal([]byte(j), &receipt)
+	if err != nil {
+		return nil, fmt.Errorf("unmarshal receipt: %w", err)
+	}
+
+	return &receipt, nil
+}
+
+func trimMarkdownWrapper(s string) string {
+	s = strings.TrimPrefix(s, "```json")
+	s = strings.TrimSuffix(s, "```")
+	return s
 }
