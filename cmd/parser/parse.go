@@ -17,6 +17,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/textract"
 	"github.com/aws/aws-sdk-go-v2/service/textract/types"
+	"github.com/martoche/pdf"
 	"github.com/segmentio/ksuid"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
@@ -192,6 +193,9 @@ func NewTextractParser(config aws.Config, openaiToken string) *TextractParser {
 }
 
 func (p TextractParser) ExtractReceipt(ctx context.Context, data []byte) (*Receipt, error) {
+	ctx, span := p.tp.Start(ctx, "Extract Receipt: Textract")
+	defer span.End()
+
 	jobID, err := p.StartDocumentTextDetection(ctx, data)
 	if err != nil {
 		return nil, err
@@ -331,6 +335,66 @@ func (p AIVisionParser) ExtractReceipt(ctx context.Context, data []byte) (*Recei
 						ImageURL: ImageURL{
 							URL: fmt.Sprintf("data:image/jpeg;base64,%s", base64Image),
 						},
+					},
+				},
+			},
+		},
+	}
+
+	return doOpenAIRequest(ctx, payload, p.openaiToken)
+}
+
+// NaivePDFParser simply attempts to read the text from the PDF and pass it to
+// openAI.
+type NaivePDFParser struct {
+	openaiToken string
+	tp          trace.Tracer
+}
+
+func NewNaivePDFParser(openaiToken string) *NaivePDFParser {
+	tp := otel.GetTracerProvider().Tracer("parser")
+	return &NaivePDFParser{openaiToken: openaiToken, tp: tp}
+}
+
+var _ ReceiptParser = (*NaivePDFParser)(nil)
+
+func (p NaivePDFParser) ExtractReceipt(ctx context.Context, data []byte) (*Receipt, error) {
+	ctx, span := p.tp.Start(ctx, "Extract Receipt: Naive PDF read")
+	defer span.End()
+
+	_, span = p.tp.Start(ctx, "Extract Text from PDF")
+	r, err := pdf.NewReader(bytes.NewReader(data), int64(len(data)))
+	if err != nil {
+		return nil, fmt.Errorf("new pdf reader: %w", err)
+	}
+
+	reader, err := r.GetPlainText()
+	if err != nil {
+		return nil, fmt.Errorf("get pdf text: %w", err)
+	}
+
+	buf, ok := reader.(*bytes.Buffer)
+	if !ok {
+		return nil, fmt.Errorf("github.com/martoche/pdf no longer uses bytes.Buffer to implement io.Reader")
+	}
+
+	extractedText := buf.String()
+	span.End()
+
+	payload := Request{
+		Model:     "gpt-4o",
+		MaxTokens: 300,
+		Messages: []Messages{
+			{
+				Role: "user",
+				Content: []Content{
+					{
+						Type: "text",
+						Text: initialPrompt,
+					},
+					{
+						Type: "text",
+						Text: extractedText,
 					},
 				},
 			},
