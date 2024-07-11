@@ -27,6 +27,10 @@ func main() {
 
 	apiKey := micro.MustGetEnv("OPENAI_API_KEY")
 
+	// Just crash the service if these aren't available.
+	_ = micro.MustGetEnv("AWS_ACCESS_KEY")
+	_ = micro.MustGetEnv("AWS_SECRET_ACCESS_KEY")
+
 	config, err := config.LoadDefaultConfig(context.Background(), config.WithRegion(awsRegion))
 	if err != nil {
 		panic(err)
