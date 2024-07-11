@@ -14,10 +14,12 @@ import (
 	"github.com/manzanit0/mcduck/pkg/xhttp"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/textract"
 	"github.com/aws/aws-sdk-go-v2/service/textract/types"
+	"github.com/segmentio/ksuid"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const initialPrompt = `
@@ -104,11 +106,6 @@ type Receipt struct {
 func parseReceiptImage(ctx context.Context, openaiToken string, imageData []byte) (*Receipt, error) {
 	base64Image := base64.StdEncoding.EncodeToString(imageData)
 
-	headers := map[string]string{
-		"Content-Type":  "application/json",
-		"Authorization": fmt.Sprintf("Bearer %s", openaiToken),
-	}
-
 	payload := Request{
 		Model:     "gpt-4o",
 		MaxTokens: 300,
@@ -131,47 +128,7 @@ func parseReceiptImage(ctx context.Context, openaiToken string, imageData []byte
 		},
 	}
 
-	payloadBytes, err := json.Marshal(payload)
-	if err != nil {
-		return nil, fmt.Errorf("Error marshalling payload: %w", err)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, "POST", "https://api.openai.com/v1/chat/completions", strings.NewReader(string(payloadBytes)))
-	if err != nil {
-		return nil, fmt.Errorf("Error creating request: %w", err)
-	}
-
-	for key, value := range headers {
-		req.Header.Set(key, value)
-	}
-
-	client := xhttp.NewClient()
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("Error making request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("Error reading response body: %w", err)
-	}
-
-	var result Response
-	if err := json.Unmarshal(body, &result); err != nil {
-		return nil, fmt.Errorf("Error unmarshalling response: %w", err)
-	}
-
-	j := trimMarkdownWrapper(result.Choices[0].Message.Content)
-
-	var receipt Receipt
-	err = json.Unmarshal([]byte(j), &receipt)
-	if err != nil {
-		return nil, fmt.Errorf("Error unmarshalling receipt: %w", err)
-	}
-
-	return &receipt, nil
+	return doOpenAIRequest(ctx, payload, openaiToken)
 }
 
 func trimMarkdownWrapper(s string) string {
@@ -180,66 +137,19 @@ func trimMarkdownWrapper(s string) string {
 	return s
 }
 
-func parseReceiptPDF(ctx context.Context, openaiToken string, fileName string, imageData []byte) (*Receipt, error) {
-	config, err := config.LoadDefaultConfig(ctx, config.WithRegion("eu-west-1"))
+func doOpenAIRequest(ctx context.Context, request Request, openaiToken string) (*Receipt, error) {
+	tp := otel.GetTracerProvider().Tracer("parser")
+	ctx, span := tp.Start(ctx, "OpenAI: Prompt Chat Completion")
+	defer span.End()
+
+	payload, err := json.Marshal(request)
 	if err != nil {
-		return nil, fmt.Errorf("loading AWS config: %w", err)
+		return nil, fmt.Errorf("Error marshalling payload: %w", err)
 	}
 
-	s3Svc := s3.NewFromConfig(config)
-
-	_, err = s3Svc.PutObject(ctx, &s3.PutObjectInput{
-		Bucket: aws.String("scratch-go"),
-		Key:    aws.String(fileName),
-		Body:   bytes.NewBuffer(imageData),
-	})
+	req, err := http.NewRequestWithContext(ctx, "POST", "https://api.openai.com/v1/chat/completions", strings.NewReader(string(payload)))
 	if err != nil {
-		return nil, fmt.Errorf("putting receipt to S3: %w", err)
-	}
-
-	svc := textract.NewFromConfig(config)
-	resp, err := svc.StartDocumentTextDetection(ctx, &textract.StartDocumentTextDetectionInput{
-		DocumentLocation: &types.DocumentLocation{
-			S3Object: &types.S3Object{
-				Bucket: aws.String("scratch-go"),
-				Name:   aws.String(fileName),
-			},
-		},
-		JobTag: aws.String("scratch-go"),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("starting text detection: %w", err)
-	}
-
-	var out *textract.GetDocumentTextDetectionOutput
-
-	// poll AWS Textract until the job has finished.
-outer:
-	for {
-		select {
-
-		case <-ctx.Done():
-			return nil, fmt.Errorf("Context cancelled")
-
-		default:
-			time.Sleep(5 * time.Second)
-
-			out, err = svc.GetDocumentTextDetection(ctx, &textract.GetDocumentTextDetectionInput{JobId: resp.JobId})
-			if err != nil {
-				return nil, fmt.Errorf("getting textract job status: %w", err)
-			}
-
-			if out.JobStatus == types.JobStatusSucceeded || out.JobStatus == types.JobStatusFailed {
-				break outer
-			}
-		}
-	}
-
-	var extracted string
-	for _, block := range out.Blocks {
-		if block.BlockType == types.BlockTypeLine && block.Text != nil {
-			extracted += *block.Text
-		}
+		return nil, fmt.Errorf("Error creating request: %w", err)
 	}
 
 	headers := map[string]string{
@@ -247,41 +157,11 @@ outer:
 		"Authorization": fmt.Sprintf("Bearer %s", openaiToken),
 	}
 
-	payload := Request{
-		Model:     "gpt-4o",
-		MaxTokens: 300,
-		Messages: []Messages{
-			{
-				Role: "user",
-				Content: []Content{
-					{
-						Type: "text",
-						Text: initialPrompt,
-					},
-					{
-						Type: "text",
-						Text: extracted,
-					},
-				},
-			},
-		},
-	}
-
-	payloadBytes, err := json.Marshal(payload)
-	if err != nil {
-		return nil, fmt.Errorf("Error marshalling payload: %w", err)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, "POST", "https://api.openai.com/v1/chat/completions", strings.NewReader(string(payloadBytes)))
-	if err != nil {
-		return nil, fmt.Errorf("Error creating request: %w", err)
-	}
-
 	for key, value := range headers {
 		req.Header.Set(key, value)
 	}
 
-	client := http.DefaultClient
+	client := xhttp.NewClient()
 
 	res, err := client.Do(req)
 	if err != nil {
@@ -308,4 +188,142 @@ outer:
 	}
 
 	return &receipt, nil
+}
+
+type ReceiptParser interface {
+	// PDF text extractor: passes the raw text
+	// AWS Textract: passes the bytes of the PDF
+	// OpenAI Vision: passes the bytes of image
+	ExtractReceipt(context.Context, []byte) (*Receipt, error)
+}
+
+// TextractParser is a general-purpouse receipt parser that can process any
+// kind of document by relying on AWS Textract. It'll then feed Textract's
+// output to ChatGPT.
+type TextractParser struct {
+	openaiToken string
+	tx          *textract.Client
+	sthree      *s3.Client
+	tp          trace.Tracer
+}
+
+var _ ReceiptParser = (*TextractParser)(nil)
+
+func NewTextractParser(config aws.Config, openaiToken string) *TextractParser {
+	tp := otel.GetTracerProvider().Tracer("parser")
+	return &TextractParser{
+		openaiToken: openaiToken,
+		sthree:      s3.NewFromConfig(config),
+		tx:          textract.NewFromConfig(config),
+		tp:          tp,
+	}
+}
+
+func (p TextractParser) ExtractReceipt(ctx context.Context, data []byte) (*Receipt, error) {
+	jobID, err := p.StartDocumentTextDetection(ctx, data)
+	if err != nil {
+		return nil, err
+	}
+
+	receiptText, err := p.GetDocumentText(ctx, jobID)
+	if err != nil {
+		return nil, err
+	}
+
+	payload := Request{
+		Model:     "gpt-4o",
+		MaxTokens: 300,
+		Messages: []Messages{
+			{
+				Role: "user",
+				Content: []Content{
+					{
+						Type: "text",
+						Text: initialPrompt,
+					},
+					{
+						Type: "text",
+						Text: receiptText,
+					},
+				},
+			},
+		},
+	}
+
+	return doOpenAIRequest(ctx, payload, p.openaiToken)
+}
+
+func (p TextractParser) StartDocumentTextDetection(ctx context.Context, data []byte) (string, error) {
+	filename := fmt.Sprintf("%s.pdf", ksuid.New().String())
+
+	_, span := p.tp.Start(ctx, "AWS S3 PUT")
+	_, err := p.sthree.PutObject(ctx, &s3.PutObjectInput{
+		Bucket: aws.String("scratch-go"),
+		Key:    aws.String(filename),
+		Body:   bytes.NewBuffer(data),
+	})
+	if err != nil {
+		return "", fmt.Errorf("AWS S3 PUT: %w", err)
+	}
+	span.End()
+
+	_, span = p.tp.Start(ctx, "AWS Textract StartDocumentTextDetection")
+	defer span.End()
+
+	resp, err := p.tx.StartDocumentTextDetection(ctx, &textract.StartDocumentTextDetectionInput{
+		DocumentLocation: &types.DocumentLocation{
+			S3Object: &types.S3Object{
+				Bucket: aws.String("scratch-go"),
+				Name:   aws.String(filename),
+			},
+		},
+		JobTag: aws.String("scratch-go"),
+	})
+	if err != nil {
+		return "", fmt.Errorf("AWS Textract StartDocumentTextDetection: %w", err)
+	}
+
+	return *resp.JobId, nil
+}
+
+func (p TextractParser) GetDocumentText(ctx context.Context, jobID string) (string, error) {
+	ctx, span := p.tp.Start(ctx, "Poll AWS Textract Results")
+	defer span.End()
+
+	var out *textract.GetDocumentTextDetectionOutput
+	var err error
+outer:
+	for {
+		select {
+
+		case <-ctx.Done():
+			return "", ctx.Err()
+
+		default:
+			_, span := p.tp.Start(ctx, "AWS Textract GetDocumentTextDetection")
+			out, err = p.tx.GetDocumentTextDetection(ctx, &textract.GetDocumentTextDetectionInput{JobId: &jobID})
+			if err != nil {
+				return "", fmt.Errorf("getting textract job status: %w", err)
+			}
+
+			span.End()
+
+			if out.JobStatus == types.JobStatusSucceeded || out.JobStatus == types.JobStatusFailed {
+				break outer
+			}
+
+			_, span = p.tp.Start(ctx, "time.Sleep")
+			time.Sleep(1 * time.Second)
+			span.End()
+		}
+	}
+
+	var extracted string
+	for _, block := range out.Blocks {
+		if block.BlockType == types.BlockTypeLine && block.Text != nil {
+			extracted += *block.Text
+		}
+	}
+
+	return extracted, nil
 }

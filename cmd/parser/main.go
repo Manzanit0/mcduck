@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -8,13 +9,14 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/gin-gonic/gin"
 	"github.com/manzanit0/mcduck/pkg/micro"
-	"github.com/segmentio/ksuid"
 )
 
 const (
 	serviceName = "parser"
+	awsRegion   = "eu-west-1"
 )
 
 func main() {
@@ -24,6 +26,13 @@ func main() {
 	}
 
 	apiKey := micro.MustGetEnv("OPENAI_API_KEY")
+
+	config, err := config.LoadDefaultConfig(context.Background(), config.WithRegion(awsRegion))
+	if err != nil {
+		panic(err)
+	}
+
+	textractParser := NewTextractParser(config, apiKey)
 
 	svc.Engine.POST("/receipt", func(c *gin.Context) {
 		file, err := c.FormFile("receipt")
@@ -49,9 +58,7 @@ func main() {
 		var response *Receipt
 		switch http.DetectContentType(data) {
 		case "application/pdf":
-			// Generate a unique file name for each receipt received.
-			filename := fmt.Sprintf("%s.pdf", ksuid.New().String())
-			response, err = parseReceiptPDF(c.Request.Context(), apiKey, filename, data)
+			response, err = textractParser.ExtractReceipt(c.Request.Context(), data)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable extract data from receipt: %s", err.Error())})
 				return
