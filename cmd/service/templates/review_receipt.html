@@ -12,7 +12,11 @@
     <div id="container" style="display: flex;">
       <div id="receipt" style="flex: 0 0 30%">
         <div>
-          <img src="data:image/png;base64,{{.Receipt.Image}}" style="max-width: 90%" />
+          {{ if .Receipt.IsPDF }}
+          <embed src="/receipts/{{.Receipt.ID}}/image#toolbar=0&amp;navpanes=0&amp;scrollbar=0" type="application/pdf" frameborder="0" scrolling="auto" height="100%" width="100%">
+          {{ else }}
+          <img style="max-width: 90%" src="/receipts/{{.Receipt.ID}}/image" loading="lazy">
+          {{ end }}
         </div>
       </div>
       <div id="expenses">

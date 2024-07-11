@@ -1,7 +1,6 @@
 package api
 
 import (
-	"encoding/base64"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -275,7 +274,7 @@ type ReceiptViewModel struct {
 	Date          string
 	Vendor        string
 	PendingReview string
-	Image         string
+	IsPDF         bool
 	ReceiptID     int
 	TotalAmount   string
 }
@@ -294,13 +293,13 @@ func ToSingleReceiptViewModel(r *receipt.Receipt) ReceiptViewModel {
 		pendingReview = "Yes"
 	}
 
-	encoded := base64.StdEncoding.EncodeToString(r.Image)
+	isPDF := http.DetectContentType(r.Image) == "application/pdf"
 
 	return ReceiptViewModel{
 		ID:            fmt.Sprint(r.ID),
 		Date:          r.Date.Format("2006-01-02"),
 		Vendor:        strings.Title(r.Vendor),
 		PendingReview: pendingReview,
-		Image:         encoded,
+		IsPDF:         isPDF,
 	}
 }
