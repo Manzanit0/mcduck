@@ -114,7 +114,7 @@ func GetUserEmail(c *gin.Context) string {
 }
 
 func SetAuthCookie(c *gin.Context, token string) {
-	c.SetCookie(authCookieName, token, 3600, "", "", false, true)
+	c.SetCookie(authCookieName, token, int(threeDays.Seconds()), "", "", false, true)
 }
 
 func RemoveAuthCookie(c *gin.Context) {
