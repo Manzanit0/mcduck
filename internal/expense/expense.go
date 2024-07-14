@@ -116,13 +116,18 @@ func GetTop3ExpenseCategories(expenses []Expense, monthYear string) []CategoryAg
 		}
 
 		if i, aggr, found := findAggregateByCategory(aggregates, e.Subcategory); found {
-			// Note: there is a lot of converting here. If it ends up being
+			// NOTE: there is a lot of converting here. If it ends up being
 			// slow; having an intermediate structure which just uses integers
 			// and then we do a single final conversion, should help.
 			current := ConvertToCents(aggr.TotalAmount)
 			total := current + ConvertToCents(e.Amount)
 			aggregates[i].TotalAmount = ConvertToDollar(total)
 		} else {
+			// NOTE: we don't really want to report on empty subcategories since it doesn't provide much value
+			if e.Subcategory == "" {
+				continue
+			}
+
 			aggregates = append(aggregates, CategoryAggregate{
 				TotalAmount: e.Amount,
 				MonthYear:   monthYear,
