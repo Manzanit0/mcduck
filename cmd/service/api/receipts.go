@@ -25,8 +25,22 @@ type ReceiptsController struct {
 }
 
 func (d *ReceiptsController) ListReceipts(c *gin.Context) {
+	var receipts []receipt.Receipt
+	var err error
+
 	userEmail := auth.GetUserEmail(c)
-	receipts, err := d.Receipts.ListReceipts(c.Request.Context(), userEmail)
+	switch c.Query("when") {
+	case "current_month":
+		receipts, err = d.Receipts.ListReceiptsCurrentMonth(c.Request.Context(), userEmail)
+	case "previous_month":
+		receipts, err = d.Receipts.ListReceiptsPreviousMonth(c.Request.Context(), userEmail)
+	case "all_time", "":
+		receipts, err = d.Receipts.ListReceipts(c.Request.Context(), userEmail)
+	default:
+		c.HTML(http.StatusBadRequest, "error.html", gin.H{"error": "Unsupported query value for 'when'"})
+		return
+	}
+
 	if err != nil {
 		slog.Error("failed to list receipts", "error", err.Error())
 		c.HTML(http.StatusOK, "error.html", gin.H{"error": "We were unable to find your receipts - please try again."})

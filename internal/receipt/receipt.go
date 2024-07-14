@@ -223,6 +223,66 @@ func (r *Repository) ListReceipts(ctx context.Context, email string) ([]Receipt,
 	return domainReceipts, nil
 }
 
+func (r *Repository) ListReceiptsCurrentMonth(ctx context.Context, email string) ([]Receipt, error) {
+	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
+
+	query, args, err := psql.
+		Select("id", "vendor", "pending_review", "receipt_date").
+		From("receipts").
+		Where(sq.And{
+			sq.Eq{"user_email": email},
+			sq.Expr("receipt_date >= date_trunc('month',current_date)"),
+			sq.Expr("receipt_date < date_trunc('month',current_date) + INTERVAL '1' MONTH"),
+		}).
+		ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("compile query: %w", err)
+	}
+
+	var receipts []dbReceipt
+	err = r.dbx.SelectContext(ctx, &receipts, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("select receipts: %w", err)
+	}
+
+	var domainReceipts []Receipt
+	for _, receipt := range receipts {
+		domainReceipts = append(domainReceipts, *receipt.MapReceipt())
+	}
+
+	return domainReceipts, nil
+}
+
+func (r *Repository) ListReceiptsPreviousMonth(ctx context.Context, email string) ([]Receipt, error) {
+	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
+
+	query, args, err := psql.
+		Select("id", "vendor", "pending_review", "receipt_date").
+		From("receipts").
+		Where(sq.And{
+			sq.Eq{"user_email": email},
+			sq.Expr("receipt_date >= date_trunc('month',current_date) - INTERVAL '1' MONTH"),
+			sq.Expr("receipt_date < date_trunc('month',current_date)"),
+		}).
+		ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("compile query: %w", err)
+	}
+
+	var receipts []dbReceipt
+	err = r.dbx.SelectContext(ctx, &receipts, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("select receipts: %w", err)
+	}
+
+	var domainReceipts []Receipt
+	for _, receipt := range receipts {
+		domainReceipts = append(domainReceipts, *receipt.MapReceipt())
+	}
+
+	return domainReceipts, nil
+}
+
 func (r *Repository) GetReceipt(ctx context.Context, receiptID uint64) (*Receipt, error) {
 	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
 

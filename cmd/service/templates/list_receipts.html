@@ -10,10 +10,14 @@
     <div style="display: flex; justify-content: center; width: 100%;">
       <button class="btn btn-primary f-left review-receipt-btn"> {{ .ReceiptsPendingReview }} Pending Review </button>
       <button class="btn btn-default f-left review-receipt-btn"> {{ .ReceiptsReviewed }} Reviewed </button>
+
     </div>
     <div>
-      {{range $e := .Receipts}}
-      {{end}}
+      <a href="?when=all_time" class="f-left" style="margin-bottom: 10px;">All Time</a>
+      <div class="f-left" style="margin-bottom: 10px; margin-right: 10px"> | </div>
+      <a href="?when=current_month" class="f-left" style="margin-bottom: 10px; margin-right: 10px">Current Month</a>
+      <div class="f-left" style="margin-bottom: 10px; margin-right: 10px"> | </div>
+      <a href="?when=previous_month" class="f-left" style="margin-bottom: 10px; margin-right: 10px">Previous Month</a>
       <div>
         <table id="receipts-table">
           <thead id="expenses-table-head">
@@ -144,7 +148,6 @@
         document.querySelectorAll("input").forEach(addListenersToTableCell);
 
       addListenersToTable();
-      addListenersToDeleteLinks();
 
       document
         .querySelectorAll('[id*="show-image-link"]')
