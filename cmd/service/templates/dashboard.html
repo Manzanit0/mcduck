@@ -8,11 +8,7 @@
   <body>
     {{template "navbar" .}}
     <div>
-      {{ if .NoExpenses }}
         <h1>Expense Report</h1>
-      {{ else }}
-        <h1>Expense Report {{ .PrettyMonthYear }}</h1>
-      {{ end }} 
     </div>
     <div>
       {{ if .NoExpenses }}
@@ -26,7 +22,7 @@
       <div>{{ template "_upload_expenses_form" }}</div>
       {{ else }}
       <div>
-        <h2>Top Expense Categories</h2>
+        <h2>Top Categories {{ .PrettyMonthYear }}</h2>
         <div style="display: flex; justify-content: center; gap: 10px">
           {{ range $e := .TopCategories }}
           <div class="terminal-card">
@@ -44,10 +40,6 @@
         <div class="chart">
           <h2>Expenses per sub-category</h2>
           <canvas id="subcategoriesChart"></canvas>
-        </div>
-        <div class="chart">
-          <h2>Month-over-month expenses per category</h2>
-          <canvas id="momChart"></canvas>
         </div>
       </div>
       {{ end }}
@@ -67,34 +59,20 @@
 
     const lastMonth = {{.PrettyMonthYear}};
     let labels = {{.Categories}};
-    let amounts = {{.CategoryAmounts}};
 
     let data = {
-      labels: labels,
+      labels: {{ .CategoriesChartData.Labels }},
       datasets: [
+      {{ range $e := .CategoriesChartData.Datasets }}
         {
-          label: lastMonth,
-          data: amounts,
-          backgroundColor: [
-            "rgba(255, 99, 132, 0.2)",
-            "rgba(255, 159, 64, 0.2)",
-            "rgba(255, 205, 86, 0.2)",
-            "rgba(75, 192, 192, 0.2)",
-            "rgba(54, 162, 235, 0.2)",
-            "rgba(153, 102, 255, 0.2)",
-            "rgba(201, 203, 207, 0.2)",
-          ],
-          borderColor: [
-            "rgb(255, 99, 132)",
-            "rgb(255, 159, 64)",
-            "rgb(255, 205, 86)",
-            "rgb(75, 192, 192)",
-            "rgb(54, 162, 235)",
-            "rgb(153, 102, 255)",
-            "rgb(201, 203, 207)",
-          ],
+          label: {{$e.Label}},
+          data: {{$e.Data}},
+          backgroundColor: {{$e.BackgroundColour}},
+          borderColor: {{$e.BorderColour}},
+          hidden: {{$e.Hidden}},
           borderWidth: 1,
         },
+        {{ end }}
       ],
     };
 
@@ -116,35 +94,21 @@
     );
   </script>
   <script>
-    labels = {{.SubCategories}};
-    amounts = {{.SubCategoryAmounts}};
+    labels = {{.Categories}};
 
     data = {
-      labels: labels,
+      labels: {{ .SubCategoriesChartData.Labels }},
       datasets: [
+      {{ range $e := .SubCategoriesChartData.Datasets }}
         {
-          label: lastMonth,
-          data: amounts,
-          backgroundColor: [
-            "rgba(255, 99, 132, 0.2)",
-            "rgba(255, 159, 64, 0.2)",
-            "rgba(255, 205, 86, 0.2)",
-            "rgba(75, 192, 192, 0.2)",
-            "rgba(54, 162, 235, 0.2)",
-            "rgba(153, 102, 255, 0.2)",
-            "rgba(201, 203, 207, 0.2)",
-          ],
-          borderColor: [
-            "rgb(255, 99, 132)",
-            "rgb(255, 159, 64)",
-            "rgb(255, 205, 86)",
-            "rgb(75, 192, 192)",
-            "rgb(54, 162, 235)",
-            "rgb(153, 102, 255)",
-            "rgb(201, 203, 207)",
-          ],
+          label: {{$e.Label}},
+          data: {{$e.Data}},
+          backgroundColor: {{$e.BackgroundColour}},
+          borderColor: {{$e.BorderColour}},
+          hidden: {{$e.Hidden}},
           borderWidth: 1,
         },
+        {{ end }}
       ],
     };
 
@@ -162,60 +126,6 @@
     };
     myChart = new Chart(
       document.getElementById("subcategoriesChart"),
-      config
-    );
-  </script>
-  <script>
-    labels = {{.MOMLabels}};
-    amounts = {{.MOMData}};
-
-    const datasets = [];
-    {{range $category, $dataset := .MOMData}}
-      datasets.push({
-        label: {{$category}},
-        data: {{$dataset}},
-        fill: false,
-        borderColor: `rgb(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255})`,
-        tension: 0.1,
-      })
-    {{end}}
-
-    data = {
-      labels: labels,
-      datasets: datasets,
-    };
-
-    const plugin = {
-      id: "increase-legend-spacing",
-      beforeInit(chart) {
-        // Get reference to the original fit function
-        const originalFit = chart.legend.fit;
-
-        // Override the fit function
-        chart.legend.fit = function fit() {
-          // Call original function and bind scope in order to use `this` correctly inside it
-          originalFit.bind(chart.legend)();
-          // Change the height as suggested in another answers
-          this.height += 20;
-        }
-      }
-    };
-
-    config = {
-      plugins: [
-        ChartDataLabels,
-        plugin
-      ],
-      type: "line",
-      data: data,
-      options: {
-          layout:{
-              padding:20
-          }
-        },
-    };
-    myChart = new Chart(
-      document.getElementById("momChart"),
       config
     );
   </script>

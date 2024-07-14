@@ -15,29 +15,78 @@ import (
 	"github.com/manzanit0/mcduck/pkg/auth"
 )
 
+var chartColours = []string{
+	"rgba(255, 99, 132)",
+	"rgba(255, 159, 64)",
+	"rgba(255, 205, 86)",
+	"rgba(75, 192, 192)",
+	"rgba(54, 162, 235)",
+	"rgba(153, 102, 255)",
+	"rgba(201, 203, 207)",
+}
+
+var chartBackgroundColours = []string{
+	"rgba(255, 99, 132, 0.2)",
+	"rgba(255, 159, 64, 0.2)",
+	"rgba(255, 205, 86, 0.2)",
+	"rgba(75, 192, 192, 0.2)",
+	"rgba(54, 162, 235, 0.2)",
+	"rgba(153, 102, 255, 0.2)",
+	"rgba(201, 203, 207, 0.2)",
+}
+
+type ChartData struct {
+	Labels   []string
+	Datasets []Dataset
+}
+
+type Dataset struct {
+	Label            string
+	BorderColour     string
+	BackgroundColour string
+	Hidden           bool
+	Data             []string
+}
+
 type DashboardController struct {
 	Expenses   *expense.Repository
 	SampleData []expense.Expense
 }
 
 func (d *DashboardController) LiveDemo(c *gin.Context) {
-	categoryTotals := expense.CalculateTotalsPerCategory(d.SampleData)
-	subcategoryTotals := expense.CalculateTotalsPerSubCategory(d.SampleData)
-	mom := expense.CalculateMonthOverMonthTotals(d.SampleData)
-	labels, amountsByCategory := getMOMData(mom)
+	expenses := d.SampleData
 
-	mostRecent := expense.FindMostRecentTime(d.SampleData)
+	expense.SortByDate(expenses)
+
+	mostRecent := expense.FindMostRecentTime(expenses)
 	mostRecentMonthYear := expense.NewMonthYear(mostRecent)
 
+	categoryTotals := expense.CalculateTotalsPerCategory(expenses)
+	categoryLabels := getSecondClassifier(categoryTotals)
+	categoryChartData := buildChartData(categoryLabels, categoryTotals)
+
+	subcategoryTotals := expense.CalculateTotalsPerSubCategory(expenses)
+	subcategoryLabels := getSecondClassifier(subcategoryTotals)
+	subcategoryChartData := buildChartData(subcategoryLabels, subcategoryTotals)
+
+	// Since this is for public demoing, we might as well show-off the whole data
+	// off the bat.
+	for i := range categoryChartData.Datasets {
+		categoryChartData.Datasets[i].Hidden = false
+	}
+
+	for i := range subcategoryChartData.Datasets {
+		subcategoryChartData.Datasets[i].Hidden = false
+	}
+
 	c.HTML(http.StatusOK, "dashboard.html", gin.H{
-		"PrettyMonthYear":    mostRecent.Format("January 2006"),
-		"Categories":         getSecondClassifier(categoryTotals),
-		"CategoryAmounts":    getAmountsForMonth(mostRecentMonthYear, categoryTotals),
-		"SubCategories":      getSecondClassifier(subcategoryTotals),
-		"SubCategoryAmounts": getAmountsForMonth(mostRecentMonthYear, subcategoryTotals),
-		"TopCategories":      expense.GetTop3ExpenseCategories(d.SampleData, mostRecentMonthYear),
-		"MOMLabels":          labels,
-		"MOMData":            amountsByCategory,
+		"PrettyMonthYear":        mostRecent.Format("January 2006"),
+		"NoExpenses":             len(expenses) == 0,
+		"Categories":             categoryLabels,
+		"CategoriesChartData":    categoryChartData,
+		"SubCategories":          subcategoryLabels,
+		"SubCategoriesChartData": subcategoryChartData,
+		"TopCategories":          expense.GetTop3ExpenseCategories(expenses, mostRecentMonthYear),
 	})
 }
 
@@ -54,32 +103,67 @@ func (d *DashboardController) Dashboard(c *gin.Context) {
 		expenses = []expense.Expense{}
 	}
 
-	categoryTotals := expense.CalculateTotalsPerCategory(expenses)
-	subcategoryTotals := expense.CalculateTotalsPerSubCategory(expenses)
-	mom := expense.CalculateMonthOverMonthTotals(expenses)
-	labels, amountsByCategory := getMOMData(mom)
-
 	expense.SortByDate(expenses)
 
 	mostRecent := expense.FindMostRecentTime(expenses)
 	mostRecentMonthYear := expense.NewMonthYear(mostRecent)
 
-	topCategories := expense.GetTop3ExpenseCategories(expenses, mostRecentMonthYear)
+	categoryTotals := expense.CalculateTotalsPerCategory(expenses)
+	categoryLabels := getSecondClassifier(categoryTotals)
+	categoryChartData := buildChartData(categoryLabels, categoryTotals)
 
-	// FIXME: if the subcategory is empty, then it displays an empty card.
+	subcategoryTotals := expense.CalculateTotalsPerSubCategory(expenses)
+	subcategoryLabels := getSecondClassifier(subcategoryTotals)
+	subcategoryChartData := buildChartData(subcategoryLabels, subcategoryTotals)
 
 	c.HTML(http.StatusOK, "dashboard.html", gin.H{
-		"PrettyMonthYear":    mostRecent.Format("January 2006"),
-		"NoExpenses":         len(expenses) == 0,
-		"Categories":         getSecondClassifier(categoryTotals),
-		"CategoryAmounts":    getAmountsForMonth(mostRecentMonthYear, categoryTotals),
-		"SubCategories":      getSecondClassifier(subcategoryTotals),
-		"SubCategoryAmounts": getAmountsForMonth(mostRecentMonthYear, subcategoryTotals),
-		"TopCategories":      topCategories,
-		"MOMLabels":          labels,
-		"MOMData":            amountsByCategory,
-		"User":               user,
+		"PrettyMonthYear":        mostRecent.Format("January 2006"),
+		"NoExpenses":             len(expenses) == 0,
+		"Categories":             categoryLabels,
+		"CategoriesChartData":    categoryChartData,
+		"SubCategories":          subcategoryLabels,
+		"SubCategoriesChartData": subcategoryChartData,
+		"TopCategories":          expense.GetTop3ExpenseCategories(expenses, mostRecentMonthYear),
+		"User":                   user,
 	})
+}
+
+func buildChartData(labels []string, totals map[string]map[string]float32) ChartData {
+	var datasets []Dataset
+	for monthYear, amountsByCategory := range totals { // totalsByMonth[monthYear][expense.Category] += expense.Amount
+		var data []string
+		for _, category := range labels {
+			if amount, ok := amountsByCategory[category]; ok {
+				data = append(data, fmt.Sprintf("%.2f", amount))
+			} else {
+				data = append(data, "0.00")
+			}
+		}
+
+		datasets = append(datasets, Dataset{
+			Label:  monthYear,
+			Data:   data,
+			Hidden: true,
+		})
+	}
+
+	// FIXME: very naive sort. We would want to do a time comparison.
+	sort.Slice(datasets, func(i, j int) bool {
+		return datasets[i].Label < datasets[j].Label
+	})
+
+	// By default we only show the current month.
+	datasets[len(datasets)-1].Hidden = false
+
+	for i := range datasets {
+		datasets[i].BorderColour = chartColours[i]
+		datasets[i].BackgroundColour = chartBackgroundColours[i]
+	}
+
+	return ChartData{
+		Labels:   labels,
+		Datasets: datasets,
+	}
 }
 
 func (d *DashboardController) UploadExpenses(c *gin.Context) {
@@ -117,23 +201,28 @@ func (d *DashboardController) UploadExpenses(c *gin.Context) {
 		}
 	}
 
-	categoryTotals := expense.CalculateTotalsPerCategory(expenses)
-	subcategoryTotals := expense.CalculateTotalsPerSubCategory(expenses)
-	mom := expense.CalculateMonthOverMonthTotals(expenses)
-	labels, amountsByCategory := getMOMData(mom)
+	expense.SortByDate(expenses)
 
 	mostRecent := expense.FindMostRecentTime(expenses)
 	mostRecentMonthYear := expense.NewMonthYear(mostRecent)
 
+	categoryTotals := expense.CalculateTotalsPerCategory(expenses)
+	categoryLabels := getSecondClassifier(categoryTotals)
+	categoryChartData := buildChartData(categoryLabels, categoryTotals)
+
+	subcategoryTotals := expense.CalculateTotalsPerSubCategory(expenses)
+	subcategoryLabels := getSecondClassifier(subcategoryTotals)
+	subcategoryChartData := buildChartData(subcategoryLabels, subcategoryTotals)
+
 	c.HTML(http.StatusOK, "dashboard.html", gin.H{
-		"PrettyMonthYear":    mostRecent.Format("January 2006"),
-		"Categories":         getSecondClassifier(categoryTotals),
-		"CategoryAmounts":    getAmountsForMonth(mostRecentMonthYear, categoryTotals),
-		"SubCategories":      getSecondClassifier(subcategoryTotals),
-		"SubCategoryAmounts": getAmountsForMonth(mostRecentMonthYear, subcategoryTotals),
-		"MOMLabels":          labels,
-		"MOMData":            amountsByCategory,
-		"User":               user,
+		"PrettyMonthYear":        mostRecent.Format("January 2006"),
+		"NoExpenses":             len(expenses) == 0,
+		"Categories":             categoryLabels,
+		"CategoriesChartData":    categoryChartData,
+		"SubCategories":          subcategoryLabels,
+		"SubCategoriesChartData": subcategoryChartData,
+		"TopCategories":          expense.GetTop3ExpenseCategories(expenses, mostRecentMonthYear),
+		"User":                   user,
 	})
 }
 
@@ -151,31 +240,6 @@ func getSecondClassifier(calculations map[string]map[string]float32) []string {
 
 	sort.Strings(classifierSlice)
 	return classifierSlice
-}
-
-func getAmountsForMonth(monthYear string, calculations map[string]map[string]float32) []string {
-	uniqueCategories := getSecondClassifier(calculations)
-	amounts := []string{}
-	for _, category := range uniqueCategories {
-		amounts = append(amounts, fmt.Sprintf("%.2f", calculations[monthYear][category]))
-	}
-
-	return amounts
-}
-
-func getMOMData(calculations map[string]map[string]float32) ([]string, map[string][]string) {
-	uniqueMonths := getSecondClassifier(calculations)
-
-	amountsPerMonthByCategory := map[string][]string{}
-
-	for category := range calculations {
-		for _, month := range uniqueMonths {
-			amount := calculations[category][month]
-			amountsPerMonthByCategory[category] = append(amountsPerMonthByCategory[category], fmt.Sprintf("%.2f", amount))
-		}
-	}
-
-	return uniqueMonths, amountsPerMonthByCategory
 }
 
 func readExpensesFromCSV(filename string) ([]expense.Expense, error) {
