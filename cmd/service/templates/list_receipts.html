@@ -8,8 +8,14 @@
       <p>You can upload receipts through our Telegram bot :)</p>
     </div>
     <div style="display: flex; justify-content: center; width: 100%;">
-      <button class="btn btn-primary f-left review-receipt-btn"> {{ .ReceiptsPendingReview }} Pending Review </button>
-      <button class="btn btn-default f-left review-receipt-btn"> {{ .ReceiptsReviewed }} Reviewed </button>
+
+      <!-- FIXME: This is actually unintuitive because the query lists ALL
+          receipts pending review, not the ones the link says -->
+      <a class="btn btn-primary f-left review-receipt-btn" href="?status=pending_review"> 
+        {{ .ReceiptsPendingReview }} Pending Review
+      </a>
+
+      <a class="btn btn-default f-left review-receipt-btn" href="/"> {{ .ReceiptsReviewed }} Reviewed </a>
 
     </div>
     <div>

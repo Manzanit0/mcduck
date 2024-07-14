@@ -283,6 +283,35 @@ func (r *Repository) ListReceiptsPreviousMonth(ctx context.Context, email string
 	return domainReceipts, nil
 }
 
+func (r *Repository) ListReceiptsPendingReview(ctx context.Context, email string) ([]Receipt, error) {
+	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
+
+	query, args, err := psql.
+		Select("id", "vendor", "pending_review", "receipt_date").
+		From("receipts").
+		Where(sq.And{
+			sq.Eq{"user_email": email},
+			sq.Eq{"pending_review": true},
+		}).
+		ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("compile query: %w", err)
+	}
+
+	var receipts []dbReceipt
+	err = r.dbx.SelectContext(ctx, &receipts, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("select receipts: %w", err)
+	}
+
+	var domainReceipts []Receipt
+	for _, receipt := range receipts {
+		domainReceipts = append(domainReceipts, *receipt.MapReceipt())
+	}
+
+	return domainReceipts, nil
+}
+
 func (r *Repository) GetReceipt(ctx context.Context, receiptID uint64) (*Receipt, error) {
 	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
 

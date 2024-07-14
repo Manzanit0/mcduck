@@ -41,6 +41,11 @@ func (d *ReceiptsController) ListReceipts(c *gin.Context) {
 		return
 	}
 
+	receiptStatus := c.Query("status")
+	if receiptStatus == "pending_review" {
+		receipts, err = d.Receipts.ListReceiptsPendingReview(c.Request.Context(), userEmail)
+	}
+
 	if err != nil {
 		slog.Error("failed to list receipts", "error", err.Error())
 		c.HTML(http.StatusOK, "error.html", gin.H{"error": "We were unable to find your receipts - please try again."})
