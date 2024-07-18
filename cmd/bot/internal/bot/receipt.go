@@ -18,7 +18,7 @@ const (
 )
 
 func GetDocument(ctx context.Context, tgramClient tgram.Client, fileID string) ([]byte, error) {
-	_, span := xtrace.Span(ctx, "telegram.GetFile")
+	_, span := xtrace.StartSpan(ctx, "telegram.GetFile")
 	file, err := tgramClient.GetFile(tgram.GetFileRequest{FileID: fileID})
 	if err != nil {
 		span.RecordError(err)
@@ -26,7 +26,7 @@ func GetDocument(ctx context.Context, tgramClient tgram.Client, fileID string) (
 	}
 	span.End()
 
-	_, span = xtrace.Span(ctx, "telegram.DownloadFile")
+	_, span = xtrace.StartSpan(ctx, "telegram.DownloadFile")
 	fileData, err := tgramClient.DownloadFile(file)
 	if err != nil {
 		span.RecordError(err)

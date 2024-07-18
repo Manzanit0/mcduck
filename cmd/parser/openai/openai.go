@@ -72,7 +72,7 @@ type Receipt struct {
 }
 
 func Completions(ctx context.Context, openaiToken string, request Request) (*Response, error) {
-	ctx, span := xtrace.Span(ctx, "OpenAI: Prompt Chat Completion")
+	ctx, span := xtrace.StartSpan(ctx, "OpenAI: Prompt Chat Completion")
 	defer span.End()
 
 	payload, err := json.Marshal(request)

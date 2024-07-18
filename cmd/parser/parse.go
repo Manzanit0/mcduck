@@ -77,7 +77,7 @@ func NewTextractParser(config aws.Config, openaiToken string) *TextractParser {
 }
 
 func (p TextractParser) ExtractReceipt(ctx context.Context, data []byte) (*Receipt, error) {
-	ctx, span := xtrace.Span(ctx, "Extract Receipt: Textract")
+	ctx, span := xtrace.StartSpan(ctx, "Extract Receipt: Textract")
 	defer span.End()
 
 	jobID, err := p.StartDocumentTextDetection(ctx, data)
@@ -124,7 +124,7 @@ func (p TextractParser) ExtractReceipt(ctx context.Context, data []byte) (*Recei
 func (p TextractParser) StartDocumentTextDetection(ctx context.Context, data []byte) (string, error) {
 	filename := fmt.Sprintf("%s.pdf", ksuid.New().String())
 
-	_, span := xtrace.Span(ctx, "AWS S3 PUT")
+	_, span := xtrace.StartSpan(ctx, "AWS S3 PUT")
 	_, err := p.sthree.PutObject(ctx, &s3.PutObjectInput{
 		Bucket: aws.String("scratch-go"),
 		Key:    aws.String(filename),
@@ -136,7 +136,7 @@ func (p TextractParser) StartDocumentTextDetection(ctx context.Context, data []b
 	}
 	span.End()
 
-	_, span = xtrace.Span(ctx, "AWS Textract StartDocumentTextDetection")
+	_, span = xtrace.StartSpan(ctx, "AWS Textract StartDocumentTextDetection")
 	defer span.End()
 
 	resp, err := p.tx.StartDocumentTextDetection(ctx, &textract.StartDocumentTextDetectionInput{
@@ -157,7 +157,7 @@ func (p TextractParser) StartDocumentTextDetection(ctx context.Context, data []b
 }
 
 func (p TextractParser) GetDocumentText(ctx context.Context, jobID string) (string, error) {
-	ctx, span := xtrace.Span(ctx, "Poll AWS Textract Results")
+	ctx, span := xtrace.StartSpan(ctx, "Poll AWS Textract Results")
 	defer span.End()
 
 	var out *textract.GetDocumentTextDetectionOutput
@@ -170,7 +170,7 @@ outer:
 			return "", ctx.Err()
 
 		default:
-			_, span := xtrace.Span(ctx, "AWS Textract GetDocumentTextDetection")
+			_, span := xtrace.StartSpan(ctx, "AWS Textract GetDocumentTextDetection")
 			out, err = p.tx.GetDocumentTextDetection(ctx, &textract.GetDocumentTextDetectionInput{JobId: &jobID})
 			if err != nil {
 				span.RecordError(err)
@@ -183,7 +183,7 @@ outer:
 				break outer
 			}
 
-			_, span = xtrace.Span(ctx, "time.Sleep")
+			_, span = xtrace.StartSpan(ctx, "time.Sleep")
 			time.Sleep(1 * time.Second)
 			span.End()
 		}
@@ -257,10 +257,10 @@ func NewNaivePDFParser(openaiToken string) *NaivePDFParser {
 var _ ReceiptParser = (*NaivePDFParser)(nil)
 
 func (p NaivePDFParser) ExtractReceipt(ctx context.Context, data []byte) (*Receipt, error) {
-	ctx, span := xtrace.Span(ctx, "Extract Receipt: Naive PDF read")
+	ctx, span := xtrace.StartSpan(ctx, "Extract Receipt: Naive PDF read")
 	defer span.End()
 
-	_, span = xtrace.Span(ctx, "Extract Text from PDF")
+	_, span = xtrace.StartSpan(ctx, "Extract Text from PDF")
 	r, err := pdf.NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != nil {
 		span.RecordError(err)

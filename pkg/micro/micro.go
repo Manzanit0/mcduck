@@ -32,6 +32,7 @@ func NewGinService(name string) (Service, error) {
 	r := gin.Default()
 	r.Use(xlog.EnhanceContext)
 	r.Use(tp.TraceRequests())
+	r.Use(tp.EnhanceTraceMetadata())
 
 	r.GET("/ping", func(c *gin.Context) {
 		c.JSON(200, gin.H{

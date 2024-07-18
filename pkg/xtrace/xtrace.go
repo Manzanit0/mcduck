@@ -4,15 +4,19 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/manzanit0/mcduck/pkg/auth"
 	"google.golang.org/grpc/credentials"
 
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/propagation"
@@ -31,12 +35,28 @@ func (tp Provider) TraceRequests() gin.HandlerFunc {
 	return otelgin.Middleware(tp.serviceName)
 }
 
+func (tp Provider) EnhanceTraceMetadata() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		span := trace.SpanFromContext(c.Request.Context())
+		span.SetAttributes(attribute.String("mduck.user.email", auth.GetUserEmail(c)))
+		c.Next()
+	}
+}
+
 func Tracer() trace.Tracer {
 	return otel.GetTracerProvider().Tracer("xtrace")
 }
 
-func Span(ctx context.Context, spanName string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {
+func StartSpan(ctx context.Context, spanName string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {
 	return Tracer().Start(ctx, spanName, opts...)
+}
+
+func RecordError(ctx context.Context, description string, err error) {
+	span := trace.SpanFromContext(ctx)
+	span.SetStatus(codes.Error, description)
+	span.RecordError(err)
+
+	slog.ErrorContext(ctx, description, "error", err.Error())
 }
 
 func TracerFromEnv(ctx context.Context, service string) (*Provider, error) {

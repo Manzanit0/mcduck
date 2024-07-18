@@ -11,7 +11,7 @@ import (
 )
 
 func LoginLink(ctx context.Context, r *tgram.WebhookRequest) *tgram.WebhookResponse {
-	_, span := xtrace.Span(ctx, "Build Login Link")
+	_, span := xtrace.StartSpan(ctx, "Build Login Link")
 	defer span.End()
 
 	host := os.Getenv("MCDUCK_HOST")
