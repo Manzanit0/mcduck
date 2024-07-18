@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/manzanit0/mcduck/cmd/parser/openai"
+	"github.com/manzanit0/mcduck/pkg/xtrace"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -17,8 +18,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/textract/types"
 	"github.com/martoche/pdf"
 	"github.com/segmentio/ksuid"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/trace"
 )
 
 const initialPrompt = `
@@ -65,32 +64,31 @@ type TextractParser struct {
 	openaiToken string
 	tx          *textract.Client
 	sthree      *s3.Client
-	tp          trace.Tracer
 }
 
 var _ ReceiptParser = (*TextractParser)(nil)
 
 func NewTextractParser(config aws.Config, openaiToken string) *TextractParser {
-	tp := otel.GetTracerProvider().Tracer("parser")
 	return &TextractParser{
 		openaiToken: openaiToken,
 		sthree:      s3.NewFromConfig(config),
 		tx:          textract.NewFromConfig(config),
-		tp:          tp,
 	}
 }
 
 func (p TextractParser) ExtractReceipt(ctx context.Context, data []byte) (*Receipt, error) {
-	ctx, span := p.tp.Start(ctx, "Extract Receipt: Textract")
+	ctx, span := xtrace.Span(ctx, "Extract Receipt: Textract")
 	defer span.End()
 
 	jobID, err := p.StartDocumentTextDetection(ctx, data)
 	if err != nil {
+		span.RecordError(err)
 		return nil, err
 	}
 
 	receiptText, err := p.GetDocumentText(ctx, jobID)
 	if err != nil {
+		span.RecordError(err)
 		return nil, err
 	}
 
@@ -116,6 +114,7 @@ func (p TextractParser) ExtractReceipt(ctx context.Context, data []byte) (*Recei
 
 	response, err := openai.Completions(ctx, p.openaiToken, payload)
 	if err != nil {
+		span.RecordError(err)
 		return nil, fmt.Errorf("get openai completions: %w", err)
 	}
 
@@ -125,18 +124,19 @@ func (p TextractParser) ExtractReceipt(ctx context.Context, data []byte) (*Recei
 func (p TextractParser) StartDocumentTextDetection(ctx context.Context, data []byte) (string, error) {
 	filename := fmt.Sprintf("%s.pdf", ksuid.New().String())
 
-	_, span := p.tp.Start(ctx, "AWS S3 PUT")
+	_, span := xtrace.Span(ctx, "AWS S3 PUT")
 	_, err := p.sthree.PutObject(ctx, &s3.PutObjectInput{
 		Bucket: aws.String("scratch-go"),
 		Key:    aws.String(filename),
 		Body:   bytes.NewBuffer(data),
 	})
 	if err != nil {
+		span.RecordError(err)
 		return "", fmt.Errorf("AWS S3 PUT: %w", err)
 	}
 	span.End()
 
-	_, span = p.tp.Start(ctx, "AWS Textract StartDocumentTextDetection")
+	_, span = xtrace.Span(ctx, "AWS Textract StartDocumentTextDetection")
 	defer span.End()
 
 	resp, err := p.tx.StartDocumentTextDetection(ctx, &textract.StartDocumentTextDetectionInput{
@@ -149,6 +149,7 @@ func (p TextractParser) StartDocumentTextDetection(ctx context.Context, data []b
 		JobTag: aws.String("scratch-go"),
 	})
 	if err != nil {
+		span.RecordError(err)
 		return "", fmt.Errorf("AWS Textract StartDocumentTextDetection: %w", err)
 	}
 
@@ -156,7 +157,7 @@ func (p TextractParser) StartDocumentTextDetection(ctx context.Context, data []b
 }
 
 func (p TextractParser) GetDocumentText(ctx context.Context, jobID string) (string, error) {
-	ctx, span := p.tp.Start(ctx, "Poll AWS Textract Results")
+	ctx, span := xtrace.Span(ctx, "Poll AWS Textract Results")
 	defer span.End()
 
 	var out *textract.GetDocumentTextDetectionOutput
@@ -169,9 +170,10 @@ outer:
 			return "", ctx.Err()
 
 		default:
-			_, span := p.tp.Start(ctx, "AWS Textract GetDocumentTextDetection")
+			_, span := xtrace.Span(ctx, "AWS Textract GetDocumentTextDetection")
 			out, err = p.tx.GetDocumentTextDetection(ctx, &textract.GetDocumentTextDetectionInput{JobId: &jobID})
 			if err != nil {
+				span.RecordError(err)
 				return "", fmt.Errorf("getting textract job status: %w", err)
 			}
 
@@ -181,7 +183,7 @@ outer:
 				break outer
 			}
 
-			_, span = p.tp.Start(ctx, "time.Sleep")
+			_, span = xtrace.Span(ctx, "time.Sleep")
 			time.Sleep(1 * time.Second)
 			span.End()
 		}
@@ -246,33 +248,34 @@ func (p AIVisionParser) ExtractReceipt(ctx context.Context, data []byte) (*Recei
 // openAI.
 type NaivePDFParser struct {
 	openaiToken string
-	tp          trace.Tracer
 }
 
 func NewNaivePDFParser(openaiToken string) *NaivePDFParser {
-	tp := otel.GetTracerProvider().Tracer("parser")
-	return &NaivePDFParser{openaiToken: openaiToken, tp: tp}
+	return &NaivePDFParser{openaiToken: openaiToken}
 }
 
 var _ ReceiptParser = (*NaivePDFParser)(nil)
 
 func (p NaivePDFParser) ExtractReceipt(ctx context.Context, data []byte) (*Receipt, error) {
-	ctx, span := p.tp.Start(ctx, "Extract Receipt: Naive PDF read")
+	ctx, span := xtrace.Span(ctx, "Extract Receipt: Naive PDF read")
 	defer span.End()
 
-	_, span = p.tp.Start(ctx, "Extract Text from PDF")
+	_, span = xtrace.Span(ctx, "Extract Text from PDF")
 	r, err := pdf.NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != nil {
+		span.RecordError(err)
 		return nil, fmt.Errorf("new pdf reader: %w", err)
 	}
 
 	reader, err := r.GetPlainText()
 	if err != nil {
+		span.RecordError(err)
 		return nil, fmt.Errorf("get pdf text: %w", err)
 	}
 
 	buf, ok := reader.(*bytes.Buffer)
 	if !ok {
+		span.RecordError(err)
 		return nil, fmt.Errorf("github.com/martoche/pdf no longer uses bytes.Buffer to implement io.Reader")
 	}
 

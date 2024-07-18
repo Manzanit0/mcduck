@@ -1,4 +1,4 @@
-package trace
+package xtrace
 
 import (
 	"context"
@@ -19,6 +19,7 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.7.0"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Provider struct {
@@ -28,6 +29,14 @@ type Provider struct {
 
 func (tp Provider) TraceRequests() gin.HandlerFunc {
 	return otelgin.Middleware(tp.serviceName)
+}
+
+func Tracer() trace.Tracer {
+	return otel.GetTracerProvider().Tracer("xtrace")
+}
+
+func Span(ctx context.Context, spanName string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {
+	return Tracer().Start(ctx, spanName, opts...)
 }
 
 func TracerFromEnv(ctx context.Context, service string) (*Provider, error) {

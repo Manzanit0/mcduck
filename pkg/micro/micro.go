@@ -11,20 +11,20 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/manzanit0/mcduck/pkg/trace"
 	"github.com/manzanit0/mcduck/pkg/xlog"
+	"github.com/manzanit0/mcduck/pkg/xtrace"
 )
 
 type Service struct {
 	Name   string
 	Engine *gin.Engine
-	tp     *trace.Provider
+	tp     *xtrace.Provider
 }
 
 func NewGinService(name string) (Service, error) {
 	xlog.InitSlog()
 
-	tp, err := trace.TracerFromEnv(context.Background(), name)
+	tp, err := xtrace.TracerFromEnv(context.Background(), name)
 	if err != nil {
 		return Service{}, fmt.Errorf("get tracer from env %w", err)
 	}

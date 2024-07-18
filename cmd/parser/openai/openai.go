@@ -9,7 +9,7 @@ import (
 	"net/http"
 
 	"github.com/manzanit0/mcduck/pkg/xhttp"
-	"go.opentelemetry.io/otel"
+	"github.com/manzanit0/mcduck/pkg/xtrace"
 )
 
 // -- Request structures
@@ -72,8 +72,7 @@ type Receipt struct {
 }
 
 func Completions(ctx context.Context, openaiToken string, request Request) (*Response, error) {
-	tp := otel.GetTracerProvider().Tracer("parser")
-	ctx, span := tp.Start(ctx, "OpenAI: Prompt Chat Completion")
+	ctx, span := xtrace.Span(ctx, "OpenAI: Prompt Chat Completion")
 	defer span.End()
 
 	payload, err := json.Marshal(request)
@@ -83,6 +82,7 @@ func Completions(ctx context.Context, openaiToken string, request Request) (*Res
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://api.openai.com/v1/chat/completions", bytes.NewBuffer(payload))
 	if err != nil {
+		span.RecordError(err)
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 
@@ -99,17 +99,20 @@ func Completions(ctx context.Context, openaiToken string, request Request) (*Res
 
 	res, err := client.Do(req)
 	if err != nil {
+		span.RecordError(err)
 		return nil, fmt.Errorf("do request: %w", err)
 	}
 	defer res.Body.Close()
 
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
+		span.RecordError(err)
 		return nil, fmt.Errorf("read response body: %w", err)
 	}
 
 	var result Response
 	if err := json.Unmarshal(body, &result); err != nil {
+		span.RecordError(err)
 		return nil, fmt.Errorf("unmarshal response: %w", err)
 	}
 

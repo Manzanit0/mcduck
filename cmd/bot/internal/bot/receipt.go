@@ -9,8 +9,8 @@ import (
 
 	"github.com/manzanit0/mcduck/internal/client"
 	"github.com/manzanit0/mcduck/pkg/tgram"
+	"github.com/manzanit0/mcduck/pkg/xtrace"
 	"github.com/olekukonko/tablewriter"
-	"go.opentelemetry.io/otel"
 )
 
 const (
@@ -18,18 +18,18 @@ const (
 )
 
 func GetDocument(ctx context.Context, tgramClient tgram.Client, fileID string) ([]byte, error) {
-	tp := otel.GetTracerProvider().Tracer("tgram-bot")
-
-	_, span := tp.Start(ctx, "telegram.GetFile")
+	_, span := xtrace.Span(ctx, "telegram.GetFile")
 	file, err := tgramClient.GetFile(tgram.GetFileRequest{FileID: fileID})
 	if err != nil {
+		span.RecordError(err)
 		return nil, fmt.Errorf("get file: %w", err)
 	}
 	span.End()
 
-	_, span = tp.Start(ctx, "telegram.DownloadFile")
+	_, span = xtrace.Span(ctx, "telegram.DownloadFile")
 	fileData, err := tgramClient.DownloadFile(file)
 	if err != nil {
+		span.RecordError(err)
 		return nil, fmt.Errorf("download file: %w", err)
 	}
 	span.End()
