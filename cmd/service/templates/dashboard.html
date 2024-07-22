@@ -5,6 +5,18 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
   </header>
+  <style>
+    a.active {
+      background-color: var(--primary-color);
+      color: var(--invert-font-color);
+    }
+
+    /* Style the tab content */
+    .tabcontent {
+      display: none;
+      padding: 6px 12px;
+    }
+  </style>
   <body>
     {{template "navbar" .}}
     <div>
@@ -26,21 +38,41 @@
         <div style="display: flex; justify-content: center; gap: 10px">
           {{ range $e := .TopCategories }}
           <div class="terminal-card">
-            <header>{{ $e.Category }}</header>
+            <header style="padding: 10px;">{{ $e.Category }}</header>
             <div>{{ $e.TotalAmount }} €</div>
           </div>
           {{ end }}
         </div>
       </div>
       <div>
-        <div class="chart">
+        <section id="category-chart">
           <h2>Expenses per category</h2>
           <canvas id="categoriesChart"></canvas>
-        </div>
-        <div class="chart">
-          <h2>Expenses per sub-category</h2>
-          <canvas id="subcategoriesChart"></canvas>
-        </div>
+        </section>
+        <section id="subcategory-charts">
+          <h2 style="margin-top: 50px;">Subcategories grouped by category</h2>
+          <div style="display: flex;">
+            <div style="flex: 0 0 20%">
+              <nav> 
+                <ul>
+                {{range $e := .Categories }}
+                <li>
+                    <a class="link" onclick="selectCategory(event, '{{ $e }}')">{{ $e }}</a>
+                </li>
+                {{ end }}
+                </ul>
+              </nav>
+            </div>
+
+            <div style="flex: 1">
+              {{range $e := .Categories }}
+              <div id="{{ $e }}" class="tabcontent">
+                <canvas id="subcategoriesChart{{$e}}"></canvas>
+              </div>
+              {{ end }}
+            </div>
+          </div>
+        </section>
       </div>
       {{ end }}
     </div>
@@ -56,9 +88,6 @@
       align: 'top',
       clamp: true,
     });
-
-    const lastMonth = {{.PrettyMonthYear}};
-    let labels = {{.Categories}};
 
     let data = {
       labels: {{ .CategoriesChartData.Labels }},
@@ -94,12 +123,11 @@
     );
   </script>
   <script>
-    labels = {{.Categories}};
-
+    {{range $category := .Categories }}
     data = {
-      labels: {{ .SubCategoriesChartData.Labels }},
+      labels: {{ $.SubCategoriesChartData.Labels }},
       datasets: [
-      {{ range $e := .SubCategoriesChartData.Datasets }}
+      {{ range $e := $.SubCategoriesChartData.Datasets }}
         {
           label: {{$e.Label}},
           data: {{$e.Data}},
@@ -125,8 +153,32 @@
       },
     };
     myChart = new Chart(
-      document.getElementById("subcategoriesChart"),
+      document.getElementById("subcategoriesChart{{$category}}"),
       config
     );
+    {{end}}
+  </script>
+
+  <script>
+    function selectCategory(evt, categoryName) {
+      const tabcontent = document.getElementsByClassName("tabcontent");
+      for (let i = 0; i < tabcontent.length; i++) {
+        tabcontent[i].style.display = "none";
+      }
+
+      // const tablinks = document.getElementsByClassName("tablinks");
+      const tablinks = document.getElementsByClassName("link");
+      for (let i = 0; i < tablinks.length; i++) {
+        tablinks[i].className = tablinks[i].className.replace(" active", "");
+      }
+
+      document.getElementById(categoryName).style.display = "block";
+      evt.currentTarget.className += " active";
+    }
+
+
+    // Display first tab by default
+    document.getElementsByClassName("link")[0].className += " active";
+    document.getElementsByClassName("tabcontent")[0].style.display = "block";
   </script>
 </html>
