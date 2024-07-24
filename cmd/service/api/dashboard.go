@@ -36,6 +36,7 @@ var chartBackgroundColours = []string{
 }
 
 type ChartData struct {
+	Title    string
 	Labels   []string
 	Datasets []Dataset
 }
@@ -112,28 +113,69 @@ func (d *DashboardController) Dashboard(c *gin.Context) {
 	categoryLabels := getSecondClassifier(categoryTotals)
 	categoryChartData := buildChartData(categoryLabels, categoryTotals)
 
-	subcategoryTotals := expense.CalculateTotalsPerSubCategory(expenses)
-	subcategoryLabels := getSecondClassifier(subcategoryTotals)
-	subcategoryChartData := buildChartData(subcategoryLabels, subcategoryTotals)
+	var subcategoryCharts []ChartData
+	for cat, subcats := range GroupSubcategoriesByCategory(expenses) {
+		filtered := FilterByCategory(expenses, cat)
+		subcategoryTotals := expense.CalculateTotalsPerSubCategory(filtered)
+		subcategoryChartData := buildChartData(subcats, subcategoryTotals)
+
+		subcategoryChartData.Title = cat
+
+		subcategoryCharts = append(subcategoryCharts, subcategoryChartData)
+	}
 
 	c.HTML(http.StatusOK, "dashboard.html", gin.H{
 		"PrettyMonthYear":        mostRecent.Format("January 2006"),
 		"NoExpenses":             len(expenses) == 0,
 		"Categories":             categoryLabels,
 		"CategoriesChartData":    categoryChartData,
-		"SubCategories":          subcategoryLabels,
-		"SubCategoriesChartData": subcategoryChartData,
+		"SubcategoriesChartData": subcategoryCharts,
 		"TopCategories":          expense.GetTop3ExpenseCategories(expenses, mostRecentMonthYear),
 		"User":                   user,
 	})
+}
+
+func FilterByCategory(list []expense.Expense, cat string) []expense.Expense {
+	var filtered []expense.Expense
+	for i := range list {
+		if list[i].Category == cat {
+			filtered = append(filtered, list[i])
+		}
+	}
+
+	return filtered
+}
+
+func GroupSubcategoriesByCategory(list []expense.Expense) map[string][]string {
+	m := map[string]map[string]bool{}
+	for _, e := range list {
+		if _, ok := m[e.Category]; !ok {
+			m[e.Category] = map[string]bool{}
+		}
+
+		m[e.Category][e.Subcategory] = true
+	}
+
+	mm := map[string][]string{}
+	for k, v := range m {
+		if _, ok := mm[k]; !ok {
+			mm[k] = []string{}
+		}
+
+		for s := range v {
+			mm[k] = append(mm[k], s)
+		}
+	}
+
+	return mm
 }
 
 func buildChartData(labels []string, totals map[string]map[string]float32) ChartData {
 	var datasets []Dataset
 	for monthYear, amountsByCategory := range totals { // totalsByMonth[monthYear][expense.Category] += expense.Amount
 		var data []string
-		for _, category := range labels {
-			if amount, ok := amountsByCategory[category]; ok {
+		for _, label := range labels {
+			if amount, ok := amountsByCategory[label]; ok {
 				data = append(data, fmt.Sprintf("%.2f", amount))
 			} else {
 				data = append(data, "0.00")

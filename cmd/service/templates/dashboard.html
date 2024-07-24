@@ -123,11 +123,11 @@
     );
   </script>
   <script>
-    {{range $category := .Categories }}
+    {{range $data := .SubcategoriesChartData }}
     data = {
-      labels: {{ $.SubCategoriesChartData.Labels }},
+      labels: {{ $data.Labels }},
       datasets: [
-      {{ range $e := $.SubCategoriesChartData.Datasets }}
+      {{ range $e := $data.Datasets }}
         {
           label: {{$e.Label}},
           data: {{$e.Data}},
@@ -153,7 +153,7 @@
       },
     };
     myChart = new Chart(
-      document.getElementById("subcategoriesChart{{$category}}"),
+      document.getElementById("subcategoriesChart{{$data.Title}}"),
       config
     );
     {{end}}
