@@ -10,6 +10,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
+	"time"
 
 	"github.com/manzanit0/mcduck/pkg/auth"
 	"github.com/manzanit0/mcduck/pkg/xhttp"
@@ -36,6 +37,11 @@ var _ ParserClient = (*parserClient)(nil)
 
 func NewParserClient(host string) *parserClient {
 	h := xhttp.NewClient()
+
+	// NOTE: the current implementation can take quite _long_ when working with
+	// non-image documents
+	h.Timeout = 2 * time.Minute
+
 	return &parserClient{Host: host, h: h}
 }
 
