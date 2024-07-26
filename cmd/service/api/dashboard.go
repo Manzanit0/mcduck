@@ -67,28 +67,33 @@ func (d *DashboardController) LiveDemo(c *gin.Context) {
 	categoryLabels := getSecondClassifier(categoryTotals)
 	categoryChartData := buildChartData(categoryLabels, categoryTotals)
 
-	subcategoryTotals := expense.CalculateTotalsPerSubCategory(expenses)
-	subcategoryLabels := getSecondClassifier(subcategoryTotals)
-	subcategoryChartData := buildChartData(subcategoryLabels, subcategoryTotals)
-
 	// Since this is for public demoing, we might as well show-off the whole data
 	// off the bat.
 	for i := range categoryChartData.Datasets {
 		categoryChartData.Datasets[i].Hidden = false
 	}
 
-	for i := range subcategoryChartData.Datasets {
-		subcategoryChartData.Datasets[i].Hidden = false
+	var subcategoryCharts []ChartData
+	for cat, subcats := range GroupSubcategoriesByCategory(expenses) {
+		filtered := FilterByCategory(expenses, cat)
+		subcategoryTotals := expense.CalculateTotalsPerSubCategory(filtered)
+		subcategoryChartData := buildChartData(subcats, subcategoryTotals)
+
+		subcategoryChartData.Title = cat
+
+		subcategoryCharts = append(subcategoryCharts, subcategoryChartData)
 	}
+
+	totalSpendsArr := TotalSpendLastThreeMonths(expenses)
 
 	c.HTML(http.StatusOK, "dashboard.html", gin.H{
 		"PrettyMonthYear":        mostRecent.Format("January 2006"),
 		"NoExpenses":             len(expenses) == 0,
 		"Categories":             categoryLabels,
 		"CategoriesChartData":    categoryChartData,
-		"SubCategories":          subcategoryLabels,
-		"SubCategoriesChartData": subcategoryChartData,
+		"SubcategoriesChartData": subcategoryCharts,
 		"TopCategories":          expense.GetTop3ExpenseCategories(expenses, mostRecentMonthYear),
+		"TotalSpends":            totalSpendsArr,
 	})
 }
 
@@ -147,9 +152,10 @@ type MonthlySpend struct {
 }
 
 func TotalSpendLastThreeMonths(expenses []expense.Expense) []*MonthlySpend {
+	latest := expense.FindMostRecentTime(expenses)
 	totalSpends := map[string]*MonthlySpend{}
 	for i := range expenses {
-		if isOlderThanLastThreeMonths(expenses[i].Date) {
+		if isOlderThanLastThreeMonths(expenses[i].Date, latest) {
 			continue
 		}
 
@@ -180,14 +186,14 @@ func TotalSpendLastThreeMonths(expenses []expense.Expense) []*MonthlySpend {
 	return sortedTotalSpends
 }
 
-func isOlderThanLastThreeMonths(d time.Time) bool {
+func isOlderThanLastThreeMonths(t time.Time, latest time.Time) bool {
 	// 15th of March 2022-> 15th of December 2022
-	year, month, _ := time.Now().AddDate(0, -2, 0).Date()
+	year, month, _ := latest.AddDate(0, -2, 0).Date()
 
 	// 1st of December 2022
 	beginningOf3MonthsAgo := time.Date(year, month, 1, 0, 0, 0, 0, time.Now().Location())
 
-	return d.Before(beginningOf3MonthsAgo)
+	return t.Before(beginningOf3MonthsAgo)
 }
 
 func FilterByCategory(list []expense.Expense, cat string) []expense.Expense {
