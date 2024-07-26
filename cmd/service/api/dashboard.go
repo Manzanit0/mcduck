@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -124,6 +125,8 @@ func (d *DashboardController) Dashboard(c *gin.Context) {
 		subcategoryCharts = append(subcategoryCharts, subcategoryChartData)
 	}
 
+	totalSpendsArr := TotalSpendLastThreeMonths(expenses)
+
 	c.HTML(http.StatusOK, "dashboard.html", gin.H{
 		"PrettyMonthYear":        mostRecent.Format("January 2006"),
 		"NoExpenses":             len(expenses) == 0,
@@ -131,8 +134,60 @@ func (d *DashboardController) Dashboard(c *gin.Context) {
 		"CategoriesChartData":    categoryChartData,
 		"SubcategoriesChartData": subcategoryCharts,
 		"TopCategories":          expense.GetTop3ExpenseCategories(expenses, mostRecentMonthYear),
+		"TotalSpends":            totalSpendsArr,
 		"User":                   user,
 	})
+}
+
+type MonthlySpend struct {
+	date      time.Time
+	amount    float32
+	MonthYear string
+	Amount    string
+}
+
+func TotalSpendLastThreeMonths(expenses []expense.Expense) []*MonthlySpend {
+	totalSpends := map[string]*MonthlySpend{}
+	for i := range expenses {
+		if isOlderThanLastThreeMonths(expenses[i].Date) {
+			continue
+		}
+
+		key := expenses[i].Date.Format("January 2006")
+		val, ok := totalSpends[key]
+		if !ok {
+			totalSpends[key] = &MonthlySpend{
+				date:      expenses[i].Date,
+				MonthYear: key,
+				amount:    expenses[i].Amount,
+				Amount:    fmt.Sprintf("%.2f", expenses[i].Amount),
+			}
+		} else {
+			val.amount += expenses[i].Amount
+			val.Amount = fmt.Sprintf("%.2f", val.amount)
+		}
+	}
+
+	sortedTotalSpends := []*MonthlySpend{}
+	for _, a := range totalSpends {
+		sortedTotalSpends = append(sortedTotalSpends, a)
+	}
+
+	sort.Slice(sortedTotalSpends, func(i, j int) bool {
+		return sortedTotalSpends[i].date.Before(sortedTotalSpends[j].date)
+	})
+
+	return sortedTotalSpends
+}
+
+func isOlderThanLastThreeMonths(d time.Time) bool {
+	// 15th of March 2022-> 15th of December 2022
+	year, month, _ := time.Now().AddDate(0, -2, 0).Date()
+
+	// 1st of December 2022
+	beginningOf3MonthsAgo := time.Date(year, month, 1, 0, 0, 0, 0, time.Now().Location())
+
+	return d.Before(beginningOf3MonthsAgo)
 }
 
 func FilterByCategory(list []expense.Expense, cat string) []expense.Expense {

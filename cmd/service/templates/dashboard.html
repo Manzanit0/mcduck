@@ -34,8 +34,17 @@
       <div>{{ template "_upload_expenses_form" }}</div>
       {{ else }}
       <div>
+        <h2>Total Spend Last 3 Months</h2>
+        <div style="display: flex; justify-content: center; gap: 20px; margin-bottom: 50px;">
+        {{ range $e := .TotalSpends }}
+          <div class="terminal-card">
+            <header style="padding: 10px;"> {{ $e.MonthYear }}</header>
+            <div>{{ $e.Amount }} €</div>
+          </div>
+        {{ end }}
+        </div>
         <h2>Top Categories {{ .PrettyMonthYear }}</h2>
-        <div style="display: flex; justify-content: center; gap: 10px">
+        <div style="display: flex; justify-content: center; gap: 20px; margin-bottom: 50px;">
           {{ range $e := .TopCategories }}
           <div class="terminal-card">
             <header style="padding: 10px;">{{ $e.Category }}</header>
