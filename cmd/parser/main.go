@@ -11,6 +11,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/gin-gonic/gin"
+	"github.com/manzanit0/mcduck/internal/parser"
 	"github.com/manzanit0/mcduck/pkg/micro"
 )
 
@@ -36,8 +37,8 @@ func main() {
 		panic(err)
 	}
 
-	textractParser := NewTextractParser(config, apiKey)
-	aivisionParser := NewAIVisionParser(apiKey)
+	textractParser := parser.NewTextractParser(config, apiKey)
+	aivisionParser := parser.NewAIVisionParser(apiKey)
 
 	svc.Engine.POST("/receipt", func(c *gin.Context) {
 		file, err := c.FormFile("receipt")
@@ -60,7 +61,7 @@ func main() {
 			return
 		}
 
-		var response *Receipt
+		var response *parser.Receipt
 		switch http.DetectContentType(data) {
 		case "application/pdf":
 			response, err = textractParser.ExtractReceipt(c.Request.Context(), data)
