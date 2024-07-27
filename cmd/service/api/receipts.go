@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/sync/errgroup"
+
 	"github.com/gin-gonic/gin"
 	"github.com/manzanit0/mcduck/internal/client"
 	"github.com/manzanit0/mcduck/internal/expense"
@@ -289,6 +291,7 @@ func (d *ReceiptsController) DeleteReceipt(c *gin.Context) {
 }
 
 func (d *ReceiptsController) UploadReceipts(c *gin.Context) {
+	ctx := c.Request.Context()
 	form, err := c.MultipartForm()
 	if err != nil {
 		c.String(http.StatusBadRequest, "get form error: %s", err.Error())
@@ -300,47 +303,50 @@ func (d *ReceiptsController) UploadReceipts(c *gin.Context) {
 		return
 	}
 
+	g, ctx := errgroup.WithContext(ctx)
 	for _, file := range form.File["files"] {
-		filename := filepath.Base(file.Filename)
-		if err := c.SaveUploadedFile(file, filename); err != nil {
-			c.String(http.StatusInternalServerError, "upload file error: %s", err.Error())
-			return
-		}
+		g.Go(func() error {
+			filename := filepath.Base(file.Filename)
+			if err := c.SaveUploadedFile(file, filename); err != nil {
+				return fmt.Errorf("save uploaded file: %w", err)
+			}
 
-		data, err := os.ReadFile(filename)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("unable to read file from disk: %s", err.Error())})
-			return
-		}
+			data, err := os.ReadFile(filename)
+			if err != nil {
+				return fmt.Errorf("read file: %w", err)
+			}
 
-		email := auth.GetUserEmail(c)
+			email := auth.GetUserEmail(c)
+			parsed, err := d.Parser.ParseReceipt(ctx, email, data)
+			if err != nil {
+				return fmt.Errorf("parse receipt: %w", err)
+			}
 
-		parsed, err := d.Parser.ParseReceipt(c.Request.Context(), email, data)
-		if err != nil {
-			slog.Error("failed to parse receipt through parser service", "error", err.Error())
-			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable to parse receipt: %s", err.Error())})
-			return
-		}
+			parsedTime, err := time.Parse("02/01/2006", parsed.PurchaseDate)
+			if err != nil {
+				slog.Info("failed to parse receipt date. Defaulting to 'now' ", "error", err.Error())
+				parsedTime = time.Now()
+			}
 
-		parsedTime, err := time.Parse("02/01/2006", parsed.PurchaseDate)
-		if err != nil {
-			slog.Info("failed to parse receipt date. Defaulting to 'now' ", "error", err.Error())
-			parsedTime = time.Now()
-		}
+			_, err = d.Receipts.CreateReceipt(ctx, receipt.CreateReceiptRequest{
+				Amount:      parsed.Amount,
+				Description: parsed.Description,
+				Vendor:      parsed.Vendor,
+				Image:       data,
+				Date:        parsedTime,
+				Email:       email,
+			})
+			if err != nil {
+				return fmt.Errorf("create receipt: %w", err)
+			}
 
-		_, err = d.Receipts.CreateReceipt(c.Request.Context(), receipt.CreateReceiptRequest{
-			Amount:      parsed.Amount,
-			Description: parsed.Description,
-			Vendor:      parsed.Vendor,
-			Image:       data,
-			Date:        parsedTime,
-			Email:       email,
+			return nil
 		})
-		if err != nil {
-			slog.Error("failed to insert receipt", "error", err.Error())
-			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable to create receipt: %s", err.Error())})
-			return
-		}
+	}
+
+	if err := g.Wait(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
 	}
 
 	d.ListReceipts(c)
