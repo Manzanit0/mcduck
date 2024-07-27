@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/manzanit0/mcduck/cmd/parser/openai"
+	"github.com/manzanit0/mcduck/pkg/openai"
 	"github.com/manzanit0/mcduck/pkg/xtrace"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
