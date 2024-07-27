@@ -8,11 +8,8 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"strconv"
 
 	_ "github.com/jackc/pgx/v4/stdlib"
-	"github.com/manzanit0/isqlx"
-	"go.opentelemetry.io/otel"
 
 	"github.com/manzanit0/mcduck/cmd/service/api"
 	"github.com/manzanit0/mcduck/internal/client"
@@ -22,6 +19,7 @@ import (
 	"github.com/manzanit0/mcduck/pkg/micro"
 	"github.com/manzanit0/mcduck/pkg/tgram"
 	"github.com/manzanit0/mcduck/pkg/xhttp"
+	"github.com/manzanit0/mcduck/pkg/xsql"
 )
 
 const serviceName = "mcduck"
@@ -48,7 +46,7 @@ func run() error {
 		return fmt.Errorf("new gin service: %w", err)
 	}
 
-	dbx, err := openDB()
+	dbx, err := xsql.Open(serviceName)
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
 	}
@@ -154,32 +152,6 @@ func run() error {
 	apiG.GET("/users", usersCtrl.SearchUser) // TODO: this should be a system call and not available to users.
 
 	return svc.Run()
-}
-
-func openDB() (isqlx.DBX, error) {
-	tracer := otel.Tracer(serviceName)
-	port, err := strconv.Atoi(os.Getenv("PGPORT"))
-	if err != nil {
-		return nil, fmt.Errorf("parse db port from env var PGPORT: %w", err)
-	}
-
-	dbx, err := isqlx.NewDBXFromConfig("pgx", &isqlx.DBConfig{
-		Host:     os.Getenv("PGHOST"),
-		Port:     port,
-		User:     os.Getenv("PGUSER"),
-		Password: os.Getenv("PGPASSWORD"),
-		Name:     os.Getenv("PGDATABASE"),
-	}, tracer)
-	if err != nil {
-		return nil, fmt.Errorf("open postgres connection: %w", err)
-	}
-
-	err = dbx.GetSQLX().DB.Ping()
-	if err != nil {
-		return nil, fmt.Errorf("ping postgres connection: %w", err)
-	}
-
-	return dbx, nil
 }
 
 func readSampleData() ([]expense.Expense, error) {
