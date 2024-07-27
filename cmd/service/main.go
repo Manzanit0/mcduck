@@ -135,6 +135,7 @@ func run() error {
 	ownsReceipt.DELETE("/receipts/:id", receiptsController.DeleteReceipt)
 	ownsReceipt.GET("/receipts/:id/image", receiptsController.GetImage)
 	apiG.POST("/receipts", receiptsController.CreateReceipt) // TODO: this should be a PUT?
+	apiG.POST("/receipts/upload", receiptsController.UploadReceipts)
 
 	ownsExpense := r.
 		Group("/").
