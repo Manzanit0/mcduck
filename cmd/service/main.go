@@ -11,7 +11,9 @@ import (
 
 	_ "github.com/jackc/pgx/v4/stdlib"
 
+	"github.com/manzanit0/mcduck/api/auth.v1/authv1connect"
 	"github.com/manzanit0/mcduck/cmd/service/api"
+	authserver "github.com/manzanit0/mcduck/cmd/service/auth"
 	"github.com/manzanit0/mcduck/internal/client"
 	"github.com/manzanit0/mcduck/internal/expense"
 	"github.com/manzanit0/mcduck/internal/receipt"
@@ -59,6 +61,13 @@ func run() error {
 
 	tgramToken := micro.MustGetEnv("TELEGRAM_BOT_TOKEN") // TODO: shouldn't throw.
 	tgramClient := tgram.NewClient(xhttp.NewClient(), tgramToken)
+
+	path, handler := authv1connect.NewAuthServiceHandler(&authserver.Server{
+		DB:       dbx.GetSQLX(),
+		Telegram: tgramClient,
+	})
+
+	svc.RegisterRPCHandler(path, handler)
 
 	t, err := template.ParseFS(templates, "templates/*.html")
 	if err != nil {
