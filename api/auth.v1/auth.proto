@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package auth.v1;
+
+option go_package = "github.com/manzanit0/mcduck/api/auth.v1;authv1";
+
+service AuthService {
+  rpc Register(RegisterRequest) returns (RegisterResponse) {}
+  rpc Login(LoginRequest) returns (LoginResponse) {}
+  rpc ConnectTelegram(ConnectTelegramRequest) returns (ConnectTelegramResponse) {}
+}
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  string token = 1;
+}
+
+message RegisterRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message RegisterResponse {
+  string token = 1;
+}
+
+message ConnectTelegramRequest {
+  string email = 1;
+  int64 chat_id = 2;
+}
+
+message ConnectTelegramResponse {}
