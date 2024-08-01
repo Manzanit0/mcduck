@@ -112,7 +112,6 @@ func run() error {
 	nologin.GET("/login", registrationController.GetLoginForm)
 	nologin.GET("/signout", registrationController.Signout)
 	nologin.GET("/connect", registrationController.GetConnectForm)
-	nologin.POST("/connect", registrationController.ConnectUser)
 	nologin.GET("/live_demo", dashController.LiveDemo)
 	nologin.POST("/upload", dashController.UploadExpenses)
 
