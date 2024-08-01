@@ -26,8 +26,9 @@ type ConnectTelegramPayload struct {
 }
 
 type RegistrationController struct {
-	DB       *sqlx.DB
-	Telegram tgram.Client
+	DB              *sqlx.DB
+	Telegram        tgram.Client
+	AuthServiceHost string
 }
 
 func (_ *RegistrationController) GetRegisterForm(c *gin.Context) {
@@ -57,48 +58,10 @@ func (r *RegistrationController) RegisterUser(c *gin.Context) {
 	c.HTML(http.StatusOK, "index.html", gin.H{"User": payload.Email})
 }
 
-func (_ *RegistrationController) GetLoginForm(c *gin.Context) {
-	c.HTML(http.StatusOK, "login.html", gin.H{})
-}
-
-func (r *RegistrationController) LoginUser(c *gin.Context) {
-	payload := UserPayload{}
-	err := c.ShouldBind(&payload)
-	if err != nil {
-		c.HTML(http.StatusOK, "error.html", gin.H{"error": err.Error()})
-		return
-	}
-
-	user, err := doLogin(c, r.DB, payload.Email, payload.Password)
-	if err != nil {
-		c.HTML(http.StatusOK, "error.html", gin.H{"error": err.Error()})
-		return
-	}
-
-	c.HTML(http.StatusOK, "index.html", gin.H{"User": user.Email})
-}
-
-func (r *RegistrationController) LoginAPI(c *gin.Context) {
-	payload := UserPayload{}
-	err := c.ShouldBind(&payload)
-	if err != nil {
-		c.JSON(http.StatusOK, gin.H{"error": err.Error()})
-		return
-	}
-
-	_, err = doLogin(c, r.DB, payload.Email, payload.Password)
-	if err != nil {
-		c.JSON(http.StatusOK, gin.H{"error": err.Error()})
-		return
-	}
-
-	token, err := auth.GenerateJWT(payload.Email)
-	if err != nil {
-		c.JSON(http.StatusOK, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"token": token})
+func (r *RegistrationController) GetLoginForm(c *gin.Context) {
+	c.HTML(http.StatusOK, "login.html", gin.H{
+		"LoginEndpointURL": fmt.Sprintf("%s/auth.v1.AuthService/Login", r.AuthServiceHost),
+	})
 }
 
 // GetConnectForm returns the HTML form to connect a telegram account to a

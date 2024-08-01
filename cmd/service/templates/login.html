@@ -7,12 +7,7 @@
       <h1>Login</h1>
     </div>
     <div class="login-form-container">
-      <form
-        class="login-form"
-        method="POST"
-        action="/login"
-        id="form-login-user"
-      >
+      <form class="login-form" id="form-login-user">
         <input
           class="login-form-element"
           id="email"
@@ -27,8 +22,36 @@
           type="password"
           placeholder="Write your password"
         />
-        <button class="login-form-element" id="btn-login-account">Login</button>
+        <button type="submit" class="login-form-element" id="btn-login-account">
+          Login
+        </button>
       </form>
     </div>
   </body>
+  <script>
+    ((url) => {
+      var form = document.getElementById("form-login-user");
+      form.onsubmit = async function (event) {
+        event.preventDefault();
+
+        var formData = new FormData(form);
+        console.log(formData);
+
+        const res = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(Object.fromEntries(formData)),
+        });
+
+        const body = await res.json();
+        document.cookie = `_mcduck_key=${body.token}; max-age=604800`;
+
+        window.location.replace("/dashboard")
+
+        return false;
+      };
+    })({{ .LoginEndpointURL }})
+  </script>
 </html>
