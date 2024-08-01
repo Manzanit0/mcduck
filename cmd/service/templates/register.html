@@ -4,15 +4,10 @@
   <body>
     {{template "navbar" .}}
     <div>
-      <h1>Signup</h1>
+      <h1>Register</h1>
     </div>
     <div class="login-form-container">
-      <form
-        class="login-form"
-        method="POST"
-        action="/register"
-        id="form-create-user"
-      >
+      <form class="login-form" id="form-create-user">
         <input
           class="login-form-element"
           id="email"
@@ -27,10 +22,36 @@
           type="password"
           placeholder="Create your password"
         />
-        <button class="login-form-element" id="btn-create-account">
+        <button type="submit" class="login-form-element" id="btn-create-account">
           Register
         </button>
       </form>
     </div>
   </body>
+  <script>
+    ((url) => {
+      var form = document.getElementById("form-create-user");
+      form.onsubmit = async function (event) {
+        event.preventDefault();
+
+        var formData = new FormData(form);
+        console.log(formData);
+
+        const res = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(Object.fromEntries(formData)),
+        });
+
+        const body = await res.json();
+        document.cookie = `_mcduck_key=${body.token}; max-age=604800`;
+
+        window.location.replace("/dashboard")
+
+        return false;
+      };
+    })({{ .RegisterEndpointURL }})
+  </script>
 </html>

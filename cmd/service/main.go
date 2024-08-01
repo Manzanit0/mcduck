@@ -109,7 +109,6 @@ func run() error {
 
 	nologin.GET("/", api.LandingPage)
 	nologin.GET("/register", registrationController.GetRegisterForm)
-	nologin.POST("/register", registrationController.RegisterUser)
 	nologin.GET("/login", registrationController.GetLoginForm)
 	nologin.GET("/signout", registrationController.Signout)
 	nologin.GET("/connect", registrationController.GetConnectForm)
