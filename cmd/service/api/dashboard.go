@@ -256,7 +256,9 @@ func buildChartData(labels []string, totals map[string]map[string]float32) Chart
 	})
 
 	// By default we only show the current month.
-	datasets[len(datasets)-1].Hidden = false
+	if len(datasets) > 0 {
+		datasets[len(datasets)-1].Hidden = false
+	}
 
 	for i := range datasets {
 		datasets[i].BorderColour = chartColours[i]
