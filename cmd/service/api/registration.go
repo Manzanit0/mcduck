@@ -31,31 +31,10 @@ type RegistrationController struct {
 	AuthServiceHost string
 }
 
-func (_ *RegistrationController) GetRegisterForm(c *gin.Context) {
-	c.HTML(http.StatusOK, "register.html", gin.H{})
-}
-
-func (r *RegistrationController) RegisterUser(c *gin.Context) {
-	payload := UserPayload{}
-	err := c.ShouldBind(&payload)
-	if err != nil {
-		c.HTML(http.StatusOK, "error.html", gin.H{"error": err.Error()})
-		return
-	}
-
-	_, err = users.Create(c.Request.Context(), r.DB, users.User{Email: payload.Email, Password: payload.Password})
-	if err != nil {
-		c.HTML(http.StatusOK, "error.html", gin.H{"error": err.Error()})
-		return
-	}
-
-	err = setCookieAuth(c, payload.Email)
-	if err != nil {
-		c.HTML(http.StatusOK, "error.html", gin.H{"error": err.Error()})
-		return
-	}
-
-	c.HTML(http.StatusOK, "index.html", gin.H{"User": payload.Email})
+func (r *RegistrationController) GetRegisterForm(c *gin.Context) {
+	c.HTML(http.StatusOK, "register.html", gin.H{
+		"RegisterEndpointURL": fmt.Sprintf("%s/auth.v1.AuthService/Register", r.AuthServiceHost),
+	})
 }
 
 func (r *RegistrationController) GetLoginForm(c *gin.Context) {
