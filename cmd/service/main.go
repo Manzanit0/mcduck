@@ -78,7 +78,12 @@ func run() error {
 	r.SetHTMLTemplate(t)
 	r.StaticFS("/public", http.FS(assets))
 
-	registrationController := api.RegistrationController{DB: dbx.GetSQLX(), Telegram: tgramClient}
+	authHost := micro.MustGetEnv("AUTH_HOST")
+	registrationController := api.RegistrationController{
+		DB:              dbx.GetSQLX(),
+		Telegram:        tgramClient,
+		AuthServiceHost: authHost,
+	}
 
 	expenseRepository := expense.NewRepository(dbx)
 	expensesController := api.ExpensesController{Expenses: expenseRepository}
@@ -106,7 +111,6 @@ func run() error {
 	nologin.GET("/register", registrationController.GetRegisterForm)
 	nologin.POST("/register", registrationController.RegisterUser)
 	nologin.GET("/login", registrationController.GetLoginForm)
-	nologin.POST("/login", registrationController.LoginUser)
 	nologin.GET("/signout", registrationController.Signout)
 	nologin.GET("/connect", registrationController.GetConnectForm)
 	nologin.POST("/connect", registrationController.ConnectUser)
@@ -128,10 +132,6 @@ func run() error {
 		Use(auth.CookieMiddleware). // Add cookie auth so the frontend can talk easily with the backend.
 		Use(auth.BearerMiddleware).
 		Use(api.ForceAuthentication)
-
-		// This is a quick hack to get around the fact that the API doesn't support
-		// PATs or similar mechanics.
-	nologin.POST("/x/login", registrationController.LoginAPI)
 
 	ownsReceipt := r.
 		Group("/").
