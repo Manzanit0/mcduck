@@ -5,7 +5,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/manzanit0/mcduck/cmd/service/api"
+	"github.com/manzanit0/mcduck/cmd/api/api"
 	"github.com/manzanit0/mcduck/internal/expense"
 )
 
