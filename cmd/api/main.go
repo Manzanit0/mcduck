@@ -12,8 +12,8 @@ import (
 	_ "github.com/jackc/pgx/v4/stdlib"
 
 	"github.com/manzanit0/mcduck/api/auth.v1/authv1connect"
-	authserver "github.com/manzanit0/mcduck/cmd/api/auth"
 	"github.com/manzanit0/mcduck/cmd/api/controllers"
+	"github.com/manzanit0/mcduck/cmd/api/servers"
 	"github.com/manzanit0/mcduck/internal/client"
 	"github.com/manzanit0/mcduck/internal/expense"
 	"github.com/manzanit0/mcduck/internal/receipt"
@@ -62,7 +62,7 @@ func run() error {
 	tgramToken := micro.MustGetEnv("TELEGRAM_BOT_TOKEN") // TODO: shouldn't throw.
 	tgramClient := tgram.NewClient(xhttp.NewClient(), tgramToken)
 
-	path, handler := authv1connect.NewAuthServiceHandler(authserver.NewAuthServer(dbx.GetSQLX(), tgramClient))
+	path, handler := authv1connect.NewAuthServiceHandler(servers.NewAuthServer(dbx.GetSQLX(), tgramClient))
 
 	svc.RegisterRPCHandler(path, handler)
 
