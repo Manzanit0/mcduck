@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"connectrpc.com/connect"
+	"connectrpc.com/otelconnect"
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
 
@@ -51,7 +52,9 @@ func (r *RegistrationController) GetConnectForm(c *gin.Context) {
 			return
 		}
 
-		client := authv1connect.NewAuthServiceClient(xhttp.NewClient(), r.AuthServiceHost)
+		// FIXME: check error
+		interceptor, _ := otelconnect.NewInterceptor()
+		client := authv1connect.NewAuthServiceClient(xhttp.NewClient(), r.AuthServiceHost, connect.WithInterceptors(interceptor))
 		_, err = client.ConnectTelegram(c.Request.Context(), connect.NewRequest(&authv1.ConnectTelegramRequest{
 			Email:  email,
 			ChatId: idInt,
