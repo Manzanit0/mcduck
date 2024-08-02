@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"os"
 
+	"connectrpc.com/connect"
+	"connectrpc.com/otelconnect"
 	_ "github.com/jackc/pgx/v4/stdlib"
 
 	"github.com/manzanit0/mcduck/api/auth.v1/authv1connect"
@@ -62,7 +64,14 @@ func run() error {
 	tgramToken := micro.MustGetEnv("TELEGRAM_BOT_TOKEN") // TODO: shouldn't throw.
 	tgramClient := tgram.NewClient(xhttp.NewClient(), tgramToken)
 
-	path, handler := authv1connect.NewAuthServiceHandler(servers.NewAuthServer(dbx.GetSQLX(), tgramClient))
+	otelInterceptor, err := otelconnect.NewInterceptor(otelconnect.WithTrustRemote(), otelconnect.WithoutMetrics())
+	if err != nil {
+		return fmt.Errorf("init otel connect interceptor: %w", err)
+	}
+	path, handler := authv1connect.NewAuthServiceHandler(
+		servers.NewAuthServer(dbx.GetSQLX(), tgramClient),
+		connect.WithInterceptors(otelInterceptor),
+	)
 
 	svc.RegisterRPCHandler(path, handler)
 

@@ -45,7 +45,7 @@ func NewGinService(name string) (Service, error) {
 
 func (s Service) RegisterRPCHandler(path string, handler http.Handler) {
 	// NOTE: if we don't "name" the wildcard, then it won't match.
-	s.Engine.Any(fmt.Sprintf("%s/:procedure", path), gin.WrapH(handler))
+	s.Engine.POST(fmt.Sprintf("%s/:procedure", path), gin.WrapH(handler))
 }
 
 func (s *Service) Run() error {
