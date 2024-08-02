@@ -1,4 +1,4 @@
-package auth
+package servers
 
 import (
 	"context"
@@ -19,11 +19,11 @@ type authServer struct {
 	Telegram tgram.Client
 }
 
+var _ authv1connect.AuthServiceClient = (*authServer)(nil)
+
 func NewAuthServer(db *sqlx.DB, t tgram.Client) authv1connect.AuthServiceClient {
 	return &authServer{DB: db, Telegram: t}
 }
-
-var _ authv1connect.AuthServiceClient = (*authServer)(nil)
 
 func (s *authServer) Register(ctx context.Context, req *connect.Request[authv1.RegisterRequest]) (*connect.Response[authv1.RegisterResponse], error) {
 	user, err := users.Create(ctx, s.DB, users.User{Email: req.Msg.Email, Password: req.Msg.Password})
