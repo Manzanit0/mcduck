@@ -14,14 +14,18 @@ import (
 	"github.com/manzanit0/mcduck/pkg/tgram"
 )
 
-type Server struct {
+type authServer struct {
 	DB       *sqlx.DB
 	Telegram tgram.Client
 }
 
-var _ authv1connect.AuthServiceClient = (*Server)(nil)
+func NewAuthServer(db *sqlx.DB, t tgram.Client) authv1connect.AuthServiceClient {
+	return &authServer{DB: db, Telegram: t}
+}
 
-func (s *Server) Register(ctx context.Context, req *connect.Request[authv1.RegisterRequest]) (*connect.Response[authv1.RegisterResponse], error) {
+var _ authv1connect.AuthServiceClient = (*authServer)(nil)
+
+func (s *authServer) Register(ctx context.Context, req *connect.Request[authv1.RegisterRequest]) (*connect.Response[authv1.RegisterResponse], error) {
 	user, err := users.Create(ctx, s.DB, users.User{Email: req.Msg.Email, Password: req.Msg.Password})
 	if err != nil {
 		slog.ErrorContext(ctx, "create user", "error", err.Error())
@@ -40,7 +44,7 @@ func (s *Server) Register(ctx context.Context, req *connect.Request[authv1.Regis
 	return res, nil
 }
 
-func (s *Server) Login(ctx context.Context, req *connect.Request[authv1.LoginRequest]) (*connect.Response[authv1.LoginResponse], error) {
+func (s *authServer) Login(ctx context.Context, req *connect.Request[authv1.LoginRequest]) (*connect.Response[authv1.LoginResponse], error) {
 	slog.Info("Got login!!")
 	user, err := users.Find(ctx, s.DB, req.Msg.Email)
 	if err != nil {
@@ -66,7 +70,7 @@ func (s *Server) Login(ctx context.Context, req *connect.Request[authv1.LoginReq
 	return res, nil
 }
 
-func (s *Server) ConnectTelegram(ctx context.Context, req *connect.Request[authv1.ConnectTelegramRequest]) (*connect.Response[authv1.ConnectTelegramResponse], error) {
+func (s *authServer) ConnectTelegram(ctx context.Context, req *connect.Request[authv1.ConnectTelegramRequest]) (*connect.Response[authv1.ConnectTelegramResponse], error) {
 	user, err := users.Find(ctx, s.DB, req.Msg.Email)
 	if err != nil {
 		slog.ErrorContext(ctx, "find user", "error", err.Error())
