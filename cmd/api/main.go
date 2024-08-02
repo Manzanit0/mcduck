@@ -64,16 +64,30 @@ func run() error {
 	tgramToken := micro.MustGetEnv("TELEGRAM_BOT_TOKEN") // TODO: shouldn't throw.
 	tgramClient := tgram.NewClient(xhttp.NewClient(), tgramToken)
 
-	otelInterceptor, err := otelconnect.NewInterceptor(otelconnect.WithTrustRemote(), otelconnect.WithoutMetrics())
-	if err != nil {
-		return fmt.Errorf("init otel connect interceptor: %w", err)
-	}
-	path, handler := authv1connect.NewAuthServiceHandler(
-		servers.NewAuthServer(dbx.GetSQLX(), tgramClient),
-		connect.WithInterceptors(otelInterceptor),
-	)
+	{
+		// FIXME: this is a super hacky way of going about this. Neither micro
+		// nor gin are the right fit for this.
+		otelInterceptor, err := otelconnect.NewInterceptor(otelconnect.WithTrustRemote(), otelconnect.WithoutMetrics())
+		if err != nil {
+			return fmt.Errorf("init otel connect interceptor: %w", err)
+		}
 
-	svc.RegisterRPCHandler(path, handler)
+		path, handler := authv1connect.NewAuthServiceHandler(
+			servers.NewAuthServer(dbx.GetSQLX(), tgramClient),
+			connect.WithInterceptors(otelInterceptor),
+		)
+
+		mux := http.NewServeMux()
+		mux.Handle(path, handler)
+
+		handler = auth.ConnectMiddleware(
+			authv1connect.AuthServiceLoginProcedure,
+			authv1connect.AuthServiceRegisterProcedure,
+			authv1connect.AuthServiceConnectTelegramProcedure,
+		).Wrap(mux)
+
+		svc.RegisterRPCHandler(path, handler)
+	}
 
 	t, err := template.ParseFS(templates, "templates/*.html")
 	if err != nil {

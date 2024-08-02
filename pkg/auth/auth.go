@@ -1,10 +1,12 @@
 package auth
 
 import (
+	"context"
 	"log/slog"
 	"strings"
 	"time"
 
+	"connectrpc.com/authn"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
@@ -119,4 +121,46 @@ func SetAuthCookie(c *gin.Context, token string) {
 
 func RemoveAuthCookie(c *gin.Context) {
 	c.SetCookie(authCookieName, "", -1, "", "", false, true)
+}
+
+// ConnectMiddleware enforces authentication on all procedures except those
+// provided in the allow list.
+// Copied from https://github.com/connectrpc/authn-go/pull/12
+func ConnectMiddleware(allowed ...string) *authn.Middleware {
+	allowList := map[string]struct{}{}
+	for _, s := range allowed {
+		allowList[s] = struct{}{}
+	}
+
+	authenticate := func(_ context.Context, req authn.Request) (any, error) {
+		token, ok := bearerToken(req)
+		if !ok {
+			// We'll allow unauthenticated access to the ping procedure.
+			if _, ok := allowList[req.Procedure()]; ok {
+				return nil, nil // no authentication required
+			}
+
+			err := authn.Errorf("invalid authorization")
+			err.Meta().Set("WWW-Authenticate", "Bearer")
+			return nil, err
+		}
+
+		user, isValid := ValidateJWT(token)
+		if !isValid {
+			return nil, authn.Errorf("invalid token")
+		}
+
+		return user, nil
+	}
+
+	return authn.NewMiddleware(authenticate)
+}
+
+func bearerToken(r authn.Request) (string, bool) {
+	auth := r.Header().Get("Authorization")
+	const prefix = "Bearer "
+	if !strings.HasPrefix(auth, prefix) {
+		return "", false
+	}
+	return auth[len(prefix):], true
 }

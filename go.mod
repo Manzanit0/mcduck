@@ -32,6 +32,7 @@ require (
 )
 
 require (
+	connectrpc.com/authn v0.1.0
 	connectrpc.com/connect v1.16.2
 	connectrpc.com/otelconnect v0.7.1
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.6.3 // indirect
@@ -95,6 +96,6 @@ require (
 	golang.org/x/text v0.16.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240520151616-dc85e6b867a5 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240515191416-fc5f0ca64291 // indirect
-	google.golang.org/protobuf v1.34.1 // indirect
+	google.golang.org/protobuf v1.34.1
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
