@@ -29,13 +29,13 @@ func (s *authServer) Register(ctx context.Context, req *connect.Request[authv1.R
 	user, err := users.Create(ctx, s.DB, users.User{Email: req.Msg.Email, Password: req.Msg.Password})
 	if err != nil {
 		slog.ErrorContext(ctx, "create user", "error", err.Error())
-		return nil, fmt.Errorf("unable to create user: %w", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("unable to create user: %w", err))
 	}
 
 	token, err := auth.GenerateJWT(user.Email)
 	if err != nil {
 		slog.ErrorContext(ctx, "generate JWT", "error", err.Error())
-		return nil, fmt.Errorf("unable to generate token: %w", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("unable to generate token: %w", err))
 	}
 
 	res := connect.NewResponse(&authv1.RegisterResponse{
@@ -49,18 +49,18 @@ func (s *authServer) Login(ctx context.Context, req *connect.Request[authv1.Logi
 	user, err := users.Find(ctx, s.DB, req.Msg.Email)
 	if err != nil {
 		slog.Error("unable to find user", "email", req.Msg.Email, "error", err.Error())
-		return nil, fmt.Errorf("invalid email or password")
+		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("invalid email or password"))
 	}
 
 	if !auth.CheckPasswordHash(req.Msg.Password, user.HashedPassword) {
 		slog.Error("invalid password", "email", req.Msg.Email, "error", "hashed password doesn't match")
-		return nil, fmt.Errorf("invalid email or password")
+		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("invalid email or password"))
 	}
 
 	token, err := auth.GenerateJWT(user.Email)
 	if err != nil {
 		slog.ErrorContext(ctx, "generate JWT", "error", err.Error())
-		return nil, fmt.Errorf("unable to generate token: %w", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("unable to generate token: %w", err))
 	}
 
 	res := connect.NewResponse(&authv1.LoginResponse{
@@ -74,13 +74,13 @@ func (s *authServer) ConnectTelegram(ctx context.Context, req *connect.Request[a
 	user, err := users.Find(ctx, s.DB, req.Msg.Email)
 	if err != nil {
 		slog.ErrorContext(ctx, "find user", "error", err.Error())
-		return nil, fmt.Errorf("find user: %w", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("unable to find user: %w", err))
 	}
 
 	err = users.UpdateTelegramChatID(ctx, s.DB, user, req.Msg.ChatId)
 	if err != nil {
 		slog.ErrorContext(ctx, "update telegram chat ID", "error", err.Error())
-		return nil, fmt.Errorf("update user record: %w", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("unable to update user: %w", err))
 	}
 
 	err = s.Telegram.SendMessage(tgram.SendMessageRequest{
@@ -90,7 +90,7 @@ func (s *authServer) ConnectTelegram(ctx context.Context, req *connect.Request[a
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "send telegram message", "error", err.Error())
-		return nil, fmt.Errorf("Your account has been linked successfully but we were unable to notify you via Telegram: %w", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("Your account has been linked successfully but we were unable to notify you via Telegram: %w", err))
 	}
 
 	res := connect.NewResponse(&authv1.ConnectTelegramResponse{})
