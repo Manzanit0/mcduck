@@ -44,7 +44,7 @@ func (tp Provider) EnhanceTraceMetadata() gin.HandlerFunc {
 }
 
 func Tracer() trace.Tracer {
-	return otel.GetTracerProvider().Tracer("xtrace")
+	return otel.GetTracerProvider().Tracer("github.com/manzanit0/mcduck/pkg/xtrace")
 }
 
 func StartSpan(ctx context.Context, spanName string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {
