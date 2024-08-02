@@ -12,7 +12,7 @@ project-files:
 
 service-build:
     FROM +project-files
-    RUN go build -o build/mcduck cmd/service/main.go
+    RUN go build -o build/mcduck cmd/api/main.go
     SAVE ARTIFACT build/mcduck /mcduck AS LOCAL build/mcduck
 
 service-docker:
