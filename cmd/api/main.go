@@ -62,10 +62,7 @@ func run() error {
 	tgramToken := micro.MustGetEnv("TELEGRAM_BOT_TOKEN") // TODO: shouldn't throw.
 	tgramClient := tgram.NewClient(xhttp.NewClient(), tgramToken)
 
-	path, handler := authv1connect.NewAuthServiceHandler(&authserver.Server{
-		DB:       dbx.GetSQLX(),
-		Telegram: tgramClient,
-	})
+	path, handler := authv1connect.NewAuthServiceHandler(authserver.NewAuthServer(dbx.GetSQLX(), tgramClient))
 
 	svc.RegisterRPCHandler(path, handler)
 
