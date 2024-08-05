@@ -48,6 +48,10 @@ func main() {
 	traceEnhancer := xtrace.SpanEnhancerInterceptor()
 
 	mux := http.NewServeMux()
+	mux.Handle("/ping", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"message": "pong"}`))
+	}))
 
 	mux.Handle(authv1connect.NewAuthServiceHandler(
 		servers.NewAuthServer(dbx.GetSQLX(), tgramClient),
