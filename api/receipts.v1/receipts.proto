@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package receipts.v1;
+
+option go_package = "github.com/manzanit0/mcduck/api/receipts.v1;receiptsv1";
+
+service ReceiptsService {
+  rpc CreateReceipt(CreateReceiptRequest) returns (CreateReceiptResponse) {}
+}
+
+message CreateReceiptRequest {
+  repeated bytes receipt_files = 1;
+}
+
+message CreateReceiptResponse {
+  repeated uint64 receipt_ids = 1;
+}
