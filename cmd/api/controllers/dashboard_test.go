@@ -1,11 +1,11 @@
-package api_test
+package controllers_test
 
 import (
 	"fmt"
 	"slices"
 	"testing"
 
-	"github.com/manzanit0/mcduck/cmd/service/api"
+	api "github.com/manzanit0/mcduck/cmd/api/controllers"
 	"github.com/manzanit0/mcduck/internal/expense"
 )
 

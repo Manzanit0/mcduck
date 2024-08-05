@@ -1,4 +1,4 @@
-package api
+package controllers
 
 import (
 	"database/sql"
@@ -24,9 +24,25 @@ var chartColours = []string{
 	"rgba(54, 162, 235)",
 	"rgba(153, 102, 255)",
 	"rgba(201, 203, 207)",
+	// repeated
+	"rgba(255, 99, 132)",
+	"rgba(255, 159, 64)",
+	"rgba(255, 205, 86)",
+	"rgba(75, 192, 192)",
+	"rgba(54, 162, 235)",
+	"rgba(153, 102, 255)",
+	"rgba(201, 203, 207)",
 }
 
 var chartBackgroundColours = []string{
+	"rgba(255, 99, 132, 0.2)",
+	"rgba(255, 159, 64, 0.2)",
+	"rgba(255, 205, 86, 0.2)",
+	"rgba(75, 192, 192, 0.2)",
+	"rgba(54, 162, 235, 0.2)",
+	"rgba(153, 102, 255, 0.2)",
+	"rgba(201, 203, 207, 0.2)",
+	//repeated
 	"rgba(255, 99, 132, 0.2)",
 	"rgba(255, 159, 64, 0.2)",
 	"rgba(255, 205, 86, 0.2)",
@@ -256,7 +272,9 @@ func buildChartData(labels []string, totals map[string]map[string]float32) Chart
 	})
 
 	// By default we only show the current month.
-	datasets[len(datasets)-1].Hidden = false
+	if len(datasets) > 0 {
+		datasets[len(datasets)-1].Hidden = false
+	}
 
 	for i := range datasets {
 		datasets[i].BorderColour = chartColours[i]

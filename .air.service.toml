@@ -5,7 +5,7 @@ tmp_dir = "tmp"
 [build]
   args_bin = []
   bin = "./tmp/service"
-  cmd = "go build -o ./tmp/service ./cmd/service"
+  cmd = "go build -o ./tmp/service ./cmd/api"
   delay = 1000
   exclude_dir = ["tmp", "vendor", "testdata","cmd/bot", "cmd/parser"]
   exclude_file = []

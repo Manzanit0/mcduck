@@ -43,8 +43,19 @@ func (tp Provider) EnhanceTraceMetadata() gin.HandlerFunc {
 	}
 }
 
+func (tp *Provider) Shutdown(ctx context.Context) {
+	if tp == nil {
+		return
+	}
+
+	err := tp.TracerProvider.Shutdown(ctx)
+	if err != nil {
+		slog.Error("fail to shutdown tracer", "error", err.Error())
+	}
+}
+
 func Tracer() trace.Tracer {
-	return otel.GetTracerProvider().Tracer("xtrace")
+	return otel.GetTracerProvider().Tracer("github.com/manzanit0/mcduck/pkg/xtrace")
 }
 
 func StartSpan(ctx context.Context, spanName string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {

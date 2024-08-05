@@ -4,6 +4,17 @@ env:
   SMEE_URL: https://smee.io/Yh2XnVMscjUHetc3
 
 tasks:
+  tools:
+    desc: install tools
+    cmds:
+      # - go install github.com/bufbuild/buf/cmd/buf@latest
+      - go install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest
+      - go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+      - go install connectrpc.com/connect/cmd/protoc-gen-connect-go@latest
+  gen-proto:
+    desc: generate protobuf outputs via Buf
+    cmd: buf generate
+
   smee:
     desc: sets up local webhook for Telegram bot
     cmd: smee -u "$SMEE_URL" -p 8081 -P /telegram/webhook
@@ -71,6 +82,7 @@ tasks:
             -schemas=public \
             -connectRetries=60 \
             migrate
+
   rw-repair:
     desc: Repairs migrations in the railway.app cloud environment.
     prompt: Are you sure you want to repair migrations in the cloud?

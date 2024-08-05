@@ -1,17 +1,17 @@
 [build]
 builder = "nixpacks"
 watchPatterns = [
-    "cmd/api/**",
+    "cmd/dots/**",
     "pkg/**",
     "internal/**",
     "railway",
     "go.mod",
     "go.sum",
 ]
-buildCommand = "go build -o bin/api ./cmd/api"
+buildCommand = "go build -o bin/dots ./cmd/dots"
 
 [deploy]
-startCommand = "bin/api"
-healthcheckPath = "/ping"
+startCommand = "bin/dots"
+healthcheckPath = "/"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 10
