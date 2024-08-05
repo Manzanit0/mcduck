@@ -12,6 +12,6 @@ buildCommand = "go build -o bin/dots ./cmd/dots"
 
 [deploy]
 startCommand = "bin/dots"
-healthcheckPath = "/"
+healthcheckPath = "/ping"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 10
