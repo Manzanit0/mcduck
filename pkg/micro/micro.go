@@ -49,17 +49,12 @@ func (s Service) RegisterRPCHandler(path string, handler http.Handler) {
 }
 
 func (s *Service) Run() error {
-	defer func() {
-		if s.tp == nil {
-			return
-		}
+	defer s.tp.Shutdown(context.Background())
 
-		err := s.tp.Shutdown(context.Background())
-		if err != nil {
-			slog.Error("fail to shutdown tracer", "error", err.Error())
-		}
-	}()
+	return RunGracefully(s.Engine)
+}
 
+func RunGracefully(mux http.Handler) error {
 	var port string
 	if port = os.Getenv("PORT"); port == "" {
 		port = "8080"
@@ -68,7 +63,7 @@ func (s *Service) Run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	srv := &http.Server{Addr: fmt.Sprintf(":%s", port), Handler: s.Engine}
+	srv := &http.Server{Addr: fmt.Sprintf(":%s", port), Handler: mux}
 	go func() {
 		slog.Info(fmt.Sprintf("serving HTTP on :%s", port))
 

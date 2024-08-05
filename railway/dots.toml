@@ -1,0 +1,17 @@
+[build]
+builder = "nixpacks"
+watchPatterns = [
+    "cmd/dots/**",
+    "pkg/**",
+    "internal/**",
+    "railway",
+    "go.mod",
+    "go.sum",
+]
+buildCommand = "go build -o bin/dots ./cmd/dots"
+
+[deploy]
+startCommand = "bin/dots"
+healthcheckPath = "/"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 10

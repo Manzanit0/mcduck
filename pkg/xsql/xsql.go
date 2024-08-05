@@ -2,9 +2,11 @@ package xsql
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"strconv"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/manzanit0/isqlx"
 	"go.opentelemetry.io/otel"
 )
@@ -34,6 +36,13 @@ func Open(serviceName string) (isqlx.DBX, error) {
 	}
 
 	return dbx, nil
+}
+
+func Close(db *sqlx.DB) {
+	err := db.Close()
+	if err != nil {
+		slog.Error("fail to close database connection", "error", err.Error())
+	}
 }
 
 func configFromEnv() (*config, error) {
