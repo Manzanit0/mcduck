@@ -5,8 +5,11 @@ import (
 	"net/http"
 	"os"
 
+	_ "github.com/jackc/pgx/v4/stdlib"
+
 	"connectrpc.com/connect"
 	"connectrpc.com/otelconnect"
+
 	"github.com/manzanit0/mcduck/api/auth.v1/authv1connect"
 	"github.com/manzanit0/mcduck/api/receipts.v1/receiptsv1connect"
 	"github.com/manzanit0/mcduck/cmd/dots/servers"
