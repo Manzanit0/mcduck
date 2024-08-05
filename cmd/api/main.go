@@ -9,13 +9,9 @@ import (
 	"net/http"
 	"os"
 
-	"connectrpc.com/connect"
-	"connectrpc.com/otelconnect"
 	_ "github.com/jackc/pgx/v4/stdlib"
 
-	"github.com/manzanit0/mcduck/api/auth.v1/authv1connect"
 	"github.com/manzanit0/mcduck/cmd/api/controllers"
-	"github.com/manzanit0/mcduck/cmd/api/servers"
 	"github.com/manzanit0/mcduck/internal/client"
 	"github.com/manzanit0/mcduck/internal/expense"
 	"github.com/manzanit0/mcduck/internal/receipt"
@@ -63,31 +59,6 @@ func run() error {
 
 	tgramToken := micro.MustGetEnv("TELEGRAM_BOT_TOKEN") // TODO: shouldn't throw.
 	tgramClient := tgram.NewClient(xhttp.NewClient(), tgramToken)
-
-	{
-		// FIXME: this is a super hacky way of going about this. Neither micro
-		// nor gin are the right fit for this.
-		otelInterceptor, err := otelconnect.NewInterceptor(otelconnect.WithTrustRemote(), otelconnect.WithoutMetrics())
-		if err != nil {
-			return fmt.Errorf("init otel connect interceptor: %w", err)
-		}
-
-		path, handler := authv1connect.NewAuthServiceHandler(
-			servers.NewAuthServer(dbx.GetSQLX(), tgramClient),
-			connect.WithInterceptors(otelInterceptor),
-		)
-
-		mux := http.NewServeMux()
-		mux.Handle(path, handler)
-
-		handler = auth.ConnectMiddleware(
-			authv1connect.AuthServiceLoginProcedure,
-			authv1connect.AuthServiceRegisterProcedure,
-			authv1connect.AuthServiceConnectTelegramProcedure,
-		).Wrap(mux)
-
-		svc.RegisterRPCHandler(path, handler)
-	}
 
 	t, err := template.ParseFS(templates, "templates/*.html")
 	if err != nil {
