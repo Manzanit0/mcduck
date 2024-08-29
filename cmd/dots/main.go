@@ -8,7 +8,9 @@ import (
 	_ "github.com/jackc/pgx/v4/stdlib"
 
 	"connectrpc.com/connect"
+	connectcors "connectrpc.com/cors"
 	"connectrpc.com/otelconnect"
+	"github.com/rs/cors"
 
 	"github.com/manzanit0/mcduck/api/auth.v1/authv1connect"
 	"github.com/manzanit0/mcduck/api/receipts.v1/receiptsv1connect"
@@ -39,7 +41,7 @@ func main() {
 	}
 	defer xsql.Close(dbx.GetSQLX())
 
-	tgramToken := micro.MustGetEnv("TELEGRAM_BOT_TOKEN") // TODO: shouldn't throw.
+	tgramToken := micro.MustGetEnv("TELEGRAM_BOT_TOKEN")
 	tgramClient := tgram.NewClient(xhttp.NewClient(), tgramToken)
 
 	otelInterceptor, err := otelconnect.NewInterceptor(otelconnect.WithTrustRemote(), otelconnect.WithoutMetrics())
@@ -56,10 +58,12 @@ func main() {
 		_, _ = w.Write([]byte(`{"message": "pong"}`))
 	}))
 
-	mux.Handle(authv1connect.NewAuthServiceHandler(
+	authPattern, authHandler := authv1connect.NewAuthServiceHandler(
 		servers.NewAuthServer(dbx.GetSQLX(), tgramClient),
 		connect.WithInterceptors(otelInterceptor, traceEnhancer),
-	))
+	)
+
+	mux.Handle(authPattern, withCORS(authHandler))
 
 	mux.Handle(receiptsv1connect.NewReceiptsServiceHandler(
 		servers.NewReceiptsServer(dbx.GetSQLX(), tgramClient),
@@ -69,4 +73,17 @@ func main() {
 	if err := micro.RunGracefully(mux); err != nil {
 		os.Exit(1)
 	}
+}
+
+// withCORS adds CORS support to a Connect HTTP handler.
+func withCORS(h http.Handler) http.Handler {
+	allowedOrigins := micro.MustGetEnv("ALLOWED_ORIGINS")
+
+	middleware := cors.New(cors.Options{
+		AllowedOrigins: []string{allowedOrigins},
+		AllowedMethods: connectcors.AllowedMethods(),
+		AllowedHeaders: connectcors.AllowedHeaders(),
+		ExposedHeaders: connectcors.ExposedHeaders(),
+	})
+	return middleware.Handler(h)
 }
