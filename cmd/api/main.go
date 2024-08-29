@@ -9,8 +9,11 @@ import (
 	"net/http"
 	"os"
 
+	"connectrpc.com/connect"
+	"connectrpc.com/otelconnect"
 	_ "github.com/jackc/pgx/v4/stdlib"
 
+	"github.com/manzanit0/mcduck/api/auth.v1/authv1connect"
 	"github.com/manzanit0/mcduck/cmd/api/controllers"
 	"github.com/manzanit0/mcduck/internal/client"
 	"github.com/manzanit0/mcduck/internal/expense"
@@ -70,10 +73,13 @@ func run() error {
 	r.StaticFS("/public", http.FS(assets))
 
 	authHost := micro.MustGetEnv("AUTH_HOST")
+	interceptor, _ := otelconnect.NewInterceptor()
+	authClient := authv1connect.NewAuthServiceClient(xhttp.NewClient(), authHost, connect.WithInterceptors(interceptor))
 	registrationController := controllers.RegistrationController{
 		DB:              dbx.GetSQLX(),
 		Telegram:        tgramClient,
 		AuthServiceHost: authHost,
+		AuthClient:      authClient,
 	}
 
 	expenseRepository := expense.NewRepository(dbx)
