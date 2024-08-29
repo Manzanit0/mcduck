@@ -28,6 +28,8 @@ tasks:
     dotenv:
       - ".env" # This contains the TELEGRAM_BOT_TOKEN environment variable
     preconditions:
+      - msg: Have you logged in to the railway CLI?
+        sh: railway whoami
       - msg: Have you run "task smee" in a separate terminal?
         sh: pgrep -f "task smee"
       - msg: Telegram webhook isn't set to $SMEE_URL. Make sure to set it through the setWebhook API call.
