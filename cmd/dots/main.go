@@ -58,19 +58,17 @@ func main() {
 		_, _ = w.Write([]byte(`{"message": "pong"}`))
 	}))
 
-	authPattern, authHandler := authv1connect.NewAuthServiceHandler(
+	mux.Handle(authv1connect.NewAuthServiceHandler(
 		servers.NewAuthServer(dbx.GetSQLX(), tgramClient),
 		connect.WithInterceptors(otelInterceptor, traceEnhancer),
-	)
-
-	mux.Handle(authPattern, withCORS(authHandler))
+	))
 
 	mux.Handle(receiptsv1connect.NewReceiptsServiceHandler(
 		servers.NewReceiptsServer(dbx.GetSQLX(), tgramClient),
 		connect.WithInterceptors(otelInterceptor, authInterceptor, traceEnhancer),
 	))
 
-	if err := micro.RunGracefully(mux); err != nil {
+	if err := micro.RunGracefully(withCORS(mux)); err != nil {
 		os.Exit(1)
 	}
 }
