@@ -6,7 +6,6 @@ import (
 	"strconv"
 
 	"connectrpc.com/connect"
-	"connectrpc.com/otelconnect"
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
 
@@ -14,48 +13,51 @@ import (
 	"github.com/manzanit0/mcduck/api/auth.v1/authv1connect"
 	"github.com/manzanit0/mcduck/pkg/auth"
 	"github.com/manzanit0/mcduck/pkg/tgram"
-	"github.com/manzanit0/mcduck/pkg/xhttp"
 )
 
 type RegistrationController struct {
 	DB              *sqlx.DB
 	Telegram        tgram.Client
 	AuthServiceHost string
+	AuthClient      authv1connect.AuthServiceClient
 }
 
 func (r *RegistrationController) GetRegisterForm(c *gin.Context) {
-	c.HTML(http.StatusOK, "register.html", gin.H{
-		"RegisterEndpointURL": fmt.Sprintf("%s/auth.v1.AuthService/Register", r.AuthServiceHost),
-	})
+	url := fmt.Sprintf("%s%s", r.AuthServiceHost, authv1connect.AuthServiceRegisterProcedure)
+	c.HTML(http.StatusOK, "register.html", gin.H{"RegisterEndpointURL": url})
 }
 
 func (r *RegistrationController) GetLoginForm(c *gin.Context) {
-	c.HTML(http.StatusOK, "login.html", gin.H{
-		"LoginEndpointURL": fmt.Sprintf("%s/auth.v1.AuthService/Login", r.AuthServiceHost),
-	})
+	url := fmt.Sprintf("%s%s", r.AuthServiceHost, authv1connect.AuthServiceLoginProcedure)
+	c.HTML(http.StatusOK, "login.html", gin.H{"LoginEndpointURL": url})
+}
+
+func (_ *RegistrationController) Signout(c *gin.Context) {
+	if email := auth.GetUserEmail(c); email != "" {
+		auth.RemoveAuthCookie(c)
+	}
+
+	c.HTML(http.StatusOK, "index.html", gin.H{})
 }
 
 // GetConnectForm returns the HTML form to connect a telegram account to a
 // mcduck account.
 func (r *RegistrationController) GetConnectForm(c *gin.Context) {
-	id := c.Query("tgram")
-	if id == "" {
+	idStr := c.Query("tgram")
+	if idStr == "" {
 		c.HTML(http.StatusOK, "error.html", gin.H{"error": "Are you trying to connect our Telegram bot with the web app? Please ask the bot for another link, this one seems funny."})
 		return
 	}
 
 	// If the user is logged in, no point in showing the login form again.
 	if email := auth.GetUserEmail(c); email != "" {
-		idInt, err := strconv.ParseInt(id, 10, 64)
+		idInt, err := strconv.ParseInt(idStr, 10, 64)
 		if err != nil {
 			c.HTML(http.StatusOK, "error.html", gin.H{"error": err.Error()})
 			return
 		}
 
-		// FIXME: check error
-		interceptor, _ := otelconnect.NewInterceptor()
-		client := authv1connect.NewAuthServiceClient(xhttp.NewClient(), r.AuthServiceHost, connect.WithInterceptors(interceptor))
-		_, err = client.ConnectTelegram(c.Request.Context(), connect.NewRequest(&authv1.ConnectTelegramRequest{
+		_, err = r.AuthClient.ConnectTelegram(c.Request.Context(), connect.NewRequest(&authv1.ConnectTelegramRequest{
 			Email:  email,
 			ChatId: idInt,
 		}))
@@ -68,16 +70,6 @@ func (r *RegistrationController) GetConnectForm(c *gin.Context) {
 		return
 	}
 
-	c.HTML(http.StatusOK, "telegram_connect.html", gin.H{
-		"TelegramChatID":     id,
-		"ConnectEndpointURL": fmt.Sprintf("%s%s", r.AuthServiceHost, authv1connect.AuthServiceConnectTelegramProcedure),
-	})
-}
-
-func (_ *RegistrationController) Signout(c *gin.Context) {
-	if email := auth.GetUserEmail(c); email != "" {
-		auth.RemoveAuthCookie(c)
-	}
-
-	c.HTML(http.StatusOK, "index.html", gin.H{})
+	url := fmt.Sprintf("%s%s", r.AuthServiceHost, authv1connect.AuthServiceConnectTelegramProcedure)
+	c.HTML(http.StatusOK, "telegram_connect.html", gin.H{"TelegramChatID": idStr, "ConnectEndpointURL": url})
 }
