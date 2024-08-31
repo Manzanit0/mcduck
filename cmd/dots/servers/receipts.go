@@ -72,3 +72,30 @@ func (s *receiptsServer) CreateReceipt(ctx context.Context, req *connect.Request
 	res := connect.NewResponse(&receiptsv1.CreateReceiptResponse{})
 	return res, nil
 }
+
+func (s *receiptsServer) UpdateReceipt(ctx context.Context, req *connect.Request[receiptsv1.UpdateReceiptRequest]) (*connect.Response[receiptsv1.UpdateReceiptResponse], error) {
+	var date *time.Time
+	if req.Msg.Date != nil {
+		d, err := time.Parse("2006-01-02", req.Msg.Date.String())
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unable to parse date: %w", err))
+		}
+		date = &d
+	}
+
+	dto := receipt.UpdateReceiptRequest{
+		ID:            int64(req.Msg.Id),
+		Vendor:        req.Msg.Vendor,
+		PendingReview: req.Msg.PendingReview,
+		Date:          date,
+	}
+
+	err := s.Receipts.UpdateReceipt(ctx, dto)
+	if err != nil {
+		slog.Error("failed to update receipt", "error", err.Error())
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("unable to update receipt: %w", err))
+	}
+
+	res := connect.NewResponse(&receiptsv1.UpdateReceiptResponse{})
+	return res, nil
+}

@@ -2,10 +2,13 @@ syntax = "proto3";
 
 package receipts.v1;
 
+import "google/protobuf/timestamp.proto";
+
 option go_package = "github.com/manzanit0/mcduck/api/receipts.v1;receiptsv1";
 
 service ReceiptsService {
   rpc CreateReceipt(CreateReceiptRequest) returns (CreateReceiptResponse) {}
+  rpc UpdateReceipt(UpdateReceiptRequest) returns (UpdateReceiptResponse) {}
 }
 
 message CreateReceiptRequest {
@@ -15,3 +18,12 @@ message CreateReceiptRequest {
 message CreateReceiptResponse {
   repeated uint64 receipt_ids = 1;
 }
+
+message UpdateReceiptRequest {
+  uint64 id = 1;
+  optional string vendor = 2;
+  optional bool pending_review = 3;
+  optional google.protobuf.Timestamp date = 4;
+}
+
+message UpdateReceiptResponse {}
