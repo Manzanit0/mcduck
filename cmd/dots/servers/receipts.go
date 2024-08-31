@@ -99,3 +99,14 @@ func (s *receiptsServer) UpdateReceipt(ctx context.Context, req *connect.Request
 	res := connect.NewResponse(&receiptsv1.UpdateReceiptResponse{})
 	return res, nil
 }
+
+func (s *receiptsServer) DeleteReceipt(ctx context.Context, req *connect.Request[receiptsv1.DeleteReceiptRequest]) (*connect.Response[receiptsv1.DeleteReceiptResponse], error) {
+	err := s.Receipts.DeleteReceipt(ctx, int64(req.Msg.Id))
+	if err != nil {
+		slog.Error("failed to delete receipt", "error", err.Error())
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("unable to delete receipt: %w", err))
+	}
+
+	res := connect.NewResponse(&receiptsv1.DeleteReceiptResponse{})
+	return res, nil
+}

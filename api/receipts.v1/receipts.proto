@@ -9,6 +9,7 @@ option go_package = "github.com/manzanit0/mcduck/api/receipts.v1;receiptsv1";
 service ReceiptsService {
   rpc CreateReceipt(CreateReceiptRequest) returns (CreateReceiptResponse) {}
   rpc UpdateReceipt(UpdateReceiptRequest) returns (UpdateReceiptResponse) {}
+  rpc DeleteReceipt(DeleteReceiptRequest) returns (DeleteReceiptResponse) {}
 }
 
 message CreateReceiptRequest {
@@ -27,3 +28,9 @@ message UpdateReceiptRequest {
 }
 
 message UpdateReceiptResponse {}
+
+message DeleteReceiptRequest {
+  uint64 id = 1;
+}
+
+message DeleteReceiptResponse {}
