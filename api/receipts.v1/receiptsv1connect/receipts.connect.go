@@ -36,17 +36,22 @@ const (
 	// ReceiptsServiceCreateReceiptProcedure is the fully-qualified name of the ReceiptsService's
 	// CreateReceipt RPC.
 	ReceiptsServiceCreateReceiptProcedure = "/receipts.v1.ReceiptsService/CreateReceipt"
+	// ReceiptsServiceUpdateReceiptProcedure is the fully-qualified name of the ReceiptsService's
+	// UpdateReceipt RPC.
+	ReceiptsServiceUpdateReceiptProcedure = "/receipts.v1.ReceiptsService/UpdateReceipt"
 )
 
 // These variables are the protoreflect.Descriptor objects for the RPCs defined in this package.
 var (
 	receiptsServiceServiceDescriptor             = receipts_v1.File_receipts_v1_receipts_proto.Services().ByName("ReceiptsService")
 	receiptsServiceCreateReceiptMethodDescriptor = receiptsServiceServiceDescriptor.Methods().ByName("CreateReceipt")
+	receiptsServiceUpdateReceiptMethodDescriptor = receiptsServiceServiceDescriptor.Methods().ByName("UpdateReceipt")
 )
 
 // ReceiptsServiceClient is a client for the receipts.v1.ReceiptsService service.
 type ReceiptsServiceClient interface {
 	CreateReceipt(context.Context, *connect.Request[receipts_v1.CreateReceiptRequest]) (*connect.Response[receipts_v1.CreateReceiptResponse], error)
+	UpdateReceipt(context.Context, *connect.Request[receipts_v1.UpdateReceiptRequest]) (*connect.Response[receipts_v1.UpdateReceiptResponse], error)
 }
 
 // NewReceiptsServiceClient constructs a client for the receipts.v1.ReceiptsService service. By
@@ -65,12 +70,19 @@ func NewReceiptsServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(receiptsServiceCreateReceiptMethodDescriptor),
 			connect.WithClientOptions(opts...),
 		),
+		updateReceipt: connect.NewClient[receipts_v1.UpdateReceiptRequest, receipts_v1.UpdateReceiptResponse](
+			httpClient,
+			baseURL+ReceiptsServiceUpdateReceiptProcedure,
+			connect.WithSchema(receiptsServiceUpdateReceiptMethodDescriptor),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // receiptsServiceClient implements ReceiptsServiceClient.
 type receiptsServiceClient struct {
 	createReceipt *connect.Client[receipts_v1.CreateReceiptRequest, receipts_v1.CreateReceiptResponse]
+	updateReceipt *connect.Client[receipts_v1.UpdateReceiptRequest, receipts_v1.UpdateReceiptResponse]
 }
 
 // CreateReceipt calls receipts.v1.ReceiptsService.CreateReceipt.
@@ -78,9 +90,15 @@ func (c *receiptsServiceClient) CreateReceipt(ctx context.Context, req *connect.
 	return c.createReceipt.CallUnary(ctx, req)
 }
 
+// UpdateReceipt calls receipts.v1.ReceiptsService.UpdateReceipt.
+func (c *receiptsServiceClient) UpdateReceipt(ctx context.Context, req *connect.Request[receipts_v1.UpdateReceiptRequest]) (*connect.Response[receipts_v1.UpdateReceiptResponse], error) {
+	return c.updateReceipt.CallUnary(ctx, req)
+}
+
 // ReceiptsServiceHandler is an implementation of the receipts.v1.ReceiptsService service.
 type ReceiptsServiceHandler interface {
 	CreateReceipt(context.Context, *connect.Request[receipts_v1.CreateReceiptRequest]) (*connect.Response[receipts_v1.CreateReceiptResponse], error)
+	UpdateReceipt(context.Context, *connect.Request[receipts_v1.UpdateReceiptRequest]) (*connect.Response[receipts_v1.UpdateReceiptResponse], error)
 }
 
 // NewReceiptsServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -95,10 +113,18 @@ func NewReceiptsServiceHandler(svc ReceiptsServiceHandler, opts ...connect.Handl
 		connect.WithSchema(receiptsServiceCreateReceiptMethodDescriptor),
 		connect.WithHandlerOptions(opts...),
 	)
+	receiptsServiceUpdateReceiptHandler := connect.NewUnaryHandler(
+		ReceiptsServiceUpdateReceiptProcedure,
+		svc.UpdateReceipt,
+		connect.WithSchema(receiptsServiceUpdateReceiptMethodDescriptor),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/receipts.v1.ReceiptsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ReceiptsServiceCreateReceiptProcedure:
 			receiptsServiceCreateReceiptHandler.ServeHTTP(w, r)
+		case ReceiptsServiceUpdateReceiptProcedure:
+			receiptsServiceUpdateReceiptHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -110,4 +136,8 @@ type UnimplementedReceiptsServiceHandler struct{}
 
 func (UnimplementedReceiptsServiceHandler) CreateReceipt(context.Context, *connect.Request[receipts_v1.CreateReceiptRequest]) (*connect.Response[receipts_v1.CreateReceiptResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("receipts.v1.ReceiptsService.CreateReceipt is not implemented"))
+}
+
+func (UnimplementedReceiptsServiceHandler) UpdateReceipt(context.Context, *connect.Request[receipts_v1.UpdateReceiptRequest]) (*connect.Response[receipts_v1.UpdateReceiptResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("receipts.v1.ReceiptsService.UpdateReceipt is not implemented"))
 }
