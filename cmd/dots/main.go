@@ -35,11 +35,11 @@ func main() {
 	}
 	defer tp.Shutdown(context.Background())
 
-	dbx, err := xsql.Open(serviceName)
+	dbx, err := xsql.OpenWithOtelsql()
 	if err != nil {
 		panic(err)
 	}
-	defer xsql.Close(dbx.GetSQLX())
+	defer xsql.Close(dbx)
 
 	tgramToken := micro.MustGetEnv("TELEGRAM_BOT_TOKEN")
 	tgramClient := tgram.NewClient(xhttp.NewClient(), tgramToken)
@@ -59,12 +59,12 @@ func main() {
 	}))
 
 	mux.Handle(authv1connect.NewAuthServiceHandler(
-		servers.NewAuthServer(dbx.GetSQLX(), tgramClient),
+		servers.NewAuthServer(dbx, tgramClient),
 		connect.WithInterceptors(otelInterceptor, traceEnhancer),
 	))
 
 	mux.Handle(receiptsv1connect.NewReceiptsServiceHandler(
-		servers.NewReceiptsServer(dbx.GetSQLX(), tgramClient),
+		servers.NewReceiptsServer(dbx, tgramClient),
 		connect.WithInterceptors(otelInterceptor, authInterceptor, traceEnhancer),
 	))
 
