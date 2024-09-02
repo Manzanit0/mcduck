@@ -3,13 +3,31 @@ package xsql
 import (
 	"fmt"
 	"log/slog"
+	"net"
+	"net/url"
 	"os"
 	"strconv"
 
+	"github.com/XSAM/otelsql"
 	"github.com/jmoiron/sqlx"
 	"github.com/manzanit0/isqlx"
 	"go.opentelemetry.io/otel"
+	semconv "go.opentelemetry.io/otel/semconv/v1.7.0"
 )
+
+func OpenWithOtelsql() (*sqlx.DB, error) {
+	driverName, err := otelsql.Register("pgx", otelsql.WithAttributes(semconv.DBSystemPostgreSQL))
+	if err != nil {
+		return nil, fmt.Errorf("register otelsql: %w", err)
+	}
+
+	config, err := configFromEnv()
+	if err != nil {
+		return nil, fmt.Errorf("read config from environment variables: %w", err)
+	}
+
+	return sqlx.Open(driverName, config.url())
+}
 
 func Open(serviceName string) (isqlx.DBX, error) {
 	tracer := otel.Tracer(serviceName)
@@ -93,4 +111,19 @@ type config struct {
 	user     string
 	password string
 	name     string
+}
+
+func (c *config) url() string {
+	query := url.Values{}
+	query.Set("client_encoding", "UTF8")
+
+	datasource := url.URL{
+		Scheme:   "postgres",
+		User:     url.UserPassword(c.user, c.password),
+		Host:     net.JoinHostPort(c.host, strconv.Itoa(c.port)),
+		Path:     c.name,
+		RawQuery: query.Encode(),
+	}
+
+	return datasource.String()
 }

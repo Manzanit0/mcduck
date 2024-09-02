@@ -12,6 +12,8 @@ import (
 	"github.com/manzanit0/mcduck/internal/users"
 	"github.com/manzanit0/mcduck/pkg/auth"
 	"github.com/manzanit0/mcduck/pkg/tgram"
+	"github.com/manzanit0/mcduck/pkg/xtrace"
+	"go.opentelemetry.io/otel/codes"
 )
 
 type authServer struct {
@@ -45,20 +47,30 @@ func (s *authServer) Register(ctx context.Context, req *connect.Request[authv1.R
 }
 
 func (s *authServer) Login(ctx context.Context, req *connect.Request[authv1.LoginRequest]) (*connect.Response[authv1.LoginResponse], error) {
-	slog.Info("Got login!!")
+	ctx, span := xtrace.StartSpan(ctx, "Login")
+	defer span.End()
+
 	user, err := users.Find(ctx, s.DB, req.Msg.Email)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		slog.Error("unable to find user", "email", req.Msg.Email, "error", err.Error())
 		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("invalid email or password"))
 	}
 
+	_, span = xtrace.StartSpan(ctx, "Check password hash")
 	if !auth.CheckPasswordHash(req.Msg.Password, user.HashedPassword) {
 		slog.Error("invalid password", "email", req.Msg.Email, "error", "hashed password doesn't match")
 		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("invalid email or password"))
 	}
+	span.End()
 
+	_, span = xtrace.StartSpan(ctx, "Generate JWT")
+	defer span.End()
 	token, err := auth.GenerateJWT(user.Email)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		slog.ErrorContext(ctx, "generate JWT", "error", err.Error())
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("unable to generate token: %w", err))
 	}
