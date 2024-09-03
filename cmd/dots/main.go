@@ -15,6 +15,7 @@ import (
 	"github.com/manzanit0/mcduck/api/auth.v1/authv1connect"
 	"github.com/manzanit0/mcduck/api/receipts.v1/receiptsv1connect"
 	"github.com/manzanit0/mcduck/cmd/dots/servers"
+	"github.com/manzanit0/mcduck/internal/client"
 	"github.com/manzanit0/mcduck/pkg/auth"
 	"github.com/manzanit0/mcduck/pkg/micro"
 	"github.com/manzanit0/mcduck/pkg/tgram"
@@ -44,6 +45,9 @@ func main() {
 	tgramToken := micro.MustGetEnv("TELEGRAM_BOT_TOKEN")
 	tgramClient := tgram.NewClient(xhttp.NewClient(), tgramToken)
 
+	parserHost := micro.MustGetEnv("PARSER_HOST")
+	parserClient := client.NewParserClient(parserHost)
+
 	otelInterceptor, err := otelconnect.NewInterceptor(otelconnect.WithTrustRemote(), otelconnect.WithoutMetrics())
 	if err != nil {
 		panic(err)
@@ -64,7 +68,7 @@ func main() {
 	))
 
 	mux.Handle(receiptsv1connect.NewReceiptsServiceHandler(
-		servers.NewReceiptsServer(dbx, tgramClient),
+		servers.NewReceiptsServer(dbx, parserClient, tgramClient),
 		connect.WithInterceptors(otelInterceptor, authInterceptor, traceEnhancer),
 	))
 
