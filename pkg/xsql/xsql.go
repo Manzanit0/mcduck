@@ -127,3 +127,18 @@ func (c *config) url() string {
 
 	return datasource.String()
 }
+
+func TxClose(tx *sqlx.Tx) {
+	if r := recover(); r != nil {
+		slog.Error("recovered an error in TxClose()", "error", r)
+		_ = tx.Rollback()
+		panic(r)
+	} else {
+		// Transaction leak failsafe:
+		//
+		// I don't check the errors here because the transaction might already
+		// have been committed/rolledback. If there's an issue with the database
+		// connection we'll catch it the next time that db handle gets used.
+		_ = tx.Rollback()
+	}
+}
