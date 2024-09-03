@@ -3,6 +3,7 @@ package expense
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/csv"
 	"fmt"
 	"io"
@@ -13,7 +14,7 @@ import (
 	"time"
 
 	sq "github.com/Masterminds/squirrel"
-	"github.com/manzanit0/isqlx"
+	"github.com/jmoiron/sqlx"
 )
 
 type Expense struct {
@@ -228,11 +229,11 @@ func FromCSV(r io.Reader) ([]Expense, error) {
 }
 
 type Repository struct {
-	dbx isqlx.DBX
+	db *sqlx.DB
 }
 
-func NewRepository(dbx isqlx.DBX) *Repository {
-	return &Repository{dbx: dbx}
+func NewRepository(db *sqlx.DB) *Repository {
+	return &Repository{db: db}
 }
 
 type ExpensesBatch struct {
@@ -241,10 +242,14 @@ type ExpensesBatch struct {
 }
 
 func (r *Repository) CreateExpenses(ctx context.Context, e ExpensesBatch) error {
-	return CreateExpenses(ctx, r.dbx, e)
+	return CreateExpenses(ctx, r.db, e)
 }
 
-func CreateExpenses(ctx context.Context, tx isqlx.Querier, e ExpensesBatch) error {
+type QueryExecutor interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+}
+
+func CreateExpenses(ctx context.Context, tx QueryExecutor, e ExpensesBatch) error {
 	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
 
 	builder := psql.Insert("expenses").Columns(
@@ -296,7 +301,7 @@ func (r *Repository) FindExpense(ctx context.Context, id int64) (*Expense, error
 	}
 
 	var out dbExpense
-	err = r.dbx.GetContext(ctx, &out, query, args...)
+	err = r.db.GetContext(ctx, &out, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("unable to execute query: %w", err)
 	}
@@ -361,7 +366,7 @@ func (r *Repository) UpdateExpense(ctx context.Context, e UpdateExpenseRequest) 
 		return fmt.Errorf("unable to build query: %w", err)
 	}
 
-	_, err = r.dbx.ExecContext(ctx, query, args...)
+	_, err = r.db.ExecContext(ctx, query, args...)
 	if err != nil {
 		return fmt.Errorf("unable to execute query: %w", err)
 	}
@@ -394,7 +399,7 @@ func (r *Repository) CreateExpense(ctx context.Context, e CreateExpenseRequest) 
 		ID int64 `db:"id"`
 	}{}
 
-	err = r.dbx.GetContext(ctx, &record, query, args...)
+	err = r.db.GetContext(ctx, &record, query, args...)
 	if err != nil {
 		return 0, fmt.Errorf("unable to execute query: %w", err)
 	}
@@ -410,7 +415,7 @@ func (r *Repository) DeleteExpense(ctx context.Context, id int64) error {
 		return fmt.Errorf("unable to build query: %w", err)
 	}
 
-	_, err = r.dbx.ExecContext(ctx, query, args...)
+	_, err = r.db.ExecContext(ctx, query, args...)
 	if err != nil {
 		return fmt.Errorf("unable to execute query: %w", err)
 	}
@@ -420,7 +425,7 @@ func (r *Repository) DeleteExpense(ctx context.Context, id int64) error {
 
 func (r *Repository) ListExpenses(ctx context.Context, email string) ([]Expense, error) {
 	var expenses []dbExpense
-	err := r.dbx.SelectContext(ctx, &expenses, `SELECT id, amount, expense_date, category, sub_category, description, receipt_id FROM expenses WHERE user_email = $1 ORDER BY expense_date desc`, email)
+	err := r.db.SelectContext(ctx, &expenses, `SELECT id, amount, expense_date, category, sub_category, description, receipt_id FROM expenses WHERE user_email = $1 ORDER BY expense_date desc`, email)
 	if err != nil {
 		return nil, fmt.Errorf("unable to execute query: %w", err)
 	}
@@ -446,7 +451,7 @@ func (r *Repository) ListExpensesForReceipt(ctx context.Context, receiptID uint6
 	}
 
 	var expenses []dbExpense
-	err = r.dbx.SelectContext(ctx, &expenses, query, args...)
+	err = r.db.SelectContext(ctx, &expenses, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("unable to execute query: %w", err)
 	}

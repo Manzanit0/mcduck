@@ -88,7 +88,7 @@ func run() error {
 		AuthClient:      authClient,
 	}
 
-	expenseRepository := expense.NewRepository(dbx)
+	expenseRepository := expense.NewRepository(dbxWithTracing)
 	expensesController := controllers.ExpensesController{Expenses: expenseRepository}
 
 	parserHost := micro.MustGetEnv("PARSER_HOST") // TODO: shouldn't throw.
