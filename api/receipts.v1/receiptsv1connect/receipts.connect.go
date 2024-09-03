@@ -42,6 +42,9 @@ const (
 	// ReceiptsServiceDeleteReceiptProcedure is the fully-qualified name of the ReceiptsService's
 	// DeleteReceipt RPC.
 	ReceiptsServiceDeleteReceiptProcedure = "/receipts.v1.ReceiptsService/DeleteReceipt"
+	// ReceiptsServiceListReceiptsProcedure is the fully-qualified name of the ReceiptsService's
+	// ListReceipts RPC.
+	ReceiptsServiceListReceiptsProcedure = "/receipts.v1.ReceiptsService/ListReceipts"
 )
 
 // These variables are the protoreflect.Descriptor objects for the RPCs defined in this package.
@@ -50,6 +53,7 @@ var (
 	receiptsServiceCreateReceiptMethodDescriptor = receiptsServiceServiceDescriptor.Methods().ByName("CreateReceipt")
 	receiptsServiceUpdateReceiptMethodDescriptor = receiptsServiceServiceDescriptor.Methods().ByName("UpdateReceipt")
 	receiptsServiceDeleteReceiptMethodDescriptor = receiptsServiceServiceDescriptor.Methods().ByName("DeleteReceipt")
+	receiptsServiceListReceiptsMethodDescriptor  = receiptsServiceServiceDescriptor.Methods().ByName("ListReceipts")
 )
 
 // ReceiptsServiceClient is a client for the receipts.v1.ReceiptsService service.
@@ -57,6 +61,7 @@ type ReceiptsServiceClient interface {
 	CreateReceipt(context.Context, *connect.Request[receipts_v1.CreateReceiptRequest]) (*connect.Response[receipts_v1.CreateReceiptResponse], error)
 	UpdateReceipt(context.Context, *connect.Request[receipts_v1.UpdateReceiptRequest]) (*connect.Response[receipts_v1.UpdateReceiptResponse], error)
 	DeleteReceipt(context.Context, *connect.Request[receipts_v1.DeleteReceiptRequest]) (*connect.Response[receipts_v1.DeleteReceiptResponse], error)
+	ListReceipts(context.Context, *connect.Request[receipts_v1.ListReceiptsRequest]) (*connect.Response[receipts_v1.ListReceiptsResponse], error)
 }
 
 // NewReceiptsServiceClient constructs a client for the receipts.v1.ReceiptsService service. By
@@ -87,6 +92,12 @@ func NewReceiptsServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(receiptsServiceDeleteReceiptMethodDescriptor),
 			connect.WithClientOptions(opts...),
 		),
+		listReceipts: connect.NewClient[receipts_v1.ListReceiptsRequest, receipts_v1.ListReceiptsResponse](
+			httpClient,
+			baseURL+ReceiptsServiceListReceiptsProcedure,
+			connect.WithSchema(receiptsServiceListReceiptsMethodDescriptor),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -95,6 +106,7 @@ type receiptsServiceClient struct {
 	createReceipt *connect.Client[receipts_v1.CreateReceiptRequest, receipts_v1.CreateReceiptResponse]
 	updateReceipt *connect.Client[receipts_v1.UpdateReceiptRequest, receipts_v1.UpdateReceiptResponse]
 	deleteReceipt *connect.Client[receipts_v1.DeleteReceiptRequest, receipts_v1.DeleteReceiptResponse]
+	listReceipts  *connect.Client[receipts_v1.ListReceiptsRequest, receipts_v1.ListReceiptsResponse]
 }
 
 // CreateReceipt calls receipts.v1.ReceiptsService.CreateReceipt.
@@ -112,11 +124,17 @@ func (c *receiptsServiceClient) DeleteReceipt(ctx context.Context, req *connect.
 	return c.deleteReceipt.CallUnary(ctx, req)
 }
 
+// ListReceipts calls receipts.v1.ReceiptsService.ListReceipts.
+func (c *receiptsServiceClient) ListReceipts(ctx context.Context, req *connect.Request[receipts_v1.ListReceiptsRequest]) (*connect.Response[receipts_v1.ListReceiptsResponse], error) {
+	return c.listReceipts.CallUnary(ctx, req)
+}
+
 // ReceiptsServiceHandler is an implementation of the receipts.v1.ReceiptsService service.
 type ReceiptsServiceHandler interface {
 	CreateReceipt(context.Context, *connect.Request[receipts_v1.CreateReceiptRequest]) (*connect.Response[receipts_v1.CreateReceiptResponse], error)
 	UpdateReceipt(context.Context, *connect.Request[receipts_v1.UpdateReceiptRequest]) (*connect.Response[receipts_v1.UpdateReceiptResponse], error)
 	DeleteReceipt(context.Context, *connect.Request[receipts_v1.DeleteReceiptRequest]) (*connect.Response[receipts_v1.DeleteReceiptResponse], error)
+	ListReceipts(context.Context, *connect.Request[receipts_v1.ListReceiptsRequest]) (*connect.Response[receipts_v1.ListReceiptsResponse], error)
 }
 
 // NewReceiptsServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -143,6 +161,12 @@ func NewReceiptsServiceHandler(svc ReceiptsServiceHandler, opts ...connect.Handl
 		connect.WithSchema(receiptsServiceDeleteReceiptMethodDescriptor),
 		connect.WithHandlerOptions(opts...),
 	)
+	receiptsServiceListReceiptsHandler := connect.NewUnaryHandler(
+		ReceiptsServiceListReceiptsProcedure,
+		svc.ListReceipts,
+		connect.WithSchema(receiptsServiceListReceiptsMethodDescriptor),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/receipts.v1.ReceiptsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ReceiptsServiceCreateReceiptProcedure:
@@ -151,6 +175,8 @@ func NewReceiptsServiceHandler(svc ReceiptsServiceHandler, opts ...connect.Handl
 			receiptsServiceUpdateReceiptHandler.ServeHTTP(w, r)
 		case ReceiptsServiceDeleteReceiptProcedure:
 			receiptsServiceDeleteReceiptHandler.ServeHTTP(w, r)
+		case ReceiptsServiceListReceiptsProcedure:
+			receiptsServiceListReceiptsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -170,4 +196,8 @@ func (UnimplementedReceiptsServiceHandler) UpdateReceipt(context.Context, *conne
 
 func (UnimplementedReceiptsServiceHandler) DeleteReceipt(context.Context, *connect.Request[receipts_v1.DeleteReceiptRequest]) (*connect.Response[receipts_v1.DeleteReceiptResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("receipts.v1.ReceiptsService.DeleteReceipt is not implemented"))
+}
+
+func (UnimplementedReceiptsServiceHandler) ListReceipts(context.Context, *connect.Request[receipts_v1.ListReceiptsRequest]) (*connect.Response[receipts_v1.ListReceiptsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("receipts.v1.ReceiptsService.ListReceipts is not implemented"))
 }
