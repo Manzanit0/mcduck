@@ -199,7 +199,7 @@ func (s *receiptsServer) ListReceipts(ctx context.Context, req *connect.Request[
 	resReceipts := make([]*receiptsv1.Receipt, len(receipts))
 	for i, receipt := range receipts {
 		resReceipts[i].Id = uint64(receipt.ID)
-		resReceipts[i].Status = 0
+		resReceipts[i].Status = mapReceiptStatus(&receipt)
 		resReceipts[i].Vendor = receipt.Vendor
 		resReceipts[i].Date = timestamppb.New(receipt.Date)
 
@@ -232,7 +232,59 @@ func (s *receiptsServer) ListReceipts(ctx context.Context, req *connect.Request[
 	return res, nil
 }
 
+func (s *receiptsServer) GetReceipt(ctx context.Context, req *connect.Request[receiptsv1.GetReceiptRequest]) (*connect.Response[receiptsv1.GetReceiptResponse], error) {
+	_, span := xtrace.StartSpan(ctx, "Get Receipt")
+	defer span.End()
+
+	receipt, err := s.Receipts.GetReceipt(ctx, req.Msg.Id)
+	if err != nil {
+		slog.Error("failed to get receipt", "error", err.Error())
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("unable to get receipt: %w", err))
+	}
+
+	expenses, err := s.Expenses.ListExpensesForReceipt(ctx, req.Msg.Id)
+	if err != nil {
+		slog.Error("failed to list expenses for receipt", "error", err.Error())
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("unable to get expenses for receipt: %w", err))
+	}
+
+	resExpenses := make([]*receiptsv1.Expense, len(expenses))
+	for i, e := range expenses {
+		resExp := receiptsv1.Expense{
+			Id:          e.ID,
+			Date:        timestamppb.New(e.Date),
+			Category:    e.Category,
+			Subcategory: e.Subcategory,
+			Description: e.Description,
+			Amount:      uint64(expense.ConvertToCents(e.Amount)),
+		}
+
+		resExpenses[i] = &resExp
+	}
+
+	res := connect.NewResponse(&receiptsv1.GetReceiptResponse{
+		Receipt: &receiptsv1.FullReceipt{
+			Id:       uint64(receipt.ID),
+			Status:   mapReceiptStatus(receipt),
+			Vendor:   receipt.Vendor,
+			Date:     timestamppb.New(receipt.Date),
+			File:     receipt.Image,
+			Expenses: resExpenses,
+		},
+	})
+
+	return res, nil
+}
+
 func delete[T any](s []T, i int) []T {
 	s[i] = s[len(s)-1]
 	return s[:len(s)-1]
+}
+
+func mapReceiptStatus(r *receipt.Receipt) receiptsv1.ReceiptStatus {
+	if r.PendingReview {
+		return receiptsv1.ReceiptStatus_RECEIPT_STATUS_PENDING_REVIEW
+	}
+
+	return receiptsv1.ReceiptStatus_RECEIPT_STATUS_REVIEWED
 }
