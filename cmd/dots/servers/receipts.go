@@ -14,6 +14,8 @@ import (
 	"github.com/manzanit0/mcduck/internal/receipt"
 	"github.com/manzanit0/mcduck/pkg/auth"
 	"github.com/manzanit0/mcduck/pkg/tgram"
+	"github.com/manzanit0/mcduck/pkg/xtrace"
+	"go.opentelemetry.io/otel/codes"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -31,11 +33,17 @@ func NewReceiptsServer(db *sqlx.DB, t tgram.Client) receiptsv1connect.ReceiptsSe
 }
 
 func (s *receiptsServer) CreateReceipt(ctx context.Context, req *connect.Request[receiptsv1.CreateReceiptRequest]) (*connect.Response[receiptsv1.CreateReceiptResponse], error) {
+	_, span := xtrace.StartSpan(ctx, "Create Receipts")
+	defer span.End()
+
 	email := auth.MustGetUserEmailConnect(ctx)
 
 	g, ctx := errgroup.WithContext(ctx)
 	for i, file := range req.Msg.ReceiptFiles {
 		g.Go(func() error {
+			_, span := xtrace.StartSpan(ctx, "Process Receipt")
+			defer span.End()
+
 			parsed, err := s.Parser.ParseReceipt(ctx, email, file)
 			if err != nil {
 				slog.Error("failed to parse receipt through parser service", "error", err.Error(), "index", i)
@@ -66,6 +74,9 @@ func (s *receiptsServer) CreateReceipt(ctx context.Context, req *connect.Request
 	}
 
 	if err := g.Wait(); err != nil {
+		slog.ErrorContext(ctx, "create receipt", "error", err.Error())
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
@@ -74,6 +85,9 @@ func (s *receiptsServer) CreateReceipt(ctx context.Context, req *connect.Request
 }
 
 func (s *receiptsServer) UpdateReceipt(ctx context.Context, req *connect.Request[receiptsv1.UpdateReceiptRequest]) (*connect.Response[receiptsv1.UpdateReceiptResponse], error) {
+	_, span := xtrace.StartSpan(ctx, "Update Receipt")
+	defer span.End()
+
 	var date *time.Time
 	if req.Msg.Date != nil {
 		d, err := time.Parse("2006-01-02", req.Msg.Date.String())
@@ -93,6 +107,8 @@ func (s *receiptsServer) UpdateReceipt(ctx context.Context, req *connect.Request
 	err := s.Receipts.UpdateReceipt(ctx, dto)
 	if err != nil {
 		slog.Error("failed to update receipt", "error", err.Error())
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("unable to update receipt: %w", err))
 	}
 
@@ -101,9 +117,14 @@ func (s *receiptsServer) UpdateReceipt(ctx context.Context, req *connect.Request
 }
 
 func (s *receiptsServer) DeleteReceipt(ctx context.Context, req *connect.Request[receiptsv1.DeleteReceiptRequest]) (*connect.Response[receiptsv1.DeleteReceiptResponse], error) {
+	_, span := xtrace.StartSpan(ctx, "Update Receipt")
+	defer span.End()
+
 	err := s.Receipts.DeleteReceipt(ctx, int64(req.Msg.Id))
 	if err != nil {
 		slog.Error("failed to delete receipt", "error", err.Error())
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("unable to delete receipt: %w", err))
 	}
 
