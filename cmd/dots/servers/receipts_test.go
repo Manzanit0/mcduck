@@ -3,7 +3,6 @@ package servers_test
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 	"testing"
@@ -21,6 +20,7 @@ import (
 	"connectrpc.com/connect"
 	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/jmoiron/sqlx"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
@@ -94,55 +94,25 @@ func TestCreateReceipt(t *testing.T) {
 		require.NoError(t, err)
 
 		ids := res.Msg.GetReceiptIds()
-
-		if len(ids) != 1 {
-			log.Fatal("expected 1 id, got ", len(ids))
-		}
+		require.Len(t, ids, 1)
 
 		r := receipt.NewRepository(db)
 		receipt, err := r.GetReceipt(ctx, ids[0])
 		require.NoError(t, err)
-
-		if receipt.Vendor != "some vendor" {
-			log.Fatal("expected some vendor got", receipt.Vendor)
-		}
-
-		if receipt.PendingReview == false {
-			log.Fatal("expected receipt to be pending review")
-		}
-
-		if receipt.Date.Format("02/01/2006") != "02/01/2006" {
-			log.Fatal("got date", receipt.Date.Format("02/01/2006"))
-		}
+		assert.Equal(t, receipt.Vendor, "some vendor")
+		assert.False(t, receipt.PendingReview)
+		assert.Equal(t, receipt.Date.Format("02/01/2006"), "02/01/2006")
 
 		e := expense.NewRepository(db)
 
 		expenses, err := e.ListExpensesForReceipt(ctx, ids[0])
 		require.NoError(t, err)
-
-		if len(expenses) != 1 {
-			log.Fatal("expected 1 expense, got ", len(ids))
-		}
-
-		if expenses[0].Amount != 5.5 {
-			log.Fatal("expected amount 5.5, got", expenses[0].Amount)
-		}
-
-		if expenses[0].Category != "Receipt Upload" {
-			log.Fatal("got category", expenses[0].Category)
-		}
-
-		if expenses[0].Subcategory != "" {
-			log.Fatal("got subcategory", expenses[0].Category)
-		}
-
-		if expenses[0].Description != "some description" {
-			log.Fatal("got description", expenses[0].Description)
-		}
-
-		if expenses[0].Date.Format("02/01/2006") != receipt.Date.Format("02/01/2006") {
-			log.Fatal("got date different than receipt")
-		}
+		require.Len(t, expenses, 1)
+		assert.Equal(t, expenses[0].Amount, 5.5)
+		assert.Equal(t, expenses[0].Category, "Receipt Upload")
+		assert.Equal(t, expenses[0].Subcategory, "")
+		assert.Equal(t, expenses[0].Description, "some description")
+		assert.Equal(t, expenses[0].Date.Format("02/01/2006"), receipt.Date.Format("02/01/2006"))
 	})
 }
 
