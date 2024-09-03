@@ -10,6 +10,7 @@ service ReceiptsService {
   rpc CreateReceipt(CreateReceiptRequest) returns (CreateReceiptResponse) {}
   rpc UpdateReceipt(UpdateReceiptRequest) returns (UpdateReceiptResponse) {}
   rpc DeleteReceipt(DeleteReceiptRequest) returns (DeleteReceiptResponse) {}
+  rpc ListReceipts(ListReceiptsRequest) returns (ListReceiptsResponse) {}
 }
 
 message CreateReceiptRequest {
@@ -34,3 +35,42 @@ message DeleteReceiptRequest {
 }
 
 message DeleteReceiptResponse {}
+
+message ListReceiptsRequest {
+  optional ListReceiptsSince since = 1;
+  optional ReceiptStatus status = 2;
+}
+
+enum ListReceiptsSince {
+  LIST_RECEIPTS_SINCE_UNSPECIFIED = 0;
+  LIST_RECEIPTS_SINCE_CURRENT_MONTH = 1;
+  LIST_RECEIPTS_SINCE_PREVIOUS_MONTH = 2;
+  LIST_RECEIPTS_SINCE_ALL_TIME = 3;
+}
+
+enum ReceiptStatus {
+  RECEIPT_STATUS_UNSPECIFIED = 0;
+  RECEIPT_STATUS_PENDING_REVIEW = 1;
+  RECEIPT_STATUS_REVIEWED = 2;
+}
+
+message Receipt {
+  uint64 id = 1;
+  ReceiptStatus status = 2;
+  string vendor = 3;
+  google.protobuf.Timestamp date = 4;
+  repeated Expense expenses = 5;
+}
+
+message Expense {
+  uint64 id = 1;
+  google.protobuf.Timestamp date = 2;
+  string category = 3;
+  string subcategory = 4;
+  string description = 5;
+  uint64 amount = 6;
+}
+
+message ListReceiptsResponse {
+  repeated Receipt receipts = 1;
+}

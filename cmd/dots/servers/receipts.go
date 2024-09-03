@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"sort"
 	"time"
 
 	"connectrpc.com/connect"
@@ -11,25 +12,31 @@ import (
 	receiptsv1 "github.com/manzanit0/mcduck/api/receipts.v1"
 	"github.com/manzanit0/mcduck/api/receipts.v1/receiptsv1connect"
 	"github.com/manzanit0/mcduck/internal/client"
+	"github.com/manzanit0/mcduck/internal/expense"
 	"github.com/manzanit0/mcduck/internal/receipt"
 	"github.com/manzanit0/mcduck/pkg/auth"
 	"github.com/manzanit0/mcduck/pkg/tgram"
 	"github.com/manzanit0/mcduck/pkg/xtrace"
 	"go.opentelemetry.io/otel/codes"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type receiptsServer struct {
-	DB       *sqlx.DB
 	Telegram tgram.Client
 	Parser   client.ParserClient
 	Receipts *receipt.Repository
+	Expenses *expense.Repository
 }
 
 var _ receiptsv1connect.ReceiptsServiceClient = &receiptsServer{}
 
 func NewReceiptsServer(db *sqlx.DB, t tgram.Client) receiptsv1connect.ReceiptsServiceClient {
-	return &receiptsServer{DB: db, Telegram: t}
+	return &receiptsServer{
+		Telegram: t,
+		Receipts: receipt.NewRepository(db),
+		Expenses: expense.NewRepository(db),
+	}
 }
 
 func (s *receiptsServer) CreateReceipt(ctx context.Context, req *connect.Request[receiptsv1.CreateReceiptRequest]) (*connect.Response[receiptsv1.CreateReceiptResponse], error) {
@@ -130,4 +137,102 @@ func (s *receiptsServer) DeleteReceipt(ctx context.Context, req *connect.Request
 
 	res := connect.NewResponse(&receiptsv1.DeleteReceiptResponse{})
 	return res, nil
+}
+
+func (s *receiptsServer) ListReceipts(ctx context.Context, req *connect.Request[receiptsv1.ListReceiptsRequest]) (*connect.Response[receiptsv1.ListReceiptsResponse], error) {
+	_, span := xtrace.StartSpan(ctx, "List Receipts")
+	defer span.End()
+
+	userEmail := auth.MustGetUserEmailConnect(ctx)
+
+	var receipts []receipt.Receipt
+	var err error
+
+	_, span = xtrace.StartSpan(ctx, "Filter Receipts")
+	if req.Msg.Since != nil {
+		switch *req.Msg.Since {
+		case receiptsv1.ListReceiptsSince_LIST_RECEIPTS_SINCE_CURRENT_MONTH:
+			receipts, err = s.Receipts.ListReceiptsCurrentMonth(ctx, userEmail)
+		case receiptsv1.ListReceiptsSince_LIST_RECEIPTS_SINCE_PREVIOUS_MONTH:
+			receipts, err = s.Receipts.ListReceiptsPreviousMonth(ctx, userEmail)
+		case receiptsv1.ListReceiptsSince_LIST_RECEIPTS_SINCE_ALL_TIME:
+			receipts, err = s.Receipts.ListReceipts(ctx, userEmail)
+		default:
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unsupported since value"))
+		}
+	}
+
+	if err != nil {
+		slog.Error("failed to list receipts", "error", err.Error())
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("unable to list receipts: %w", err))
+	}
+
+	if req.Msg.Status != nil {
+		// Note: iterate from the back so we don't have to worry about removed indexes.
+		for i := len(receipts) - 1; i >= 0; i-- {
+			switch *req.Msg.Status {
+			case receiptsv1.ReceiptStatus_RECEIPT_STATUS_PENDING_REVIEW:
+				if receipts[i].PendingReview {
+					delete(receipts, i)
+				}
+			case receiptsv1.ReceiptStatus_RECEIPT_STATUS_REVIEWED:
+				if !receipts[i].PendingReview {
+					delete(receipts, i)
+				}
+			}
+		}
+	}
+	defer span.End()
+
+	// Sort the most recent first
+	_, span = xtrace.StartSpan(ctx, "Sort Receipts")
+	sort.Slice(receipts, func(i, j int) bool {
+		return receipts[i].Date.After(receipts[j].Date)
+	})
+	defer span.End()
+
+	_, span = xtrace.StartSpan(ctx, "Map Receipts to Response")
+	defer span.End()
+
+	resReceipts := make([]*receiptsv1.Receipt, len(receipts))
+	for i, receipt := range receipts {
+		resReceipts[i].Id = uint64(receipt.ID)
+		resReceipts[i].Status = 0
+		resReceipts[i].Vendor = receipt.Vendor
+		resReceipts[i].Date = timestamppb.New(receipt.Date)
+
+		// FIXME(performance): We should probably do a bulk query before the loop.
+		expenses, err := s.Expenses.ListExpensesForReceipt(ctx, uint64(receipt.ID))
+		if err != nil {
+			slog.Error("failed to list expenses for receipt", "error", err.Error())
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("unable to list expenses for receipt: %w", err))
+		}
+
+		resReceipts[i].Expenses = make([]*receiptsv1.Expense, len(expenses))
+		for j, e := range expenses {
+			resExp := receiptsv1.Expense{
+				Id:          e.ID,
+				Date:        timestamppb.New(e.Date),
+				Category:    e.Category,
+				Subcategory: e.Subcategory,
+				Description: e.Description,
+				Amount:      uint64(expense.ConvertToCents(e.Amount)),
+			}
+
+			resReceipts[i].Expenses[j] = &resExp
+		}
+
+	}
+
+	res := connect.NewResponse(&receiptsv1.ListReceiptsResponse{Receipts: resReceipts})
+	return res, nil
+}
+
+func delete[T any](s []T, i int) []T {
+	s[i] = s[len(s)-1]
+	return s[:len(s)-1]
 }
