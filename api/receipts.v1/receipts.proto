@@ -11,6 +11,7 @@ service ReceiptsService {
   rpc UpdateReceipt(UpdateReceiptRequest) returns (UpdateReceiptResponse) {}
   rpc DeleteReceipt(DeleteReceiptRequest) returns (DeleteReceiptResponse) {}
   rpc ListReceipts(ListReceiptsRequest) returns (ListReceiptsResponse) {}
+  rpc GetReceipt(GetReceiptRequest) returns (GetReceiptResponse) {}
 }
 
 message CreateReceiptRequest {
@@ -73,4 +74,21 @@ message Expense {
 
 message ListReceiptsResponse {
   repeated Receipt receipts = 1;
+}
+
+message GetReceiptRequest {
+  uint64 id = 1;
+}
+
+message GetReceiptResponse {
+  FullReceipt receipt = 1;
+}
+
+message FullReceipt {
+  uint64 id = 1;
+  ReceiptStatus status = 2;
+  string vendor = 3;
+  google.protobuf.Timestamp date = 4;
+  bytes file = 5;
+  repeated Expense expenses = 6;
 }
