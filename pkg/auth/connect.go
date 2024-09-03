@@ -30,7 +30,7 @@ func MustGetUserEmailConnect(ctx context.Context) string {
 	return email
 }
 
-func withInfo(ctx context.Context, info any) context.Context {
+func WithInfo(ctx context.Context, info any) context.Context {
 	if info == nil {
 		return ctx
 	}
@@ -57,7 +57,7 @@ func AuthenticationInterceptor() connect.UnaryInterceptorFunc {
 				return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("invalid token"))
 			}
 
-			ctx = withInfo(ctx, user)
+			ctx = WithInfo(ctx, user)
 
 			resp, err = next(ctx, req)
 			return

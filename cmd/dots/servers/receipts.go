@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sort"
+	"sync"
 	"time"
 
 	"connectrpc.com/connect"
@@ -31,9 +32,10 @@ type receiptsServer struct {
 
 var _ receiptsv1connect.ReceiptsServiceClient = &receiptsServer{}
 
-func NewReceiptsServer(db *sqlx.DB, t tgram.Client) receiptsv1connect.ReceiptsServiceClient {
+func NewReceiptsServer(db *sqlx.DB, p client.ParserClient, t tgram.Client) receiptsv1connect.ReceiptsServiceClient {
 	return &receiptsServer{
 		Telegram: t,
+		Parser:   p,
 		Receipts: receipt.NewRepository(db),
 		Expenses: expense.NewRepository(db),
 	}
@@ -45,6 +47,8 @@ func (s *receiptsServer) CreateReceipt(ctx context.Context, req *connect.Request
 
 	email := auth.MustGetUserEmailConnect(ctx)
 
+	var ids []uint64
+	var m sync.Mutex
 	g, ctx := errgroup.WithContext(ctx)
 	for i, file := range req.Msg.ReceiptFiles {
 		g.Go(func() error {
@@ -63,7 +67,7 @@ func (s *receiptsServer) CreateReceipt(ctx context.Context, req *connect.Request
 				parsedTime = time.Now()
 			}
 
-			_, err = s.Receipts.CreateReceipt(ctx, receipt.CreateReceiptRequest{
+			receipt, err := s.Receipts.CreateReceipt(ctx, receipt.CreateReceiptRequest{
 				Amount:      parsed.Amount,
 				Description: parsed.Description,
 				Vendor:      parsed.Vendor,
@@ -75,6 +79,10 @@ func (s *receiptsServer) CreateReceipt(ctx context.Context, req *connect.Request
 				slog.Error("failed to insert receipt", "error", err.Error(), "index", i)
 				return fmt.Errorf("parse receipt: %w", err)
 			}
+			m.Lock()
+			defer m.Unlock()
+
+			ids = append(ids, uint64(receipt.ID))
 
 			return nil
 		})
@@ -87,7 +95,9 @@ func (s *receiptsServer) CreateReceipt(ctx context.Context, req *connect.Request
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
-	res := connect.NewResponse(&receiptsv1.CreateReceiptResponse{})
+	res := connect.NewResponse(&receiptsv1.CreateReceiptResponse{
+		ReceiptIds: ids,
+	})
 	return res, nil
 }
 
