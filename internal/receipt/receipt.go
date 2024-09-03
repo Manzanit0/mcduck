@@ -6,8 +6,10 @@ import (
 	"time"
 
 	sq "github.com/Masterminds/squirrel"
-	"github.com/manzanit0/isqlx"
+	"github.com/jmoiron/sqlx"
 	"github.com/manzanit0/mcduck/internal/expense"
+	"github.com/manzanit0/mcduck/pkg/xsql"
+	"github.com/manzanit0/mcduck/pkg/xtrace"
 )
 
 type Receipt struct {
@@ -51,10 +53,10 @@ func (r *dbReceipt) MapReceipt() *Receipt {
 }
 
 type Repository struct {
-	dbx isqlx.DBX
+	dbx *sqlx.DB
 }
 
-func NewRepository(dbx isqlx.DBX) *Repository {
+func NewRepository(dbx *sqlx.DB) *Repository {
 	return &Repository{dbx: dbx}
 }
 
@@ -68,16 +70,19 @@ type CreateReceiptRequest struct {
 }
 
 func (r *Repository) CreateReceipt(ctx context.Context, input CreateReceiptRequest) (*Receipt, error) {
+	ctx, span := xtrace.StartSpan(ctx, "Create Receipt")
+	defer span.End()
+
 	if len(input.Image) == 0 {
 		return nil, fmt.Errorf("empty receipt")
 	}
 
-	txn, err := r.dbx.Begin(ctx)
+	txn, err := r.dbx.BeginTxx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("begin transaction: %w", err)
 	}
 
-	defer txn.TxClose(ctx)
+	defer xsql.TxClose(txn)
 
 	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
 
@@ -117,7 +122,7 @@ func (r *Repository) CreateReceipt(ctx context.Context, input CreateReceiptReque
 		}
 	}
 
-	err = txn.Commit(ctx)
+	err = txn.Commit()
 	if err != nil {
 		return nil, fmt.Errorf("commit transaction: %w", err)
 	}
@@ -133,15 +138,18 @@ type UpdateReceiptRequest struct {
 }
 
 func (r *Repository) UpdateReceipt(ctx context.Context, e UpdateReceiptRequest) error {
+	ctx, span := xtrace.StartSpan(ctx, "Update Receipt")
+	defer span.End()
+
 	var shouldUpdate bool
 	var shouldUpdateExpenseDates bool
 
-	txn, err := r.dbx.Begin(ctx)
+	txn, err := r.dbx.BeginTxx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
 	}
 
-	defer txn.TxClose(ctx)
+	defer xsql.TxClose(txn)
 
 	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
 
@@ -189,7 +197,7 @@ func (r *Repository) UpdateReceipt(ctx context.Context, e UpdateReceiptRequest) 
 		}
 	}
 
-	err = txn.Commit(ctx)
+	err = txn.Commit()
 	if err != nil {
 		return fmt.Errorf("commit: %w", err)
 	}
@@ -198,6 +206,9 @@ func (r *Repository) UpdateReceipt(ctx context.Context, e UpdateReceiptRequest) 
 }
 
 func (r *Repository) ListReceipts(ctx context.Context, email string) ([]Receipt, error) {
+	ctx, span := xtrace.StartSpan(ctx, "List Receipts")
+	defer span.End()
+
 	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
 
 	query, args, err := psql.
@@ -224,6 +235,9 @@ func (r *Repository) ListReceipts(ctx context.Context, email string) ([]Receipt,
 }
 
 func (r *Repository) ListReceiptsCurrentMonth(ctx context.Context, email string) ([]Receipt, error) {
+	ctx, span := xtrace.StartSpan(ctx, "List Receipts for Current Month")
+	defer span.End()
+
 	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
 
 	query, args, err := psql.
@@ -254,6 +268,9 @@ func (r *Repository) ListReceiptsCurrentMonth(ctx context.Context, email string)
 }
 
 func (r *Repository) ListReceiptsPreviousMonth(ctx context.Context, email string) ([]Receipt, error) {
+	ctx, span := xtrace.StartSpan(ctx, "List Receipts for Previous Month")
+	defer span.End()
+
 	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
 
 	query, args, err := psql.
@@ -284,6 +301,9 @@ func (r *Repository) ListReceiptsPreviousMonth(ctx context.Context, email string
 }
 
 func (r *Repository) ListReceiptsPendingReview(ctx context.Context, email string) ([]Receipt, error) {
+	ctx, span := xtrace.StartSpan(ctx, "List Receipts Pending Review")
+	defer span.End()
+
 	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
 
 	query, args, err := psql.
@@ -313,6 +333,9 @@ func (r *Repository) ListReceiptsPendingReview(ctx context.Context, email string
 }
 
 func (r *Repository) GetReceipt(ctx context.Context, receiptID uint64) (*Receipt, error) {
+	ctx, span := xtrace.StartSpan(ctx, "Get Single Receipt")
+	defer span.End()
+
 	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
 
 	query, args, err := psql.
@@ -334,6 +357,9 @@ func (r *Repository) GetReceipt(ctx context.Context, receiptID uint64) (*Receipt
 }
 
 func (r *Repository) GetReceiptImage(ctx context.Context, receiptID uint64) ([]byte, error) {
+	ctx, span := xtrace.StartSpan(ctx, "Get Receipt Image")
+	defer span.End()
+
 	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
 
 	query, args, err := psql.
@@ -355,14 +381,17 @@ func (r *Repository) GetReceiptImage(ctx context.Context, receiptID uint64) ([]b
 }
 
 func (r *Repository) DeleteReceipt(ctx context.Context, id int64) error {
+	ctx, span := xtrace.StartSpan(ctx, "Delete Receipt")
+	defer span.End()
+
 	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
 
-	txn, err := r.dbx.Begin(ctx)
+	txn, err := r.dbx.BeginTxx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
 	}
 
-	defer txn.TxClose(ctx)
+	defer xsql.TxClose(txn)
 
 	query, args, err := psql.Delete("receipts").Where(sq.Eq{"id": id}).ToSql()
 	if err != nil {
@@ -384,7 +413,7 @@ func (r *Repository) DeleteReceipt(ctx context.Context, id int64) error {
 		return fmt.Errorf("unable to execute query to delete expenses: %w", err)
 	}
 
-	err = txn.Commit(ctx)
+	err = txn.Commit()
 	if err != nil {
 		return fmt.Errorf("commit transaction: %w", err)
 	}

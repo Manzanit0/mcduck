@@ -60,6 +60,12 @@ func run() error {
 		}
 	}()
 
+	dbxWithTracing, err := xsql.OpenWithOtelsql()
+	if err != nil {
+		return fmt.Errorf("open database with tracing: %w", err)
+	}
+	defer xsql.Close(dbxWithTracing)
+
 	tgramToken := micro.MustGetEnv("TELEGRAM_BOT_TOKEN") // TODO: shouldn't throw.
 	tgramClient := tgram.NewClient(xhttp.NewClient(), tgramToken)
 
@@ -87,7 +93,7 @@ func run() error {
 
 	parserHost := micro.MustGetEnv("PARSER_HOST") // TODO: shouldn't throw.
 	parserClient := client.NewParserClient(parserHost)
-	receiptsRepository := receipt.NewRepository(dbx)
+	receiptsRepository := receipt.NewRepository(dbxWithTracing)
 	receiptsController := controllers.ReceiptsController{
 		Receipts: receiptsRepository,
 		Expenses: expenseRepository,
