@@ -2,9 +2,6 @@ package servers_test
 
 import (
 	"context"
-	"fmt"
-	"os"
-	"strings"
 	"testing"
 	"time"
 
@@ -12,6 +9,7 @@ import (
 	"github.com/manzanit0/mcduck/cmd/dots/servers"
 	"github.com/manzanit0/mcduck/internal/client"
 	"github.com/manzanit0/mcduck/internal/expense"
+	"github.com/manzanit0/mcduck/internal/pgtest"
 	"github.com/manzanit0/mcduck/internal/receipt"
 	"github.com/manzanit0/mcduck/internal/users"
 	"github.com/manzanit0/mcduck/pkg/auth"
@@ -23,23 +21,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
-	"github.com/testcontainers/testcontainers-go/wait"
-)
-
-const (
-	dbName                    = "mcduck_db"
-	dbUser                    = "postgres"
-	dbPassword                = "mcduck_test_db_password"
-	dbPort                    = "5432"
-	migrationsDirRelativePath = "../../../migrations/"
 )
 
 func TestCreateReceipt(t *testing.T) {
 	ctx := context.Background()
 
-	dbContainer, err := NewDBContainer(ctx)
+	dbContainer, err := pgtest.NewDBContainer(ctx)
 	require.NoError(t, err)
 
 	connectionString, err := dbContainer.ConnectionString(ctx)
@@ -217,44 +205,4 @@ func TestCreateReceipt(t *testing.T) {
 		})
 		require.ErrorContains(t, err, "internal: parse receipt: empty receipt")
 	})
-}
-
-func NewDBContainer(ctx context.Context) (*postgres.PostgresContainer, error) {
-	migrations, err := GetMigrationsFiles()
-	if err != nil {
-		return nil, fmt.Errorf("get migration files: %w", err)
-	}
-
-	container, err := postgres.Run(ctx,
-		"docker.io/postgres:15.8-alpine3.20",
-		postgres.WithInitScripts(migrations...),
-		postgres.WithDatabase(dbName),
-		postgres.WithUsername(dbUser),
-		postgres.WithPassword(dbPassword),
-		postgres.WithSQLDriver("pgx"),
-		testcontainers.WithWaitStrategy(
-			wait.ForLog("database system is ready to accept connections").
-				WithOccurrence(2).WithStartupTimeout(10*time.Second)),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("run postgres testcontainer: %w", err)
-	}
-
-	return container, nil
-}
-
-func GetMigrationsFiles() ([]string, error) {
-	var migrationsFiles []string
-	files, err := os.ReadDir(migrationsDirRelativePath)
-	if err != nil {
-		return nil, fmt.Errorf("read migrations dir: %w", err)
-	}
-
-	for _, file := range files {
-		if strings.HasSuffix(file.Name(), ".sql") {
-			migrationsFiles = append(migrationsFiles, migrationsDirRelativePath+file.Name())
-		}
-	}
-
-	return migrationsFiles, nil
 }
