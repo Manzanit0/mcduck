@@ -42,26 +42,26 @@ func TestCreateReceipt(t *testing.T) {
 	dbContainer, err := NewDBContainer(ctx)
 	require.NoError(t, err)
 
+	connectionString, err := dbContainer.ConnectionString(ctx)
+	require.NoError(t, err)
+
+	err = dbContainer.Snapshot(ctx, postgres.WithSnapshotName("create_receipt"))
+	require.NoError(t, err)
+
 	t.Cleanup(func() {
 		err = dbContainer.Terminate(ctx)
 		require.NoError(t, err)
 	})
 
-	// We need to create the database connection AFTER the snapshot is taken.
-	// Postgres errors but testcontainers-go silences that error. Pending
-	// looking into the actual error.
-	err = dbContainer.Snapshot(ctx)
-	require.NoError(t, err)
-
-	connectionString, err := dbContainer.ConnectionString(ctx)
-	require.NoError(t, err)
-
-	db, err := sqlx.Open("pgx", connectionString)
-	require.NoError(t, err)
-
 	t.Run("receipt is successfully created", func(t *testing.T) {
+		db, err := sqlx.Open("pgx", connectionString)
+		require.NoError(t, err)
+
 		t.Cleanup(func() {
-			err = dbContainer.Restore(ctx)
+			err = db.Close()
+			require.NoError(t, err)
+
+			err = dbContainer.Restore(ctx, postgres.WithSnapshotName("create_receipt"))
 			require.NoError(t, err)
 		})
 
@@ -100,7 +100,7 @@ func TestCreateReceipt(t *testing.T) {
 		receipt, err := r.GetReceipt(ctx, ids[0])
 		require.NoError(t, err)
 		assert.Equal(t, receipt.Vendor, "some vendor")
-		assert.False(t, receipt.PendingReview)
+		assert.True(t, receipt.PendingReview)
 		assert.Equal(t, receipt.Date.Format("02/01/2006"), "02/01/2006")
 
 		e := expense.NewRepository(db)
@@ -108,11 +108,52 @@ func TestCreateReceipt(t *testing.T) {
 		expenses, err := e.ListExpensesForReceipt(ctx, ids[0])
 		require.NoError(t, err)
 		require.Len(t, expenses, 1)
-		assert.Equal(t, expenses[0].Amount, 5.5)
+		assert.Equal(t, expenses[0].Amount, float32(5.5))
 		assert.Equal(t, expenses[0].Category, "Receipt Upload")
 		assert.Equal(t, expenses[0].Subcategory, "")
 		assert.Equal(t, expenses[0].Description, "some description")
 		assert.Equal(t, expenses[0].Date.Format("02/01/2006"), receipt.Date.Format("02/01/2006"))
+	})
+
+	t.Run("empty images are rejected", func(t *testing.T) {
+		db, err := sqlx.Open("pgx", connectionString)
+		require.NoError(t, err)
+
+		t.Cleanup(func() {
+			err = db.Close()
+			require.NoError(t, err)
+
+			err = dbContainer.Restore(ctx, postgres.WithSnapshotName("create_receipt"))
+			require.NoError(t, err)
+		})
+
+		parserClient := client.NewMockParserClient(t)
+		tgramClient := tgram.NewMockClient(t)
+		s := servers.NewReceiptsServer(db, parserClient, tgramClient)
+
+		userEmail := "user@email.com"
+		receiptBytes := []byte("") // empty image
+		parserClient.EXPECT().
+			ParseReceipt(mock.Anything, userEmail, receiptBytes).
+			Return(&client.ParseReceiptResponse{
+				Amount:       5.5,
+				Currency:     "EUR",
+				Description:  "some description",
+				Vendor:       "some vendor",
+				PurchaseDate: "02/01/2006",
+			}, nil).
+			Once()
+
+		_, err = users.Create(ctx, db, users.User{Email: userEmail, Password: "foo"})
+		require.NoError(t, err)
+
+		ctx = auth.WithInfo(ctx, userEmail)
+		_, err = s.CreateReceipt(ctx, &connect.Request[receiptsv1.CreateReceiptRequest]{
+			Msg: &receiptsv1.CreateReceiptRequest{
+				ReceiptFiles: [][]byte{receiptBytes},
+			},
+		})
+		require.ErrorContains(t, err, "internal: parse receipt: empty receipt")
 	})
 }
 
@@ -123,11 +164,12 @@ func NewDBContainer(ctx context.Context) (*postgres.PostgresContainer, error) {
 	}
 
 	container, err := postgres.Run(ctx,
-		"docker.io/postgres:16-alpine",
+		"docker.io/postgres:15.8-alpine3.20",
 		postgres.WithInitScripts(migrations...),
 		postgres.WithDatabase(dbName),
 		postgres.WithUsername(dbUser),
 		postgres.WithPassword(dbPassword),
+		postgres.WithSQLDriver("pgx"),
 		testcontainers.WithWaitStrategy(
 			wait.ForLog("database system is ready to accept connections").
 				WithOccurrence(2).WithStartupTimeout(10*time.Second)),
