@@ -115,6 +115,68 @@ func TestCreateReceipt(t *testing.T) {
 		assert.Equal(t, expenses[0].Date.Format("02/01/2006"), receipt.Date.Format("02/01/2006"))
 	})
 
+	t.Run("invalid dates are transformed to 'now'", func(t *testing.T) {
+		db, err := sqlx.Open("pgx", connectionString)
+		require.NoError(t, err)
+
+		t.Cleanup(func() {
+			err = db.Close()
+			require.NoError(t, err)
+
+			err = dbContainer.Restore(ctx, postgres.WithSnapshotName("create_receipt"))
+			require.NoError(t, err)
+		})
+
+		parserClient := client.NewMockParserClient(t)
+		tgramClient := tgram.NewMockClient(t)
+		s := servers.NewReceiptsServer(db, parserClient, tgramClient)
+
+		userEmail := "user@email.com"
+		receiptBytes := []byte("foo")
+		parserClient.EXPECT().
+			ParseReceipt(mock.Anything, userEmail, receiptBytes).
+			Return(&client.ParseReceiptResponse{
+				Amount:       5.5,
+				Currency:     "EUR",
+				Description:  "some description",
+				Vendor:       "some vendor",
+				PurchaseDate: "some-gibberish", // invalid date
+			}, nil).
+			Once()
+
+		_, err = users.Create(ctx, db, users.User{Email: userEmail, Password: "foo"})
+		require.NoError(t, err)
+
+		ctx = auth.WithInfo(ctx, userEmail)
+		res, err := s.CreateReceipt(ctx, &connect.Request[receiptsv1.CreateReceiptRequest]{
+			Msg: &receiptsv1.CreateReceiptRequest{
+				ReceiptFiles: [][]byte{receiptBytes},
+			},
+		})
+		require.NoError(t, err)
+
+		ids := res.Msg.GetReceiptIds()
+		require.Len(t, ids, 1)
+
+		r := receipt.NewRepository(db)
+		receipt, err := r.GetReceipt(ctx, ids[0])
+		require.NoError(t, err)
+		assert.Equal(t, receipt.Vendor, "some vendor")
+		assert.True(t, receipt.PendingReview)
+		assert.Equal(t, receipt.Date.Format("02/01/2006"), time.Now().Format("02/01/2006"))
+
+		e := expense.NewRepository(db)
+
+		expenses, err := e.ListExpensesForReceipt(ctx, ids[0])
+		require.NoError(t, err)
+		require.Len(t, expenses, 1)
+		assert.Equal(t, expenses[0].Amount, float32(5.5))
+		assert.Equal(t, expenses[0].Category, "Receipt Upload")
+		assert.Equal(t, expenses[0].Subcategory, "")
+		assert.Equal(t, expenses[0].Description, "some description")
+		assert.Equal(t, expenses[0].Date.Format("02/01/2006"), time.Now().Format("02/01/2006"))
+	})
+
 	t.Run("empty images are rejected", func(t *testing.T) {
 		db, err := sqlx.Open("pgx", connectionString)
 		require.NoError(t, err)
