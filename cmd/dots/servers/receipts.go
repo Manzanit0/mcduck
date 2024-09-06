@@ -77,7 +77,7 @@ func (s *receiptsServer) CreateReceipt(ctx context.Context, req *connect.Request
 			})
 			if err != nil {
 				slog.Error("failed to insert receipt", "error", err.Error(), "index", i)
-				return fmt.Errorf("parse receipt: %w", err)
+				return fmt.Errorf("create receipt: %w", err)
 			}
 			m.Lock()
 			defer m.Unlock()

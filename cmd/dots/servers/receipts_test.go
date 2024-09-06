@@ -216,6 +216,48 @@ func TestCreateReceipt(t *testing.T) {
 				ReceiptFiles: [][]byte{receiptBytes},
 			},
 		})
-		require.ErrorContains(t, err, "internal: parse receipt: empty receipt")
+		require.ErrorContains(t, err, "internal: create receipt: empty receipt")
+	})
+
+	t.Run("when a receipt fails to be created, an error is returned", func(t *testing.T) {
+		db, err := sqlx.Open("pgx", connectionString)
+		require.NoError(t, err)
+
+		t.Cleanup(func() {
+			err = db.Close()
+			require.NoError(t, err)
+
+			err = dbContainer.Restore(ctx, postgres.WithSnapshotName("create_receipt"))
+			require.NoError(t, err)
+		})
+
+		parserClient := client.NewMockParserClient(t)
+		tgramClient := tgram.NewMockClient(t)
+		s := servers.NewReceiptsServer(db, parserClient, tgramClient)
+
+		userEmail := "user@email.com"
+		receiptBytes := []byte("foo")
+		parserClient.EXPECT().
+			ParseReceipt(mock.Anything, userEmail, receiptBytes).
+			Return(&client.ParseReceiptResponse{
+				Amount:       5.5,
+				Currency:     "EUR",
+				Description:  "some description",
+				Vendor:       "some vendor",
+				PurchaseDate: "02/01/2006",
+			}, nil).
+			Once()
+
+		// Let's close the connection to force a DB error.
+		err = db.Close()
+		require.NoError(t, err)
+
+		ctx = auth.WithInfo(ctx, userEmail)
+		_, err = s.CreateReceipt(ctx, &connect.Request[receiptsv1.CreateReceiptRequest]{
+			Msg: &receiptsv1.CreateReceiptRequest{
+				ReceiptFiles: [][]byte{receiptBytes},
+			},
+		})
+		require.ErrorContains(t, err, "internal: create receipt: begin transaction: sql: database is close")
 	})
 }
