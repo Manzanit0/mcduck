@@ -41,6 +41,19 @@ func TestCreateReceipt(t *testing.T) {
 		require.NoError(t, err)
 	})
 
+	t.Run("when context doesn't have email, system panics", func(t *testing.T) {
+		ctx = auth.WithInfo(ctx, "") // no email
+		s := servers.NewReceiptsServer(nil, nil, nil)
+
+		require.PanicsWithValue(t, "empty user email", func() {
+			_, _ = s.CreateReceipt(ctx, &connect.Request[receiptsv1.CreateReceiptRequest]{
+				Msg: &receiptsv1.CreateReceiptRequest{
+					ReceiptFiles: [][]byte{[]byte("")},
+				},
+			})
+		})
+	})
+
 	t.Run("receipt is successfully created", func(t *testing.T) {
 		db, err := sqlx.Open("pgx", connectionString)
 		require.NoError(t, err)
