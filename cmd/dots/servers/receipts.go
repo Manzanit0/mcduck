@@ -2,6 +2,8 @@ package servers
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sort"
@@ -105,12 +107,16 @@ func (s *receiptsServer) UpdateReceipt(ctx context.Context, req *connect.Request
 	_, span := xtrace.StartSpan(ctx, "Update Receipt")
 	defer span.End()
 
+	_, err := s.Receipts.GetReceipt(ctx, req.Msg.Id)
+	if err != nil && errors.Is(err, sql.ErrNoRows) {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("receipt with id %d doesn't exist", req.Msg.Id))
+	} else if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("unable to find receipt: %w", err))
+	}
+
 	var date *time.Time
 	if req.Msg.Date != nil {
-		d, err := time.Parse("2006-01-02", req.Msg.Date.String())
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unable to parse date: %w", err))
-		}
+		d := req.Msg.Date.AsTime()
 		date = &d
 	}
 
@@ -121,7 +127,7 @@ func (s *receiptsServer) UpdateReceipt(ctx context.Context, req *connect.Request
 		Date:          date,
 	}
 
-	err := s.Receipts.UpdateReceipt(ctx, dto)
+	err = s.Receipts.UpdateReceipt(ctx, dto)
 	if err != nil {
 		slog.Error("failed to update receipt", "error", err.Error())
 		span.RecordError(err)
