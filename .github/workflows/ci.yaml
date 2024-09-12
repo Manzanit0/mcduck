@@ -1,0 +1,45 @@
+name: Go
+
+on:
+  push:
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.23.1'
+
+    - name: Build
+      run: go build -v ./...
+
+    - name: Test
+      run: go test -v ./...
+
+  proto:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.23.1'
+
+    - name: Install required tool
+      run: task tools
+
+    - name: Generate protobuf code
+      run: task gen-proto
+
+    - name: Assert generated code is up to date
+      run: |
+        if [[ "$(git status --porcelain)" != "" ]]; then
+          echo "::warning::There are pending protobuf changes to be generated"
+          exit 1
+        fi
