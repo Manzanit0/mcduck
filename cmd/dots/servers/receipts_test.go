@@ -547,3 +547,97 @@ func TestDeleteReceipt(t *testing.T) {
 		assert.NotNil(t, existingReceipt)
 	})
 }
+
+func TestGetReceipt(t *testing.T) {
+	ctx := context.Background()
+
+	dbContainer, err := pgtest.NewDBContainer(ctx)
+	require.NoError(t, err)
+
+	connectionString, err := dbContainer.ConnectionString(ctx)
+	require.NoError(t, err)
+
+	db, err := sqlx.Open("pgx", connectionString)
+	require.NoError(t, err)
+
+	userEmail := "foo@email.com"
+	_, err = users.Create(ctx, db, users.User{Email: userEmail, Password: "foo"})
+	require.NoError(t, err)
+
+	repo := receipt.NewRepository(db)
+	existingreceipt, err := repo.CreateReceipt(ctx, receipt.CreateReceiptRequest{
+		Amount:      5,
+		Description: "description",
+		Vendor:      "vendor",
+		Image:       []byte("foo"),
+		Date:        time.Now(),
+		Email:       userEmail,
+	})
+	require.NoError(t, err)
+
+	err = db.Close()
+	require.NoError(t, err)
+
+	err = dbContainer.Snapshot(ctx, postgres.WithSnapshotName("delete_receipt"))
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		err = dbContainer.Terminate(ctx)
+		require.NoError(t, err)
+	})
+
+	t.Run("receipt gotten successfully", func(t *testing.T) {
+		db, err := sqlx.Open("pgx", connectionString)
+		require.NoError(t, err)
+
+		t.Cleanup(func() {
+			err = db.Close()
+			require.NoError(t, err)
+
+			err = dbContainer.Restore(ctx, postgres.WithSnapshotName("delete_receipt"))
+			require.NoError(t, err)
+		})
+
+		s := servers.NewReceiptsServer(db, nil, nil)
+		res, err := s.GetReceipt(ctx, &connect.Request[receiptsv1.GetReceiptRequest]{
+			Msg: &receiptsv1.GetReceiptRequest{
+				Id: uint64(existingreceipt.ID),
+			},
+		})
+
+		require.NoError(t, err)
+		require.NotNil(t, res.Msg.Receipt)
+		assert.Equal(t, res.Msg.Receipt.Id, uint64(existingreceipt.ID))
+		assert.Equal(t, res.Msg.Receipt.Vendor, "vendor")
+		assert.Equal(t, res.Msg.Receipt.File, []byte("foo"))
+		assert.Equal(t, res.Msg.Receipt.Status, receiptsv1.ReceiptStatus_RECEIPT_STATUS_PENDING_REVIEW)
+		assert.Equal(t, res.Msg.Receipt.Date.AsTime().Format("02/01/2006"), time.Now().Format("02/01/2006"))
+
+		require.Len(t, res.Msg.Receipt.Expenses, 1)
+		assert.Equal(t, res.Msg.Receipt.Expenses[0].Date.AsTime().Format("02/01/2006"), time.Now().Format("02/01/2006"))
+		assert.Equal(t, res.Msg.Receipt.Expenses[0].Amount, uint64(5))
+	})
+
+	t.Run("when receipt doesn't exist, returns not found", func(t *testing.T) {
+		db, err := sqlx.Open("pgx", connectionString)
+		require.NoError(t, err)
+
+		t.Cleanup(func() {
+			err = db.Close()
+			require.NoError(t, err)
+
+			err = dbContainer.Restore(ctx, postgres.WithSnapshotName("delete_receipt"))
+			require.NoError(t, err)
+		})
+
+		s := servers.NewReceiptsServer(db, nil, nil)
+		res, err := s.GetReceipt(ctx, &connect.Request[receiptsv1.GetReceiptRequest]{
+			Msg: &receiptsv1.GetReceiptRequest{
+				Id: 9999999,
+			},
+		})
+
+		require.ErrorContains(t, err, "invalid_argument: receipt with id 9999999 doesn't exist")
+		require.Nil(t, res)
+	})
+}

@@ -253,7 +253,9 @@ func (s *receiptsServer) GetReceipt(ctx context.Context, req *connect.Request[re
 	defer span.End()
 
 	receipt, err := s.Receipts.GetReceipt(ctx, req.Msg.Id)
-	if err != nil {
+	if err != nil && errors.Is(err, sql.ErrNoRows) {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("receipt with id %d doesn't exist", req.Msg.Id))
+	} else if err != nil {
 		slog.Error("failed to get receipt", "error", err.Error())
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("unable to get receipt: %w", err))
 	}
