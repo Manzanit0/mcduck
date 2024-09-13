@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"os"
 
@@ -28,17 +29,24 @@ import (
 const serviceName = "dots"
 
 func main() {
+	if err := run(); err != nil {
+		slog.Error("exiting server", "error", err.Error())
+		os.Exit(1)
+	}
+}
+
+func run() error {
 	xlog.InitSlog()
 
 	tp, err := xtrace.TracerFromEnv(context.Background(), serviceName)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	defer tp.Shutdown(context.Background())
 
 	dbx, err := xsql.OpenFromEnv()
 	if err != nil {
-		panic(err)
+		return err
 	}
 	defer xsql.Close(dbx)
 
@@ -50,7 +58,7 @@ func main() {
 
 	otelInterceptor, err := otelconnect.NewInterceptor(otelconnect.WithTrustRemote(), otelconnect.WithoutMetrics())
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	authInterceptor := auth.AuthenticationInterceptor()
@@ -72,9 +80,7 @@ func main() {
 		connect.WithInterceptors(otelInterceptor, authInterceptor, traceEnhancer),
 	))
 
-	if err := micro.RunGracefully(withCORS(mux)); err != nil {
-		os.Exit(1)
-	}
+	return micro.RunGracefully(withCORS(mux))
 }
 
 // withCORS adds CORS support to a Connect HTTP handler.
