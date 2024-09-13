@@ -566,7 +566,7 @@ func TestGetReceipt(t *testing.T) {
 
 	repo := receipt.NewRepository(db)
 	existingreceipt, err := repo.CreateReceipt(ctx, receipt.CreateReceiptRequest{
-		Amount:      5,
+		Amount:      5.00,
 		Description: "description",
 		Vendor:      "vendor",
 		Image:       []byte("foo"),
@@ -615,7 +615,7 @@ func TestGetReceipt(t *testing.T) {
 
 		require.Len(t, res.Msg.Receipt.Expenses, 1)
 		assert.Equal(t, res.Msg.Receipt.Expenses[0].Date.AsTime().Format("02/01/2006"), time.Now().Format("02/01/2006"))
-		assert.Equal(t, res.Msg.Receipt.Expenses[0].Amount, uint64(5))
+		assert.EqualValues(t, res.Msg.Receipt.Expenses[0].Amount, 500)
 	})
 
 	t.Run("when receipt doesn't exist, returns not found", func(t *testing.T) {
