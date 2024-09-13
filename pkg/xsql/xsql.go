@@ -10,12 +10,10 @@ import (
 
 	"github.com/XSAM/otelsql"
 	"github.com/jmoiron/sqlx"
-	"github.com/manzanit0/isqlx"
-	"go.opentelemetry.io/otel"
 	semconv "go.opentelemetry.io/otel/semconv/v1.7.0"
 )
 
-func OpenWithOtelsql() (*sqlx.DB, error) {
+func OpenFromEnv() (*sqlx.DB, error) {
 	driverName, err := otelsql.Register("pgx", otelsql.WithAttributes(semconv.DBSystemPostgreSQL))
 	if err != nil {
 		return nil, fmt.Errorf("register otelsql: %w", err)
@@ -26,34 +24,17 @@ func OpenWithOtelsql() (*sqlx.DB, error) {
 		return nil, fmt.Errorf("read config from environment variables: %w", err)
 	}
 
-	return sqlx.Open(driverName, config.url())
-}
-
-func Open(serviceName string) (isqlx.DBX, error) {
-	tracer := otel.Tracer(serviceName)
-
-	config, err := configFromEnv()
+	db, err := sqlx.Open(driverName, config.url())
 	if err != nil {
-		return nil, fmt.Errorf("read config from environment variables: %w", err)
+		return nil, fmt.Errorf("open db: %w", err)
 	}
 
-	dbx, err := isqlx.NewDBXFromConfig("pgx", &isqlx.DBConfig{
-		Host:     config.host,
-		Port:     config.port,
-		User:     config.user,
-		Password: config.password,
-		Name:     config.name,
-	}, tracer)
-	if err != nil {
-		return nil, fmt.Errorf("open postgres connection: %w", err)
-	}
-
-	err = dbx.GetSQLX().DB.Ping()
+	err = db.Ping()
 	if err != nil {
 		return nil, fmt.Errorf("ping postgres connection: %w", err)
 	}
 
-	return dbx, nil
+	return db, nil
 }
 
 func Close(db *sqlx.DB) {

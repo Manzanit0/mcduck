@@ -49,22 +49,11 @@ func run() error {
 		return fmt.Errorf("new gin service: %w", err)
 	}
 
-	dbx, err := xsql.Open(serviceName)
-	if err != nil {
-		return fmt.Errorf("open database: %w", err)
-	}
-	defer func() {
-		err = dbx.GetSQLX().Close()
-		if err != nil {
-			slog.Error("fail to close postgres connection", "error", err.Error())
-		}
-	}()
-
-	dbxWithTracing, err := xsql.OpenWithOtelsql()
+	db, err := xsql.OpenFromEnv()
 	if err != nil {
 		return fmt.Errorf("open database with tracing: %w", err)
 	}
-	defer xsql.Close(dbxWithTracing)
+	defer xsql.Close(db)
 
 	tgramToken := micro.MustGetEnv("TELEGRAM_BOT_TOKEN") // TODO: shouldn't throw.
 	tgramClient := tgram.NewClient(xhttp.NewClient(), tgramToken)
@@ -82,18 +71,18 @@ func run() error {
 	interceptor, _ := otelconnect.NewInterceptor()
 	authClient := authv1connect.NewAuthServiceClient(xhttp.NewClient(), authHost, connect.WithInterceptors(interceptor))
 	registrationController := controllers.RegistrationController{
-		DB:              dbx.GetSQLX(),
+		DB:              db,
 		Telegram:        tgramClient,
 		AuthServiceHost: authHost,
 		AuthClient:      authClient,
 	}
 
-	expenseRepository := expense.NewRepository(dbxWithTracing)
+	expenseRepository := expense.NewRepository(db)
 	expensesController := controllers.ExpensesController{Expenses: expenseRepository}
 
 	parserHost := micro.MustGetEnv("PARSER_HOST") // TODO: shouldn't throw.
 	parserClient := client.NewParserClient(parserHost)
-	receiptsRepository := receipt.NewRepository(dbxWithTracing)
+	receiptsRepository := receipt.NewRepository(db)
 	receiptsController := controllers.ReceiptsController{
 		Receipts: receiptsRepository,
 		Expenses: expenseRepository,
@@ -159,7 +148,7 @@ func run() error {
 	apiG.PUT("/expenses", expensesController.CreateExpense)
 	apiG.POST("/expenses/merge", expensesController.MergeExpenses) // TODO: this should be under receipts with authz?
 
-	usersCtrl := controllers.UsersController{DB: dbx.GetSQLX()}
+	usersCtrl := controllers.UsersController{DB: db}
 	apiG.GET("/users", usersCtrl.SearchUser) // TODO: this should be a system call and not available to users.
 
 	return svc.Run()

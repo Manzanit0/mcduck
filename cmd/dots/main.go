@@ -36,7 +36,7 @@ func main() {
 	}
 	defer tp.Shutdown(context.Background())
 
-	dbx, err := xsql.OpenWithOtelsql()
+	dbx, err := xsql.OpenFromEnv()
 	if err != nil {
 		panic(err)
 	}

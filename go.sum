@@ -233,8 +233,6 @@ github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 h1:6E+4a0GO5zZEnZ
 github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0/go.mod h1:zJYVVT2jmtg6P3p1VtQj7WsuWi/y4VnjVBn7F8KPB3I=
 github.com/magiconair/properties v1.8.7 h1:IeQXZAiQcpL9mgcAe1Nu6cX9LLw6ExEHKjN0VQdvPDY=
 github.com/magiconair/properties v1.8.7/go.mod h1:Dhd985XPs7jluiymwWYZ0G4Z61jb3vdS329zhj2hYo0=
-github.com/manzanit0/isqlx v0.0.4 h1:nV3nlD3A1EalPWpSQkCgZ0aH8ATye2ZSm9exOhQXmYQ=
-github.com/manzanit0/isqlx v0.0.4/go.mod h1:6Bnq7ZAxF1OZsz9rTSRLaVWUsmiEh3jEsTzfFHym+U4=
 github.com/martoche/pdf v0.0.0-20170913195834-7423397b5b61 h1:6xgKEKgOHwKL2/1+t2DKOXyrrXBToYuV8R2GDYy/DEo=
 github.com/martoche/pdf v0.0.0-20170913195834-7423397b5b61/go.mod h1:JORkGtTsFa87uoncJ+ohJ45zSb9k8DME9oBRXwpGO00=
 github.com/mattn/go-colorable v0.1.1/go.mod h1:FuOcm+DKB9mbwrcAfNl7/TZVBZ6rcnceauSikq3lYCQ=
