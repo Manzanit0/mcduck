@@ -24,6 +24,37 @@ services:
     depends_on:
       - jaeger
 
+  golang:
+    container_name: golang-foo
+    build:
+      context: ./
+      dockerfile: dev.Dockerfile
+    command: go run ./cmd/api
+    ports:
+      - 8080:8080
+    develop:
+      watch:
+        - action: sync+restart
+          path: ./
+          target: /usr/src/app
+    environment:
+      - PGUSER=root
+      - PGPASSWORD=password
+      - PGDATABASE=mcduck_db
+      - PGHOST=postgresql
+      - PGPORT=5432
+      - PARSER_HOST=http://parser:8080
+      - AUTH_HOST=http://localhost:8080 # The service calls itself.
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=jaeger:4317
+      - OTEL_EXPORTER_OTLP_INSECURE=true
+      - OTEL_RESOURCE_ATTRIBUTES=service.name=mcduck,service.version=latest,deployment.environment=local
+    networks:
+      - mcduck
+    depends_on:
+      - jaeger
+      - postgresql
+
   bot:
     image: cosmtrek/air
     command: -c .air.bot.toml
