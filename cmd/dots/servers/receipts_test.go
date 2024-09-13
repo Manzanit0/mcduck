@@ -9,7 +9,6 @@ import (
 	receiptsv1 "github.com/manzanit0/mcduck/api/receipts.v1"
 	"github.com/manzanit0/mcduck/cmd/dots/servers"
 	"github.com/manzanit0/mcduck/internal/client"
-	"github.com/manzanit0/mcduck/internal/expense"
 	"github.com/manzanit0/mcduck/internal/pgtest"
 	"github.com/manzanit0/mcduck/internal/receipt"
 	"github.com/manzanit0/mcduck/internal/users"
@@ -96,26 +95,22 @@ func TestCreateReceipt(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		ids := res.Msg.GetReceiptIds()
-		require.Len(t, ids, 1)
+		receipts := res.Msg.Receipts
+		require.Len(t, receipts, 1)
 
-		r := receipt.NewRepository(db)
-		receipt, err := r.GetReceipt(ctx, ids[0])
+		receipt := receipts[0]
 		require.NoError(t, err)
 		assert.Equal(t, receipt.Vendor, "some vendor")
-		assert.True(t, receipt.PendingReview)
-		assert.Equal(t, receipt.Date.Format("02/01/2006"), "02/01/2006")
+		assert.Equal(t, receipt.Status, receiptsv1.ReceiptStatus_RECEIPT_STATUS_PENDING_REVIEW)
+		assert.Equal(t, receipt.Date.AsTime().Format("02/01/2006"), "02/01/2006")
 
-		e := expense.NewRepository(db)
-
-		expenses, err := e.ListExpensesForReceipt(ctx, ids[0])
-		require.NoError(t, err)
+		expenses := receipt.Expenses
 		require.Len(t, expenses, 1)
-		assert.Equal(t, expenses[0].Amount, float32(5.5))
+		assert.EqualValues(t, expenses[0].Amount, 550)
 		assert.Equal(t, expenses[0].Category, "Receipt Upload")
 		assert.Equal(t, expenses[0].Subcategory, "")
 		assert.Equal(t, expenses[0].Description, "some description")
-		assert.Equal(t, expenses[0].Date.Format("02/01/2006"), receipt.Date.Format("02/01/2006"))
+		assert.Equal(t, expenses[0].Date.AsTime().Format("02/01/2006"), receipt.Date.AsTime().Format("02/01/2006"))
 	})
 
 	t.Run("invalid dates are transformed to 'now'", func(t *testing.T) {
@@ -158,26 +153,23 @@ func TestCreateReceipt(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		ids := res.Msg.GetReceiptIds()
-		require.Len(t, ids, 1)
+		receipts := res.Msg.Receipts
+		require.Len(t, receipts, 1)
 
-		r := receipt.NewRepository(db)
-		receipt, err := r.GetReceipt(ctx, ids[0])
+		receipt := receipts[0]
 		require.NoError(t, err)
 		assert.Equal(t, receipt.Vendor, "some vendor")
-		assert.True(t, receipt.PendingReview)
-		assert.Equal(t, receipt.Date.Format("02/01/2006"), time.Now().Format("02/01/2006"))
+		assert.Equal(t, receipt.Status, receiptsv1.ReceiptStatus_RECEIPT_STATUS_PENDING_REVIEW)
+		assert.Equal(t, receipt.Date.AsTime().Format("02/01/2006"), time.Now().Format("02/01/2006"))
 
-		e := expense.NewRepository(db)
-
-		expenses, err := e.ListExpensesForReceipt(ctx, ids[0])
+		expenses := receipt.Expenses
 		require.NoError(t, err)
 		require.Len(t, expenses, 1)
-		assert.Equal(t, expenses[0].Amount, float32(5.5))
+		assert.EqualValues(t, expenses[0].Amount, 550)
 		assert.Equal(t, expenses[0].Category, "Receipt Upload")
 		assert.Equal(t, expenses[0].Subcategory, "")
 		assert.Equal(t, expenses[0].Description, "some description")
-		assert.Equal(t, expenses[0].Date.Format("02/01/2006"), time.Now().Format("02/01/2006"))
+		assert.Equal(t, expenses[0].Date.AsTime().Format("02/01/2006"), time.Now().Format("02/01/2006"))
 	})
 
 	t.Run("empty images are rejected", func(t *testing.T) {

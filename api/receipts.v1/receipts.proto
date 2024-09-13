@@ -19,7 +19,7 @@ message CreateReceiptRequest {
 }
 
 message CreateReceiptResponse {
-  repeated uint64 receipt_ids = 1;
+  repeated Receipt receipts = 1;
 }
 
 message UpdateReceiptRequest {

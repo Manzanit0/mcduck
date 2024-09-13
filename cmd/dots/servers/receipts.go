@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log/slog"
 	"sort"
-	"sync"
 	"time"
 
 	"connectrpc.com/connect"
@@ -49,8 +48,13 @@ func (s *receiptsServer) CreateReceipt(ctx context.Context, req *connect.Request
 
 	email := auth.MustGetUserEmailConnect(ctx)
 
-	var ids []uint64
-	var m sync.Mutex
+	type receiptWithExpenses struct {
+		receipt  *receipt.Receipt
+		expenses []expense.Expense
+	}
+
+	ch := make(chan receiptWithExpenses, len(req.Msg.ReceiptFiles))
+
 	g, ctx := errgroup.WithContext(ctx)
 	for i, file := range req.Msg.ReceiptFiles {
 		g.Go(func() error {
@@ -69,7 +73,7 @@ func (s *receiptsServer) CreateReceipt(ctx context.Context, req *connect.Request
 				parsedTime = time.Now()
 			}
 
-			receipt, err := s.Receipts.CreateReceipt(ctx, receipt.CreateReceiptRequest{
+			created, err := s.Receipts.CreateReceipt(ctx, receipt.CreateReceiptRequest{
 				Amount:      parsed.Amount,
 				Description: parsed.Description,
 				Vendor:      parsed.Vendor,
@@ -81,10 +85,14 @@ func (s *receiptsServer) CreateReceipt(ctx context.Context, req *connect.Request
 				slog.Error("failed to insert receipt", "error", err.Error(), "index", i)
 				return fmt.Errorf("create receipt: %w", err)
 			}
-			m.Lock()
-			defer m.Unlock()
 
-			ids = append(ids, uint64(receipt.ID))
+			expenses, err := s.Expenses.ListExpensesForReceipt(ctx, uint64(created.ID))
+			if err != nil {
+				slog.Error("failed to list expenses for receipt", "error", err.Error())
+				return fmt.Errorf("list expenses: %w", err)
+			}
+
+			ch <- receiptWithExpenses{receipt: created, expenses: expenses}
 
 			return nil
 		})
@@ -97,9 +105,20 @@ func (s *receiptsServer) CreateReceipt(ctx context.Context, req *connect.Request
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
-	res := connect.NewResponse(&receiptsv1.CreateReceiptResponse{
-		ReceiptIds: ids,
-	})
+	close(ch)
+
+	res := connect.NewResponse(&receiptsv1.CreateReceiptResponse{})
+
+	for e := range ch {
+		res.Msg.Receipts = append(res.Msg.Receipts, &receiptsv1.Receipt{
+			Id:       uint64(e.receipt.ID),
+			Status:   mapReceiptStatus(e.receipt),
+			Vendor:   e.receipt.Vendor,
+			Date:     timestamppb.New(e.receipt.Date),
+			Expenses: mapExpenses(e.expenses),
+		})
+	}
+
 	return res, nil
 }
 
@@ -266,6 +285,21 @@ func (s *receiptsServer) GetReceipt(ctx context.Context, req *connect.Request[re
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("unable to get expenses for receipt: %w", err))
 	}
 
+	res := connect.NewResponse(&receiptsv1.GetReceiptResponse{
+		Receipt: &receiptsv1.FullReceipt{
+			Id:       uint64(receipt.ID),
+			Status:   mapReceiptStatus(receipt),
+			Vendor:   receipt.Vendor,
+			Date:     timestamppb.New(receipt.Date),
+			File:     receipt.Image,
+			Expenses: mapExpenses(expenses),
+		},
+	})
+
+	return res, nil
+}
+
+func mapExpenses(expenses []expense.Expense) []*receiptsv1.Expense {
 	resExpenses := make([]*receiptsv1.Expense, len(expenses))
 	for i, e := range expenses {
 		resExp := receiptsv1.Expense{
@@ -280,18 +314,7 @@ func (s *receiptsServer) GetReceipt(ctx context.Context, req *connect.Request[re
 		resExpenses[i] = &resExp
 	}
 
-	res := connect.NewResponse(&receiptsv1.GetReceiptResponse{
-		Receipt: &receiptsv1.FullReceipt{
-			Id:       uint64(receipt.ID),
-			Status:   mapReceiptStatus(receipt),
-			Vendor:   receipt.Vendor,
-			Date:     timestamppb.New(receipt.Date),
-			File:     receipt.Image,
-			Expenses: resExpenses,
-		},
-	})
-
-	return res, nil
+	return resExpenses
 }
 
 func delete[T any](s []T, i int) []T {

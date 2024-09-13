@@ -11,9 +11,12 @@ import (
 	"strings"
 	"time"
 
+	"connectrpc.com/connect"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/gin-gonic/gin"
+	receiptsv1 "github.com/manzanit0/mcduck/api/receipts.v1"
+	"github.com/manzanit0/mcduck/api/receipts.v1/receiptsv1connect"
 	"github.com/manzanit0/mcduck/internal/client"
 	"github.com/manzanit0/mcduck/internal/expense"
 	"github.com/manzanit0/mcduck/internal/receipt"
@@ -24,6 +27,8 @@ type ReceiptsController struct {
 	Expenses *expense.Repository
 	Receipts *receipt.Repository
 	Parser   client.ParserClient
+
+	ReceiptsClient receiptsv1connect.ReceiptsServiceClient
 }
 
 func (d *ReceiptsController) ListReceipts(c *gin.Context) {
@@ -129,38 +134,25 @@ func (d *ReceiptsController) CreateReceipt(c *gin.Context) {
 		return
 	}
 
-	email := auth.GetUserEmail(c)
-
-	parsed, err := d.Parser.ParseReceipt(c.Request.Context(), email, data)
-	if err != nil {
-		slog.Error("failed to parse receipt through parser service", "error", err.Error())
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable to parse receipt: %s", err.Error())})
-		return
+	req := connect.Request[receiptsv1.CreateReceiptRequest]{
+		Msg: &receiptsv1.CreateReceiptRequest{
+			ReceiptFiles: [][]byte{data},
+		},
 	}
 
-	parsedTime, err := time.Parse("02/01/2006", parsed.PurchaseDate)
-	if err != nil {
-		slog.Info("failed to parse receipt date. Defaulting to 'now' ", "error", err.Error())
-		parsedTime = time.Now()
-	}
+	auth.CopyAuthHeader(&req, c.Request)
 
-	rcpt, err := d.Receipts.CreateReceipt(c.Request.Context(), receipt.CreateReceiptRequest{
-		Amount:      parsed.Amount,
-		Description: parsed.Description,
-		Vendor:      parsed.Vendor,
-		Image:       data,
-		Date:        parsedTime,
-		Email:       email,
-	})
+	res, err := d.ReceiptsClient.CreateReceipt(c.Request.Context(), &req)
 	if err != nil {
-		slog.Error("failed to insert receipt", "error", err.Error())
+		slog.Error("failed to create receipt", "error", err.Error())
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable to create receipt: %s", err.Error())})
 		return
 	}
 
+	dollars := expense.ConvertToDollar(int32(res.Msg.Receipts[0].Expenses[0].Amount))
 	c.JSON(http.StatusCreated, CreateReceiptResponse{
-		ReceiptID: rcpt.ID,
-		Amounts:   map[string]float64{parsed.Description: parsed.Amount},
+		ReceiptID: int64(res.Msg.Receipts[0].GetId()),
+		Amounts:   map[string]float64{res.Msg.Receipts[0].Expenses[0].Description: float64(dollars)},
 	})
 }
 
