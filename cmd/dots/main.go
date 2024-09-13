@@ -86,6 +86,7 @@ func run() error {
 // withCORS adds CORS support to a Connect HTTP handler.
 func withCORS(h http.Handler) http.Handler {
 	allowedOrigins := micro.MustGetEnv("ALLOWED_ORIGINS")
+	slog.Info("allowed origins: " + allowedOrigins)
 
 	middleware := cors.New(cors.Options{
 		AllowedOrigins: []string{allowedOrigins},

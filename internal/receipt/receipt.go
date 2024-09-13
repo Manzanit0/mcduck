@@ -90,7 +90,7 @@ func (r *Repository) CreateReceipt(ctx context.Context, input CreateReceiptReque
 		Insert("receipts").
 		Columns("receipt_image", "pending_review", "user_email", "receipt_date", "vendor").
 		Values(input.Image, true, input.Email, input.Date, input.Vendor).
-		Suffix("RETURNING \"id\"")
+		Suffix(`RETURNING id, pending_review, receipt_date, vendor, user_email`)
 
 	query, args, err := builder.ToSql()
 	if err != nil {

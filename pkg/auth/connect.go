@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"connectrpc.com/connect"
@@ -63,4 +64,8 @@ func AuthenticationInterceptor() connect.UnaryInterceptorFunc {
 			return
 		}
 	}
+}
+
+func CopyAuthHeader[T any](req *connect.Request[T], original *http.Request) {
+	req.Header().Add("Authorization", original.Header.Get("Authorization"))
 }
