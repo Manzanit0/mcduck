@@ -43,7 +43,7 @@ func NewReceiptsServer(db *sqlx.DB, p client.ParserClient, t tgram.Client) recei
 }
 
 func (s *receiptsServer) CreateReceipt(ctx context.Context, req *connect.Request[receiptsv1.CreateReceiptRequest]) (*connect.Response[receiptsv1.CreateReceiptResponse], error) {
-	_, span := xtrace.StartSpan(ctx, "Create Receipts")
+	ctx, span := xtrace.StartSpan(ctx, "Create Receipt")
 	defer span.End()
 
 	email := auth.MustGetUserEmailConnect(ctx)
@@ -58,7 +58,7 @@ func (s *receiptsServer) CreateReceipt(ctx context.Context, req *connect.Request
 	g, ctx := errgroup.WithContext(ctx)
 	for i, file := range req.Msg.ReceiptFiles {
 		g.Go(func() error {
-			_, span := xtrace.StartSpan(ctx, "Process Receipt")
+			ctx, span := xtrace.StartSpan(ctx, "Process Receipt")
 			defer span.End()
 
 			parsed, err := s.Parser.ParseReceipt(ctx, email, file)
