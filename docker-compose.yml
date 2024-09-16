@@ -59,6 +59,7 @@ services:
     environment:
       - MCDUCK_HOST=http://service:8080
       - MCDUCK_AUTH_TOKEN=fake
+      - PRIVATE_DOTS_HOST=http://dots:8080
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - OTEL_EXPORTER_OTLP_ENDPOINT=jaeger:4317
       - OTEL_EXPORTER_OTLP_INSECURE=true
