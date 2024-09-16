@@ -13,6 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/manzanit0/mcduck/internal/parser"
 	"github.com/manzanit0/mcduck/pkg/micro"
+	"github.com/manzanit0/mcduck/pkg/openai"
 )
 
 const (
@@ -61,10 +62,11 @@ func main() {
 			return
 		}
 
-		var response *parser.Receipt
+		var receipt *parser.Receipt
+		var openAIRes *openai.Response
 		switch http.DetectContentType(data) {
 		case "application/pdf":
-			response, err = textractParser.ExtractReceipt(c.Request.Context(), data)
+			receipt, openAIRes, err = textractParser.ExtractReceipt(c.Request.Context(), data)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable extract data from receipt: %s", err.Error())})
 				return
@@ -72,17 +74,18 @@ func main() {
 
 		// Default to images
 		default:
-			response, err = aivisionParser.ExtractReceipt(c.Request.Context(), data)
+			receipt, openAIRes, err = aivisionParser.ExtractReceipt(c.Request.Context(), data)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable extract data from receipt: %s", err.Error())})
 				return
 			}
 		}
 
-		marshalled, _ := json.Marshal(response)
-		slog.InfoContext(c.Request.Context(), "chatGPT response", "body", marshalled)
+		marshalled, _ := json.Marshal(receipt)
+		marshalledRes, _ := json.Marshal(openAIRes)
+		slog.InfoContext(c.Request.Context(), "chatGPT response", "processed_receipt", marshalled, "open_ai_response", marshalledRes)
 
-		c.JSON(http.StatusOK, response)
+		c.JSON(http.StatusOK, receipt)
 	})
 
 	if err := svc.Run(); err != nil {
