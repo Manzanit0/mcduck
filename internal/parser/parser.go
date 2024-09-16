@@ -54,7 +54,7 @@ type ReceiptParser interface {
 	// PDF text extractor: passes the raw text
 	// AWS Textract: passes the bytes of the PDF
 	// OpenAI Vision: passes the bytes of image
-	ExtractReceipt(context.Context, []byte) (*Receipt, error)
+	ExtractReceipt(context.Context, []byte) (*Receipt, *openai.Response, error)
 }
 
 // TextractParser is a general-purpouse receipt parser that can process any
@@ -76,20 +76,20 @@ func NewTextractParser(config aws.Config, openaiToken string) *TextractParser {
 	}
 }
 
-func (p TextractParser) ExtractReceipt(ctx context.Context, data []byte) (*Receipt, error) {
+func (p TextractParser) ExtractReceipt(ctx context.Context, data []byte) (*Receipt, *openai.Response, error) {
 	ctx, span := xtrace.StartSpan(ctx, "Extract Receipt: Textract")
 	defer span.End()
 
 	jobID, err := p.StartDocumentTextDetection(ctx, data)
 	if err != nil {
 		span.RecordError(err)
-		return nil, err
+		return nil, nil, err
 	}
 
 	receiptText, err := p.GetDocumentText(ctx, jobID)
 	if err != nil {
 		span.RecordError(err)
-		return nil, err
+		return nil, nil, err
 	}
 
 	payload := openai.Request{
@@ -115,7 +115,7 @@ func (p TextractParser) ExtractReceipt(ctx context.Context, data []byte) (*Recei
 	response, err := openai.Completions(ctx, p.openaiToken, payload)
 	if err != nil {
 		span.RecordError(err)
-		return nil, fmt.Errorf("get openai completions: %w", err)
+		return nil, response, fmt.Errorf("get openai completions: %w", err)
 	}
 
 	return receiptFromResponse(response)
@@ -211,7 +211,7 @@ func NewAIVisionParser(openaiToken string) *AIVisionParser {
 
 var _ ReceiptParser = (*AIVisionParser)(nil)
 
-func (p AIVisionParser) ExtractReceipt(ctx context.Context, data []byte) (*Receipt, error) {
+func (p AIVisionParser) ExtractReceipt(ctx context.Context, data []byte) (*Receipt, *openai.Response, error) {
 	base64Image := base64.StdEncoding.EncodeToString(data)
 
 	payload := openai.Request{
@@ -238,7 +238,7 @@ func (p AIVisionParser) ExtractReceipt(ctx context.Context, data []byte) (*Recei
 
 	response, err := openai.Completions(ctx, p.openaiToken, payload)
 	if err != nil {
-		return nil, fmt.Errorf("get openai completions: %w", err)
+		return nil, response, fmt.Errorf("get openai completions: %w", err)
 	}
 
 	return receiptFromResponse(response)
@@ -256,7 +256,7 @@ func NewNaivePDFParser(openaiToken string) *NaivePDFParser {
 
 var _ ReceiptParser = (*NaivePDFParser)(nil)
 
-func (p NaivePDFParser) ExtractReceipt(ctx context.Context, data []byte) (*Receipt, error) {
+func (p NaivePDFParser) ExtractReceipt(ctx context.Context, data []byte) (*Receipt, *openai.Response, error) {
 	ctx, span := xtrace.StartSpan(ctx, "Extract Receipt: Naive PDF read")
 	defer span.End()
 
@@ -264,19 +264,19 @@ func (p NaivePDFParser) ExtractReceipt(ctx context.Context, data []byte) (*Recei
 	r, err := pdf.NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != nil {
 		span.RecordError(err)
-		return nil, fmt.Errorf("new pdf reader: %w", err)
+		return nil, nil, fmt.Errorf("new pdf reader: %w", err)
 	}
 
 	reader, err := r.GetPlainText()
 	if err != nil {
 		span.RecordError(err)
-		return nil, fmt.Errorf("get pdf text: %w", err)
+		return nil, nil, fmt.Errorf("get pdf text: %w", err)
 	}
 
 	buf, ok := reader.(*bytes.Buffer)
 	if !ok {
 		span.RecordError(err)
-		return nil, fmt.Errorf("github.com/martoche/pdf no longer uses bytes.Buffer to implement io.Reader")
+		return nil, nil, fmt.Errorf("github.com/martoche/pdf no longer uses bytes.Buffer to implement io.Reader")
 	}
 
 	extractedText := buf.String()
@@ -304,22 +304,26 @@ func (p NaivePDFParser) ExtractReceipt(ctx context.Context, data []byte) (*Recei
 
 	response, err := openai.Completions(ctx, p.openaiToken, payload)
 	if err != nil {
-		return nil, fmt.Errorf("get openai completions: %w", err)
+		return nil, response, fmt.Errorf("get openai completions: %w", err)
 	}
 
 	return receiptFromResponse(response)
 }
 
-func receiptFromResponse(response *openai.Response) (*Receipt, error) {
+func receiptFromResponse(response *openai.Response) (*Receipt, *openai.Response, error) {
+	if len(response.Choices) == 0 {
+		return nil, response, fmt.Errorf("openAI response has no choices")
+	}
+
 	j := trimMarkdownWrapper(response.Choices[0].Message.Content)
 
 	var receipt Receipt
 	err := json.Unmarshal([]byte(j), &receipt)
 	if err != nil {
-		return nil, fmt.Errorf("unmarshal receipt: %w", err)
+		return nil, response, fmt.Errorf("unmarshal receipt: %w", err)
 	}
 
-	return &receipt, nil
+	return &receipt, response, nil
 }
 
 func trimMarkdownWrapper(s string) string {
