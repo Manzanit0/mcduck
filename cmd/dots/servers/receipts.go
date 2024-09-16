@@ -42,7 +42,7 @@ func NewReceiptsServer(db *sqlx.DB, p client.ParserClient, t tgram.Client) recei
 	}
 }
 
-func (s *receiptsServer) CreateReceipt(ctx context.Context, req *connect.Request[receiptsv1.CreateReceiptRequest]) (*connect.Response[receiptsv1.CreateReceiptResponse], error) {
+func (s *receiptsServer) CreateReceipts(ctx context.Context, req *connect.Request[receiptsv1.CreateReceiptsRequest]) (*connect.Response[receiptsv1.CreateReceiptsResponse], error) {
 	ctx, span := xtrace.StartSpan(ctx, "Create Receipt")
 	defer span.End()
 
@@ -107,7 +107,7 @@ func (s *receiptsServer) CreateReceipt(ctx context.Context, req *connect.Request
 
 	close(ch)
 
-	res := connect.NewResponse(&receiptsv1.CreateReceiptResponse{})
+	res := connect.NewResponse(&receiptsv1.CreateReceiptsResponse{})
 
 	for e := range ch {
 		res.Msg.Receipts = append(res.Msg.Receipts, &receiptsv1.Receipt{

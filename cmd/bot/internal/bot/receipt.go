@@ -79,8 +79,8 @@ func ParseReceipt(ctx context.Context, tgramClient tgram.Client, mcduckClient cl
 		return tgram.NewHTMLResponse(fmt.Sprintf("unable to find user: %s", err.Error()), r.GetFromID())
 	}
 
-	req := connect.Request[receiptsv1.CreateReceiptRequest]{
-		Msg: &receiptsv1.CreateReceiptRequest{
+	req := connect.Request[receiptsv1.CreateReceiptsRequest]{
+		Msg: &receiptsv1.CreateReceiptsRequest{
 			ReceiptFiles: [][]byte{fileData},
 		},
 	}
@@ -94,7 +94,7 @@ func ParseReceipt(ctx context.Context, tgramClient tgram.Client, mcduckClient cl
 
 	req.Header().Add("Authorization", fmt.Sprintf("Bearer %s", token))
 
-	res, err := receiptsClient.CreateReceipt(ctx, &req)
+	res, err := receiptsClient.CreateReceipts(ctx, &req)
 	if err != nil {
 		slog.ErrorContext(ctx, "CreateReceipt", "error", err.Error())
 		return tgram.NewHTMLResponse(fmt.Sprintf("unable to parser receipt: %s", err.Error()), r.GetFromID())
