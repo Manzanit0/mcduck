@@ -10,7 +10,8 @@ import (
 	"connectrpc.com/connect"
 	receiptsv1 "github.com/manzanit0/mcduck/api/receipts.v1"
 	"github.com/manzanit0/mcduck/api/receipts.v1/receiptsv1connect"
-	"github.com/manzanit0/mcduck/internal/client"
+	usersv1 "github.com/manzanit0/mcduck/api/users.v1"
+	"github.com/manzanit0/mcduck/api/users.v1/usersv1connect"
 	"github.com/manzanit0/mcduck/internal/expense"
 	"github.com/manzanit0/mcduck/pkg/auth"
 	"github.com/manzanit0/mcduck/pkg/tgram"
@@ -42,7 +43,7 @@ func GetDocument(ctx context.Context, tgramClient tgram.Client, fileID string) (
 	return fileData, nil
 }
 
-func ParseReceipt(ctx context.Context, tgramClient tgram.Client, mcduckClient client.McDuckClient, receiptsClient receiptsv1connect.ReceiptsServiceClient, r *tgram.WebhookRequest) *tgram.WebhookResponse {
+func ParseReceipt(ctx context.Context, tgramClient tgram.Client, usersClient usersv1connect.UsersServiceClient, receiptsClient receiptsv1connect.ReceiptsServiceClient, r *tgram.WebhookRequest) *tgram.WebhookResponse {
 	var fileID string
 	var fileSize int64
 
@@ -69,32 +70,46 @@ func ParseReceipt(ctx context.Context, tgramClient tgram.Client, mcduckClient cl
 		return tgram.NewHTMLResponse("empty file", r.GetFromID())
 	}
 
+	getUserReq := connect.Request[usersv1.GetUserRequest]{
+		Msg: &usersv1.GetUserRequest{
+			TelegramChatId: int64(r.GetFromID()),
+		},
+	}
+
 	// FIXME: this is a bit of a hack - since user validity isn't validated
 	// against the database, this API call should work. This hack, however, won't
 	// work for other requests that use the user to fetch user-bound data.
 	onBehalfOf := "bot@mcduck.com"
-	resp, err := mcduckClient.SearchUserByChatID(ctx, onBehalfOf, r.GetFromID())
-	if err != nil {
-		slog.ErrorContext(ctx, "mcduck.SearchUserByChatID:", "error", err.Error())
-		return tgram.NewHTMLResponse(fmt.Sprintf("unable to find user: %s", err.Error()), r.GetFromID())
-	}
-
-	req := connect.Request[receiptsv1.CreateReceiptsRequest]{
-		Msg: &receiptsv1.CreateReceiptsRequest{
-			ReceiptFiles: [][]byte{fileData},
-		},
-	}
-
-	onBehalfOf = resp.User.Email
 	token, err := auth.GenerateJWT(onBehalfOf)
 	if err != nil {
 		slog.ErrorContext(ctx, "Generate JWT:", "error", err.Error())
 		return tgram.NewHTMLResponse(fmt.Sprintf("generate JWT: %s", err.Error()), r.GetFromID())
 	}
 
-	req.Header().Add("Authorization", fmt.Sprintf("Bearer %s", token))
+	getUserReq.Header().Add("Authorization", fmt.Sprintf("Bearer %s", token))
 
-	res, err := receiptsClient.CreateReceipts(ctx, &req)
+	resp, err := usersClient.GetUser(ctx, &getUserReq)
+	if err != nil {
+		slog.ErrorContext(ctx, "mcduck.SearchUserByChatID:", "error", err.Error())
+		return tgram.NewHTMLResponse(fmt.Sprintf("unable to find user: %s", err.Error()), r.GetFromID())
+	}
+
+	createReceiptReq := connect.Request[receiptsv1.CreateReceiptsRequest]{
+		Msg: &receiptsv1.CreateReceiptsRequest{
+			ReceiptFiles: [][]byte{fileData},
+		},
+	}
+
+	onBehalfOf = resp.Msg.User.Email
+	token, err = auth.GenerateJWT(onBehalfOf)
+	if err != nil {
+		slog.ErrorContext(ctx, "Generate JWT:", "error", err.Error())
+		return tgram.NewHTMLResponse(fmt.Sprintf("generate JWT: %s", err.Error()), r.GetFromID())
+	}
+
+	createReceiptReq.Header().Add("Authorization", fmt.Sprintf("Bearer %s", token))
+
+	res, err := receiptsClient.CreateReceipts(ctx, &createReceiptReq)
 	if err != nil {
 		slog.ErrorContext(ctx, "CreateReceipt", "error", err.Error())
 		return tgram.NewHTMLResponse(fmt.Sprintf("unable to parser receipt: %s", err.Error()), r.GetFromID())
