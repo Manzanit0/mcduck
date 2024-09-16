@@ -14,6 +14,7 @@ import (
 	_ "github.com/jackc/pgx/v4/stdlib"
 
 	"github.com/manzanit0/mcduck/api/auth.v1/authv1connect"
+	"github.com/manzanit0/mcduck/api/receipts.v1/receiptsv1connect"
 	"github.com/manzanit0/mcduck/cmd/api/controllers"
 	"github.com/manzanit0/mcduck/internal/client"
 	"github.com/manzanit0/mcduck/internal/expense"
@@ -67,26 +68,27 @@ func run() error {
 	r.SetHTMLTemplate(t)
 	r.StaticFS("/public", http.FS(assets))
 
-	authHost := micro.MustGetEnv("AUTH_HOST")
 	interceptor, _ := otelconnect.NewInterceptor()
-	authClient := authv1connect.NewAuthServiceClient(xhttp.NewClient(), authHost, connect.WithInterceptors(interceptor))
+	authClient := authv1connect.NewAuthServiceClient(xhttp.NewClient(), micro.MustGetEnv("PRIVATE_DOTS_HOST"), connect.WithInterceptors(interceptor))
 	registrationController := controllers.RegistrationController{
 		DB:              db,
 		Telegram:        tgramClient,
-		AuthServiceHost: authHost,
+		AuthServiceHost: micro.MustGetEnv("PUBLIC_DOTS_HOST"),
 		AuthClient:      authClient,
 	}
 
 	expenseRepository := expense.NewRepository(db)
 	expensesController := controllers.ExpensesController{Expenses: expenseRepository}
 
+	receiptsClient := receiptsv1connect.NewReceiptsServiceClient(xhttp.NewClient(), micro.MustGetEnv("PRIVATE_DOTS_HOST"), connect.WithInterceptors(interceptor))
 	parserHost := micro.MustGetEnv("PARSER_HOST") // TODO: shouldn't throw.
 	parserClient := client.NewParserClient(parserHost)
 	receiptsRepository := receipt.NewRepository(db)
 	receiptsController := controllers.ReceiptsController{
-		Receipts: receiptsRepository,
-		Expenses: expenseRepository,
-		Parser:   parserClient,
+		Expenses:       expenseRepository,
+		Receipts:       receiptsRepository,
+		Parser:         parserClient,
+		ReceiptsClient: receiptsClient,
 	}
 
 	data, err := readSampleData()

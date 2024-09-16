@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"connectrpc.com/connect"
@@ -21,6 +22,7 @@ import (
 	"github.com/manzanit0/mcduck/internal/expense"
 	"github.com/manzanit0/mcduck/internal/receipt"
 	"github.com/manzanit0/mcduck/pkg/auth"
+	"github.com/manzanit0/mcduck/pkg/xtrace"
 )
 
 type ReceiptsController struct {
@@ -32,17 +34,20 @@ type ReceiptsController struct {
 }
 
 func (d *ReceiptsController) ListReceipts(c *gin.Context) {
+	ctx, span := xtrace.StartSpan(c.Request.Context(), "List Receipts Page")
+	defer span.End()
+
 	var receipts []receipt.Receipt
 	var err error
 
 	userEmail := auth.GetUserEmail(c)
 	switch c.Query("when") {
 	case "current_month":
-		receipts, err = d.Receipts.ListReceiptsCurrentMonth(c.Request.Context(), userEmail)
+		receipts, err = d.Receipts.ListReceiptsCurrentMonth(ctx, userEmail)
 	case "previous_month":
-		receipts, err = d.Receipts.ListReceiptsPreviousMonth(c.Request.Context(), userEmail)
+		receipts, err = d.Receipts.ListReceiptsPreviousMonth(ctx, userEmail)
 	case "all_time", "":
-		receipts, err = d.Receipts.ListReceipts(c.Request.Context(), userEmail)
+		receipts, err = d.Receipts.ListReceipts(ctx, userEmail)
 	default:
 		c.HTML(http.StatusBadRequest, "error.html", gin.H{"error": "Unsupported query value for 'when'"})
 		return
@@ -50,7 +55,7 @@ func (d *ReceiptsController) ListReceipts(c *gin.Context) {
 
 	receiptStatus := c.Query("status")
 	if receiptStatus == "pending_review" {
-		receipts, err = d.Receipts.ListReceiptsPendingReview(c.Request.Context(), userEmail)
+		receipts, err = d.Receipts.ListReceiptsPendingReview(ctx, userEmail)
 	}
 
 	if err != nil {
@@ -78,7 +83,7 @@ func (d *ReceiptsController) ListReceipts(c *gin.Context) {
 			return
 		}
 
-		expenses, err := d.Expenses.ListExpensesForReceipt(c.Request.Context(), id)
+		expenses, err := d.Expenses.ListExpensesForReceipt(ctx, id)
 		if err != nil {
 			slog.Error("failed to list expenses for receipt", "error", err.Error())
 			c.HTML(http.StatusOK, "error.html", gin.H{"error": "We were unable to find your receipts - please try again."})
@@ -140,7 +145,12 @@ func (d *ReceiptsController) CreateReceipt(c *gin.Context) {
 		},
 	}
 
-	auth.CopyAuthHeader(&req, c.Request)
+	err = auth.CopyAuthHeader(&req, c.Request)
+	if err != nil {
+		slog.Error("failed to copy auth header", "error", err.Error())
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable to create receipt: %s", err.Error())})
+		return
+	}
 
 	res, err := d.ReceiptsClient.CreateReceipt(c.Request.Context(), &req)
 	if err != nil {
@@ -295,7 +305,9 @@ func (d *ReceiptsController) UploadReceipts(c *gin.Context) {
 		return
 	}
 
-	g, ctx := errgroup.WithContext(ctx)
+	var files [][]byte
+	var m sync.Mutex
+	g, _ := errgroup.WithContext(ctx)
 	for _, file := range form.File["files"] {
 		g.Go(func() error {
 			filename := filepath.Base(file.Filename)
@@ -308,29 +320,9 @@ func (d *ReceiptsController) UploadReceipts(c *gin.Context) {
 				return fmt.Errorf("read file: %w", err)
 			}
 
-			email := auth.GetUserEmail(c)
-			parsed, err := d.Parser.ParseReceipt(ctx, email, data)
-			if err != nil {
-				return fmt.Errorf("parse receipt: %w", err)
-			}
-
-			parsedTime, err := time.Parse("02/01/2006", parsed.PurchaseDate)
-			if err != nil {
-				slog.Info("failed to parse receipt date. Defaulting to 'now' ", "error", err.Error())
-				parsedTime = time.Now()
-			}
-
-			_, err = d.Receipts.CreateReceipt(ctx, receipt.CreateReceiptRequest{
-				Amount:      parsed.Amount,
-				Description: parsed.Description,
-				Vendor:      parsed.Vendor,
-				Image:       data,
-				Date:        parsedTime,
-				Email:       email,
-			})
-			if err != nil {
-				return fmt.Errorf("create receipt: %w", err)
-			}
+			m.Lock()
+			files = append(files, data)
+			m.Unlock()
 
 			return nil
 		})
@@ -338,6 +330,26 @@ func (d *ReceiptsController) UploadReceipts(c *gin.Context) {
 
 	if err := g.Wait(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	req := connect.Request[receiptsv1.CreateReceiptRequest]{
+		Msg: &receiptsv1.CreateReceiptRequest{
+			ReceiptFiles: files,
+		},
+	}
+
+	err = auth.CopyAuthHeader(&req, c.Request)
+	if err != nil {
+		slog.Error("failed to copy auth header", "error", err.Error())
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable to create receipt: %s", err.Error())})
+		return
+	}
+
+	_, err = d.ReceiptsClient.CreateReceipt(ctx, &req)
+	if err != nil {
+		slog.Error("failed to create receipt", "error", err.Error())
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable to create receipt: %s", err.Error())})
 		return
 	}
 

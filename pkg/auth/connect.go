@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"connectrpc.com/connect"
@@ -66,6 +67,21 @@ func AuthenticationInterceptor() connect.UnaryInterceptorFunc {
 	}
 }
 
-func CopyAuthHeader[T any](req *connect.Request[T], original *http.Request) {
-	req.Header().Add("Authorization", original.Header.Get("Authorization"))
+func CopyAuthHeader[T any](new *connect.Request[T], old *http.Request) error {
+	if old.Header.Get("Authorization") != "" {
+		new.Header().Add("Authorization", old.Header.Get("Authorization"))
+	}
+
+	cookie, err := old.Cookie(authCookieName)
+	if err != nil {
+		return fmt.Errorf("get cookie: %w", err)
+	}
+
+	val, err := url.QueryUnescape(cookie.Value)
+	if err != nil {
+		return fmt.Errorf("unescape cookie: %w", err)
+	}
+
+	new.Header().Add("Authorization", fmt.Sprintf("Bearer %s", val))
+	return nil
 }
