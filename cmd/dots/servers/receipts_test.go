@@ -47,8 +47,8 @@ func TestCreateReceipt(t *testing.T) {
 		s := servers.NewReceiptsServer(nil, nil, nil)
 
 		require.PanicsWithValue(t, "empty user email", func() {
-			_, _ = s.CreateReceipt(ctx, &connect.Request[receiptsv1.CreateReceiptRequest]{
-				Msg: &receiptsv1.CreateReceiptRequest{
+			_, _ = s.CreateReceipts(ctx, &connect.Request[receiptsv1.CreateReceiptsRequest]{
+				Msg: &receiptsv1.CreateReceiptsRequest{
 					ReceiptFiles: [][]byte{[]byte("")},
 				},
 			})
@@ -88,8 +88,8 @@ func TestCreateReceipt(t *testing.T) {
 		require.NoError(t, err)
 
 		ctx = auth.WithInfo(ctx, userEmail)
-		res, err := s.CreateReceipt(ctx, &connect.Request[receiptsv1.CreateReceiptRequest]{
-			Msg: &receiptsv1.CreateReceiptRequest{
+		res, err := s.CreateReceipts(ctx, &connect.Request[receiptsv1.CreateReceiptsRequest]{
+			Msg: &receiptsv1.CreateReceiptsRequest{
 				ReceiptFiles: [][]byte{receiptBytes},
 			},
 		})
@@ -146,8 +146,8 @@ func TestCreateReceipt(t *testing.T) {
 		require.NoError(t, err)
 
 		ctx = auth.WithInfo(ctx, userEmail)
-		res, err := s.CreateReceipt(ctx, &connect.Request[receiptsv1.CreateReceiptRequest]{
-			Msg: &receiptsv1.CreateReceiptRequest{
+		res, err := s.CreateReceipts(ctx, &connect.Request[receiptsv1.CreateReceiptsRequest]{
+			Msg: &receiptsv1.CreateReceiptsRequest{
 				ReceiptFiles: [][]byte{receiptBytes},
 			},
 		})
@@ -205,8 +205,8 @@ func TestCreateReceipt(t *testing.T) {
 		require.NoError(t, err)
 
 		ctx = auth.WithInfo(ctx, userEmail)
-		_, err = s.CreateReceipt(ctx, &connect.Request[receiptsv1.CreateReceiptRequest]{
-			Msg: &receiptsv1.CreateReceiptRequest{
+		_, err = s.CreateReceipts(ctx, &connect.Request[receiptsv1.CreateReceiptsRequest]{
+			Msg: &receiptsv1.CreateReceiptsRequest{
 				ReceiptFiles: [][]byte{receiptBytes},
 			},
 		})
@@ -247,8 +247,8 @@ func TestCreateReceipt(t *testing.T) {
 		require.NoError(t, err)
 
 		ctx = auth.WithInfo(ctx, userEmail)
-		_, err = s.CreateReceipt(ctx, &connect.Request[receiptsv1.CreateReceiptRequest]{
-			Msg: &receiptsv1.CreateReceiptRequest{
+		_, err = s.CreateReceipts(ctx, &connect.Request[receiptsv1.CreateReceiptsRequest]{
+			Msg: &receiptsv1.CreateReceiptsRequest{
 				ReceiptFiles: [][]byte{receiptBytes},
 			},
 		})

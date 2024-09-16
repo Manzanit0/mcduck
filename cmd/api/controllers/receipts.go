@@ -280,8 +280,8 @@ func (d *ReceiptsController) UploadReceipts(c *gin.Context) {
 		return
 	}
 
-	req := connect.Request[receiptsv1.CreateReceiptRequest]{
-		Msg: &receiptsv1.CreateReceiptRequest{
+	req := connect.Request[receiptsv1.CreateReceiptsRequest]{
+		Msg: &receiptsv1.CreateReceiptsRequest{
 			ReceiptFiles: files,
 		},
 	}
@@ -293,7 +293,7 @@ func (d *ReceiptsController) UploadReceipts(c *gin.Context) {
 		return
 	}
 
-	_, err = d.ReceiptsClient.CreateReceipt(ctx, &req)
+	_, err = d.ReceiptsClient.CreateReceipts(ctx, &req)
 	if err != nil {
 		slog.Error("failed to create receipt", "error", err.Error())
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable to create receipt: %s", err.Error())})

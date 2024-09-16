@@ -7,18 +7,18 @@ import "google/protobuf/timestamp.proto";
 option go_package = "github.com/manzanit0/mcduck/api/receipts.v1;receiptsv1";
 
 service ReceiptsService {
-  rpc CreateReceipt(CreateReceiptRequest) returns (CreateReceiptResponse) {}
+  rpc CreateReceipts(CreateReceiptsRequest) returns (CreateReceiptsResponse) {}
   rpc UpdateReceipt(UpdateReceiptRequest) returns (UpdateReceiptResponse) {}
   rpc DeleteReceipt(DeleteReceiptRequest) returns (DeleteReceiptResponse) {}
   rpc ListReceipts(ListReceiptsRequest) returns (ListReceiptsResponse) {}
   rpc GetReceipt(GetReceiptRequest) returns (GetReceiptResponse) {}
 }
 
-message CreateReceiptRequest {
+message CreateReceiptsRequest {
   repeated bytes receipt_files = 1;
 }
 
-message CreateReceiptResponse {
+message CreateReceiptsResponse {
   repeated Receipt receipts = 1;
 }
 
