@@ -14,6 +14,7 @@ import (
 	"github.com/manzanit0/mcduck/pkg/tgram"
 	"github.com/manzanit0/mcduck/pkg/xtrace"
 	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type authServer struct {
@@ -28,13 +29,11 @@ func NewAuthServer(db *sqlx.DB, t tgram.Client) authv1connect.AuthServiceClient 
 }
 
 func (s *authServer) Register(ctx context.Context, req *connect.Request[authv1.RegisterRequest]) (*connect.Response[authv1.RegisterResponse], error) {
-	ctx, span := xtrace.StartSpan(ctx, "Register")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
 
 	user, err := users.Create(ctx, s.DB, users.User{Email: req.Msg.Email, Password: req.Msg.Password})
 	if err != nil {
 		slog.ErrorContext(ctx, "create user", "error", err.Error())
-		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("unable to create user: %w", err))
 	}
@@ -45,7 +44,6 @@ func (s *authServer) Register(ctx context.Context, req *connect.Request[authv1.R
 	token, err := auth.GenerateJWT(user.Email)
 	if err != nil {
 		slog.ErrorContext(ctx, "generate JWT", "error", err.Error())
-		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("unable to generate token: %w", err))
 	}
@@ -57,12 +55,10 @@ func (s *authServer) Register(ctx context.Context, req *connect.Request[authv1.R
 }
 
 func (s *authServer) Login(ctx context.Context, req *connect.Request[authv1.LoginRequest]) (*connect.Response[authv1.LoginResponse], error) {
-	ctx, span := xtrace.StartSpan(ctx, "Login")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
 
 	user, err := users.Find(ctx, s.DB, req.Msg.Email)
 	if err != nil {
-		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		slog.Error("unable to find user", "email", req.Msg.Email, "error", err.Error())
 		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("invalid email or password"))
@@ -79,7 +75,6 @@ func (s *authServer) Login(ctx context.Context, req *connect.Request[authv1.Logi
 	defer span.End()
 	token, err := auth.GenerateJWT(user.Email)
 	if err != nil {
-		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		slog.ErrorContext(ctx, "generate JWT", "error", err.Error())
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("unable to generate token: %w", err))
@@ -93,13 +88,11 @@ func (s *authServer) Login(ctx context.Context, req *connect.Request[authv1.Logi
 }
 
 func (s *authServer) ConnectTelegram(ctx context.Context, req *connect.Request[authv1.ConnectTelegramRequest]) (*connect.Response[authv1.ConnectTelegramResponse], error) {
-	ctx, span := xtrace.StartSpan(ctx, "Connect Telegram")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
 
 	user, err := users.Find(ctx, s.DB, req.Msg.Email)
 	if err != nil {
 		slog.ErrorContext(ctx, "find user", "error", err.Error())
-		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("unable to find user: %w", err))
 	}
@@ -107,6 +100,7 @@ func (s *authServer) ConnectTelegram(ctx context.Context, req *connect.Request[a
 	err = users.UpdateTelegramChatID(ctx, s.DB, user, req.Msg.ChatId)
 	if err != nil {
 		slog.ErrorContext(ctx, "update telegram chat ID", "error", err.Error())
+		span.SetStatus(codes.Error, err.Error())
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("unable to update user: %w", err))
 	}
 
@@ -117,7 +111,6 @@ func (s *authServer) ConnectTelegram(ctx context.Context, req *connect.Request[a
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "send telegram message", "error", err.Error())
-		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("Your account has been linked successfully but we were unable to notify you via Telegram: %w", err))
 	}
