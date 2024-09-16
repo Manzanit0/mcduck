@@ -15,6 +15,7 @@ import (
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/jmoiron/sqlx"
+	"github.com/manzanit0/mcduck/pkg/xtrace"
 )
 
 type Expense struct {
@@ -250,6 +251,9 @@ type QueryExecutor interface {
 }
 
 func CreateExpenses(ctx context.Context, tx QueryExecutor, e ExpensesBatch) error {
+	ctx, span := xtrace.StartSpan(ctx, "Create Expenses Batch")
+	defer span.End()
+
 	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
 
 	builder := psql.Insert("expenses").Columns(
@@ -288,6 +292,9 @@ func CreateExpenses(ctx context.Context, tx QueryExecutor, e ExpensesBatch) erro
 }
 
 func (r *Repository) FindExpense(ctx context.Context, id int64) (*Expense, error) {
+	ctx, span := xtrace.StartSpan(ctx, "Find Expense by ID")
+	defer span.End()
+
 	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
 
 	builder := psql.
@@ -321,6 +328,9 @@ type UpdateExpenseRequest struct {
 }
 
 func (r *Repository) UpdateExpense(ctx context.Context, e UpdateExpenseRequest) error {
+	ctx, span := xtrace.StartSpan(ctx, "Update Expense")
+	defer span.End()
+
 	var shouldUpdate bool
 
 	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
@@ -382,6 +392,9 @@ type CreateExpenseRequest struct {
 }
 
 func (r *Repository) CreateExpense(ctx context.Context, e CreateExpenseRequest) (int64, error) {
+	ctx, span := xtrace.StartSpan(ctx, "Create Expense")
+	defer span.End()
+
 	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
 
 	builder := psql.
@@ -408,6 +421,9 @@ func (r *Repository) CreateExpense(ctx context.Context, e CreateExpenseRequest) 
 }
 
 func (r *Repository) DeleteExpense(ctx context.Context, id int64) error {
+	ctx, span := xtrace.StartSpan(ctx, "Delete Expense")
+	defer span.End()
+
 	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
 
 	query, args, err := psql.Delete("expenses").Where(sq.Eq{"id": id}).ToSql()
@@ -424,6 +440,9 @@ func (r *Repository) DeleteExpense(ctx context.Context, id int64) error {
 }
 
 func (r *Repository) ListExpenses(ctx context.Context, email string) ([]Expense, error) {
+	ctx, span := xtrace.StartSpan(ctx, "List Expenses for User")
+	defer span.End()
+
 	var expenses []dbExpense
 	err := r.db.SelectContext(ctx, &expenses, `SELECT id, amount, expense_date, category, sub_category, description, receipt_id FROM expenses WHERE user_email = $1 ORDER BY expense_date desc`, email)
 	if err != nil {
@@ -439,6 +458,9 @@ func (r *Repository) ListExpenses(ctx context.Context, email string) ([]Expense,
 }
 
 func (r *Repository) ListExpensesForReceipt(ctx context.Context, receiptID uint64) ([]Expense, error) {
+	ctx, span := xtrace.StartSpan(ctx, "List Expenses for Receipt")
+	defer span.End()
+
 	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
 
 	query, args, err := psql.
