@@ -31,14 +31,10 @@ func main() {
 		panic(err)
 	}
 
-	tgramToken := micro.MustGetEnv("TELEGRAM_BOT_TOKEN")
-
-	h := xhttp.NewClient()
-	tgramClient := tgram.NewClient(h, tgramToken)
-
 	interceptor, _ := otelconnect.NewInterceptor()
 	receiptsClient := receiptsv1connect.NewReceiptsServiceClient(xhttp.NewClient(), micro.MustGetEnv("PRIVATE_DOTS_HOST"), connect.WithInterceptors(interceptor))
 	usersClient := usersv1connect.NewUsersServiceClient(xhttp.NewClient(), micro.MustGetEnv("PRIVATE_DOTS_HOST"), connect.WithInterceptors(interceptor))
+	tgramClient := tgram.NewClient(xhttp.NewClient(), micro.MustGetEnv("TELEGRAM_BOT_TOKEN"))
 	svc.Engine.POST("/telegram/webhook", telegramWebhookController(tgramClient, usersClient, receiptsClient))
 
 	if err := svc.Run(); err != nil {
