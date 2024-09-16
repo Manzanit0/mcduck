@@ -11,8 +11,8 @@ import (
 	"connectrpc.com/otelconnect"
 	"github.com/gin-gonic/gin"
 	"github.com/manzanit0/mcduck/api/receipts.v1/receiptsv1connect"
+	"github.com/manzanit0/mcduck/api/users.v1/usersv1connect"
 	"github.com/manzanit0/mcduck/cmd/bot/internal/bot"
-	"github.com/manzanit0/mcduck/internal/client"
 	"github.com/manzanit0/mcduck/pkg/micro"
 	"github.com/manzanit0/mcduck/pkg/tgram"
 	"github.com/manzanit0/mcduck/pkg/xhttp"
@@ -32,15 +32,14 @@ func main() {
 	}
 
 	tgramToken := micro.MustGetEnv("TELEGRAM_BOT_TOKEN")
-	mcduckHost := micro.MustGetEnv("MCDUCK_HOST")
 
 	h := xhttp.NewClient()
 	tgramClient := tgram.NewClient(h, tgramToken)
-	mcduckClient := client.NewMcDuckClient(mcduckHost)
 
 	interceptor, _ := otelconnect.NewInterceptor()
 	receiptsClient := receiptsv1connect.NewReceiptsServiceClient(xhttp.NewClient(), micro.MustGetEnv("PRIVATE_DOTS_HOST"), connect.WithInterceptors(interceptor))
-	svc.Engine.POST("/telegram/webhook", telegramWebhookController(tgramClient, mcduckClient, receiptsClient))
+	usersClient := usersv1connect.NewUsersServiceClient(xhttp.NewClient(), micro.MustGetEnv("PRIVATE_DOTS_HOST"), connect.WithInterceptors(interceptor))
+	svc.Engine.POST("/telegram/webhook", telegramWebhookController(tgramClient, usersClient, receiptsClient))
 
 	if err := svc.Run(); err != nil {
 		slog.Error("run ended with error", "error", err.Error())
@@ -48,7 +47,7 @@ func main() {
 	}
 }
 
-func telegramWebhookController(tgramClient tgram.Client, mcduck client.McDuckClient, receiptsClient receiptsv1connect.ReceiptsServiceClient) func(c *gin.Context) {
+func telegramWebhookController(tgramClient tgram.Client, usersClient usersv1connect.UsersServiceClient, receiptsClient receiptsv1connect.ReceiptsServiceClient) func(c *gin.Context) {
 	return func(c *gin.Context) {
 		ctx := c.Request.Context()
 
@@ -80,7 +79,7 @@ func telegramWebhookController(tgramClient tgram.Client, mcduck client.McDuckCli
 		case r.Message != nil && (len(r.Message.Photos) > 0 || r.Message.Document != nil):
 			span.SetAttributes(attribute.String("mduck.telegram.command", "upload"))
 
-			res := bot.ParseReceipt(ctx, tgramClient, mcduck, receiptsClient, &r)
+			res := bot.ParseReceipt(ctx, tgramClient, usersClient, receiptsClient, &r)
 			c.JSON(http.StatusOK, res)
 
 		default:

@@ -27,7 +27,7 @@ func Create(ctx context.Context, db *sqlx.DB, u User) (User, error) {
 
 	u.HashedPassword = hashed
 
-	_, err = db.ExecContext(ctx, `INSERT INTO users (email, hashed_password) VALUES ($1, $2)`, u.Email, u.HashedPassword)
+	_, err = db.ExecContext(ctx, `INSERT INTO users (email, hashed_password, telegram_chat_id) VALUES ($1, $2, $3)`, u.Email, u.HashedPassword, u.TelegramChatID)
 	if err != nil {
 		return u, err
 	}
@@ -48,7 +48,7 @@ func Find(ctx context.Context, db *sqlx.DB, email string) (*User, error) {
 	return &u, nil
 }
 
-func FindByChatID(ctx context.Context, db *sqlx.DB, chatID string) (*User, error) {
+func FindByChatID(ctx context.Context, db *sqlx.DB, chatID int64) (*User, error) {
 	ctx, span := xtrace.StartSpan(ctx, "Find User By Telegram ID")
 	defer span.End()
 

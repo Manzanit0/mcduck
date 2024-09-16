@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package users.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/manzanit0/mcduck/api/users.v1;usersv1";
+
+service UsersService {
+  rpc GetUser(GetUserRequest) returns (GetUserResponse) {}
+}
+
+message GetUserRequest {
+  int64 telegram_chat_id = 1;
+}
+
+message GetUserResponse {
+  User user = 1;
+}
+
+message User {
+  string email = 1;
+  int64 telegram_chat_id = 2;
+  string hashed_password = 3;
+}
