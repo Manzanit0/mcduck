@@ -19,7 +19,9 @@ import (
 	"github.com/manzanit0/mcduck/pkg/auth"
 	"github.com/manzanit0/mcduck/pkg/tgram"
 	"github.com/manzanit0/mcduck/pkg/xtrace"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -43,8 +45,7 @@ func NewReceiptsServer(db *sqlx.DB, p client.ParserClient, t tgram.Client) recei
 }
 
 func (s *receiptsServer) CreateReceipts(ctx context.Context, req *connect.Request[receiptsv1.CreateReceiptsRequest]) (*connect.Response[receiptsv1.CreateReceiptsResponse], error) {
-	ctx, span := xtrace.StartSpan(ctx, "Create Receipt")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
 
 	email := auth.MustGetUserEmailConnect(ctx)
 
@@ -64,6 +65,7 @@ func (s *receiptsServer) CreateReceipts(ctx context.Context, req *connect.Reques
 			parsed, err := s.Parser.ParseReceipt(ctx, email, file)
 			if err != nil {
 				slog.Error("failed to parse receipt through parser service", "error", err.Error(), "index", i)
+				span.SetStatus(codes.Error, err.Error())
 				return fmt.Errorf("parse receipt: %w", err)
 			}
 
@@ -83,12 +85,14 @@ func (s *receiptsServer) CreateReceipts(ctx context.Context, req *connect.Reques
 			})
 			if err != nil {
 				slog.Error("failed to insert receipt", "error", err.Error(), "index", i)
+				span.SetStatus(codes.Error, err.Error())
 				return fmt.Errorf("create receipt: %w", err)
 			}
 
 			expenses, err := s.Expenses.ListExpensesForReceipt(ctx, uint64(created.ID))
 			if err != nil {
 				slog.Error("failed to list expenses for receipt", "error", err.Error())
+				span.SetStatus(codes.Error, err.Error())
 				return fmt.Errorf("list expenses: %w", err)
 			}
 
@@ -100,7 +104,6 @@ func (s *receiptsServer) CreateReceipts(ctx context.Context, req *connect.Reques
 
 	if err := g.Wait(); err != nil {
 		slog.ErrorContext(ctx, "create receipt", "error", err.Error())
-		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -123,13 +126,15 @@ func (s *receiptsServer) CreateReceipts(ctx context.Context, req *connect.Reques
 }
 
 func (s *receiptsServer) UpdateReceipt(ctx context.Context, req *connect.Request[receiptsv1.UpdateReceiptRequest]) (*connect.Response[receiptsv1.UpdateReceiptResponse], error) {
-	_, span := xtrace.StartSpan(ctx, "Update Receipt")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
+	span.SetAttributes(attribute.Int("receipt.id", int(req.Msg.Id)))
 
 	_, err := s.Receipts.GetReceipt(ctx, req.Msg.Id)
 	if err != nil && errors.Is(err, sql.ErrNoRows) {
+		span.SetStatus(codes.Error, err.Error())
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("receipt with id %d doesn't exist", req.Msg.Id))
 	} else if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("unable to find receipt: %w", err))
 	}
 
@@ -149,7 +154,6 @@ func (s *receiptsServer) UpdateReceipt(ctx context.Context, req *connect.Request
 	err = s.Receipts.UpdateReceipt(ctx, dto)
 	if err != nil {
 		slog.Error("failed to update receipt", "error", err.Error())
-		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("unable to update receipt: %w", err))
 	}
@@ -159,13 +163,12 @@ func (s *receiptsServer) UpdateReceipt(ctx context.Context, req *connect.Request
 }
 
 func (s *receiptsServer) DeleteReceipt(ctx context.Context, req *connect.Request[receiptsv1.DeleteReceiptRequest]) (*connect.Response[receiptsv1.DeleteReceiptResponse], error) {
-	_, span := xtrace.StartSpan(ctx, "Update Receipt")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
+	span.SetAttributes(attribute.Int("receipt.id", int(req.Msg.Id)))
 
 	err := s.Receipts.DeleteReceipt(ctx, int64(req.Msg.Id))
 	if err != nil {
 		slog.Error("failed to delete receipt", "error", err.Error())
-		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("unable to delete receipt: %w", err))
 	}
@@ -175,15 +178,12 @@ func (s *receiptsServer) DeleteReceipt(ctx context.Context, req *connect.Request
 }
 
 func (s *receiptsServer) ListReceipts(ctx context.Context, req *connect.Request[receiptsv1.ListReceiptsRequest]) (*connect.Response[receiptsv1.ListReceiptsResponse], error) {
-	_, span := xtrace.StartSpan(ctx, "List Receipts")
-	defer span.End()
-
 	userEmail := auth.MustGetUserEmailConnect(ctx)
 
 	var receipts []receipt.Receipt
 	var err error
 
-	_, span = xtrace.StartSpan(ctx, "Filter Receipts")
+	_, span := xtrace.StartSpan(ctx, "Filter Receipts")
 	if req.Msg.Since != nil {
 		switch *req.Msg.Since {
 		case receiptsv1.ListReceiptsSince_LIST_RECEIPTS_SINCE_CURRENT_MONTH:
@@ -193,13 +193,13 @@ func (s *receiptsServer) ListReceipts(ctx context.Context, req *connect.Request[
 		case receiptsv1.ListReceiptsSince_LIST_RECEIPTS_SINCE_ALL_TIME:
 			receipts, err = s.Receipts.ListReceipts(ctx, userEmail)
 		default:
+			span.SetStatus(codes.Error, "unsupported since value")
 			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unsupported since value"))
 		}
 	}
 
 	if err != nil {
 		slog.Error("failed to list receipts", "error", err.Error())
-		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("unable to list receipts: %w", err))
 	}
@@ -268,19 +268,21 @@ func (s *receiptsServer) ListReceipts(ctx context.Context, req *connect.Request[
 }
 
 func (s *receiptsServer) GetReceipt(ctx context.Context, req *connect.Request[receiptsv1.GetReceiptRequest]) (*connect.Response[receiptsv1.GetReceiptResponse], error) {
-	_, span := xtrace.StartSpan(ctx, "Get Receipt")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
+	span.SetAttributes(attribute.Int("receipt.id", int(req.Msg.Id)))
 
 	receipt, err := s.Receipts.GetReceipt(ctx, req.Msg.Id)
 	if err != nil && errors.Is(err, sql.ErrNoRows) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("receipt with id %d doesn't exist", req.Msg.Id))
 	} else if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		slog.Error("failed to get receipt", "error", err.Error())
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("unable to get receipt: %w", err))
 	}
 
 	expenses, err := s.Expenses.ListExpensesForReceipt(ctx, req.Msg.Id)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		slog.Error("failed to list expenses for receipt", "error", err.Error())
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("unable to get expenses for receipt: %w", err))
 	}
