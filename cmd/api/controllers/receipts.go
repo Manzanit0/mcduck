@@ -113,59 +113,6 @@ func (d *ReceiptsController) ListReceipts(c *gin.Context) {
 	})
 }
 
-type CreateReceiptResponse struct {
-	ReceiptID int64              `json:"receipt_id"`
-	Amounts   map[string]float64 `json:"receipt_amounts"`
-}
-
-func (d *ReceiptsController) CreateReceipt(c *gin.Context) {
-	file, err := c.FormFile("receipt")
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("unable to read file: %s", err.Error())})
-		return
-	}
-
-	dir := os.TempDir()
-	filePath := filepath.Join(dir, file.Filename)
-	err = c.SaveUploadedFile(file, filePath)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("unable to save file to disk: %s", err.Error())})
-		return
-	}
-
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("unable to read file from disk: %s", err.Error())})
-		return
-	}
-
-	req := connect.Request[receiptsv1.CreateReceiptRequest]{
-		Msg: &receiptsv1.CreateReceiptRequest{
-			ReceiptFiles: [][]byte{data},
-		},
-	}
-
-	err = auth.CopyAuthHeader(&req, c.Request)
-	if err != nil {
-		slog.Error("failed to copy auth header", "error", err.Error())
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable to create receipt: %s", err.Error())})
-		return
-	}
-
-	res, err := d.ReceiptsClient.CreateReceipt(c.Request.Context(), &req)
-	if err != nil {
-		slog.Error("failed to create receipt", "error", err.Error())
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable to create receipt: %s", err.Error())})
-		return
-	}
-
-	dollars := expense.ConvertToDollar(int32(res.Msg.Receipts[0].Expenses[0].Amount))
-	c.JSON(http.StatusCreated, CreateReceiptResponse{
-		ReceiptID: int64(res.Msg.Receipts[0].GetId()),
-		Amounts:   map[string]float64{res.Msg.Receipts[0].Expenses[0].Description: float64(dollars)},
-	})
-}
-
 type UpdateReceiptRequest struct {
 	Vendor        *string `json:"vendor"`
 	PendingReview *string `json:"pending_review"`

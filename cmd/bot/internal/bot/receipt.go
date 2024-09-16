@@ -7,7 +7,12 @@ import (
 	"log/slog"
 	"strings"
 
+	"connectrpc.com/connect"
+	receiptsv1 "github.com/manzanit0/mcduck/api/receipts.v1"
+	"github.com/manzanit0/mcduck/api/receipts.v1/receiptsv1connect"
 	"github.com/manzanit0/mcduck/internal/client"
+	"github.com/manzanit0/mcduck/internal/expense"
+	"github.com/manzanit0/mcduck/pkg/auth"
 	"github.com/manzanit0/mcduck/pkg/tgram"
 	"github.com/manzanit0/mcduck/pkg/xtrace"
 	"github.com/olekukonko/tablewriter"
@@ -37,7 +42,7 @@ func GetDocument(ctx context.Context, tgramClient tgram.Client, fileID string) (
 	return fileData, nil
 }
 
-func ParseReceipt(ctx context.Context, tgramClient tgram.Client, mcduckClient client.McDuckClient, r *tgram.WebhookRequest) *tgram.WebhookResponse {
+func ParseReceipt(ctx context.Context, tgramClient tgram.Client, mcduckClient client.McDuckClient, receiptsClient receiptsv1connect.ReceiptsServiceClient, r *tgram.WebhookRequest) *tgram.WebhookResponse {
 	var fileID string
 	var fileSize int64
 
@@ -74,14 +79,30 @@ func ParseReceipt(ctx context.Context, tgramClient tgram.Client, mcduckClient cl
 		return tgram.NewHTMLResponse(fmt.Sprintf("unable to find user: %s", err.Error()), r.GetFromID())
 	}
 
+	req := connect.Request[receiptsv1.CreateReceiptRequest]{
+		Msg: &receiptsv1.CreateReceiptRequest{
+			ReceiptFiles: [][]byte{fileData},
+		},
+	}
+
 	onBehalfOf = resp.User.Email
-	res, err := mcduckClient.CreateReceipt(ctx, onBehalfOf, fileData)
+	token, err := auth.GenerateJWT(onBehalfOf)
 	if err != nil {
-		slog.ErrorContext(ctx, "mcduck.CreateReceipt", "error", err.Error())
+		slog.ErrorContext(ctx, "Generate JWT:", "error", err.Error())
+		return tgram.NewHTMLResponse(fmt.Sprintf("generate JWT: %s", err.Error()), r.GetFromID())
+	}
+
+	req.Header().Add("Authorization", fmt.Sprintf("Bearer %s", token))
+
+	res, err := receiptsClient.CreateReceipt(ctx, &req)
+	if err != nil {
+		slog.ErrorContext(ctx, "CreateReceipt", "error", err.Error())
 		return tgram.NewHTMLResponse(fmt.Sprintf("unable to parser receipt: %s", err.Error()), r.GetFromID())
 	}
 
-	return tgram.NewMarkdownResponse(newBreakdownTgramMessage(res.Amounts), r.GetFromID())
+	return tgram.NewMarkdownResponse(newBreakdownTgramMessage(map[string]float64{
+		res.Msg.Receipts[0].Expenses[0].Description: float64(expense.ConvertToDollar(int32(res.Msg.Receipts[0].Expenses[0].Amount))),
+	}), r.GetFromID())
 }
 
 func newBreakdownTgramMessage(amounts map[string]float64) string {
