@@ -183,65 +183,70 @@ func (s *receiptsServer) ListReceipts(ctx context.Context, req *connect.Request[
 	var receipts []receipt.Receipt
 	var err error
 
-	_, span := xtrace.StartSpan(ctx, "Filter Receipts")
-	if req.Msg.Since != nil {
-		switch *req.Msg.Since {
-		case receiptsv1.ListReceiptsSince_LIST_RECEIPTS_SINCE_CURRENT_MONTH:
-			receipts, err = s.Receipts.ListReceiptsCurrentMonth(ctx, userEmail)
-		case receiptsv1.ListReceiptsSince_LIST_RECEIPTS_SINCE_PREVIOUS_MONTH:
-			receipts, err = s.Receipts.ListReceiptsPreviousMonth(ctx, userEmail)
-		case receiptsv1.ListReceiptsSince_LIST_RECEIPTS_SINCE_ALL_TIME:
-			receipts, err = s.Receipts.ListReceipts(ctx, userEmail)
-		default:
-			span.SetStatus(codes.Error, "unsupported since value")
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unsupported since value"))
-		}
+	listCtx, span := xtrace.StartSpan(ctx, "List Receipts")
+	switch req.Msg.Since {
+	case receiptsv1.ListReceiptsSince_LIST_RECEIPTS_SINCE_CURRENT_MONTH:
+		receipts, err = s.Receipts.ListReceiptsCurrentMonth(listCtx, userEmail)
+	case receiptsv1.ListReceiptsSince_LIST_RECEIPTS_SINCE_PREVIOUS_MONTH:
+		receipts, err = s.Receipts.ListReceiptsPreviousMonth(listCtx, userEmail)
+	case receiptsv1.ListReceiptsSince_LIST_RECEIPTS_SINCE_ALL_TIME, receiptsv1.ListReceiptsSince_LIST_RECEIPTS_SINCE_UNSPECIFIED:
+		receipts, err = s.Receipts.ListReceipts(listCtx, userEmail)
+	default:
+		span.SetStatus(codes.Error, "unsupported since value")
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unsupported since value"))
 	}
 
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list receipts", "error", err.Error())
+		slog.ErrorContext(listCtx, "failed to list receipts", "error", err.Error())
 		span.SetStatus(codes.Error, err.Error())
+		span.End()
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("unable to list receipts: %w", err))
 	}
 
-	if req.Msg.Status != nil {
-		// Note: iterate from the back so we don't have to worry about removed indexes.
-		for i := len(receipts) - 1; i >= 0; i-- {
-			switch *req.Msg.Status {
-			case receiptsv1.ReceiptStatus_RECEIPT_STATUS_PENDING_REVIEW:
-				if receipts[i].PendingReview {
-					delete(receipts, i)
-				}
-			case receiptsv1.ReceiptStatus_RECEIPT_STATUS_REVIEWED:
-				if !receipts[i].PendingReview {
-					delete(receipts, i)
-				}
+	span.SetAttributes(attribute.Int("receipts.initial_amount", len(receipts)))
+	span.End()
+
+	_, span = xtrace.StartSpan(ctx, "Filter Receipts")
+	// Note: iterate from the back so we don't have to worry about removed indexes.
+	for i := len(receipts) - 1; i >= 0; i-- {
+		switch req.Msg.Status {
+		case receiptsv1.ReceiptStatus_RECEIPT_STATUS_PENDING_REVIEW:
+			if receipts[i].PendingReview {
+				delete(receipts, i)
 			}
+		case receiptsv1.ReceiptStatus_RECEIPT_STATUS_REVIEWED:
+			if !receipts[i].PendingReview {
+				delete(receipts, i)
+			}
+		default:
 		}
 	}
-	defer span.End()
+
+	span.SetAttributes(attribute.Int("receipts.after_status_filter", len(receipts)))
+	span.End()
 
 	// Sort the most recent first
 	_, span = xtrace.StartSpan(ctx, "Sort Receipts")
 	sort.Slice(receipts, func(i, j int) bool {
 		return receipts[i].Date.After(receipts[j].Date)
 	})
-	defer span.End()
+	span.End()
 
-	_, span = xtrace.StartSpan(ctx, "Map Receipts to Response")
+	mapCtx, span := xtrace.StartSpan(ctx, "Map Receipts to Response")
 	defer span.End()
 
 	resReceipts := make([]*receiptsv1.Receipt, len(receipts))
 	for i, receipt := range receipts {
+		resReceipts[i] = &receiptsv1.Receipt{}
 		resReceipts[i].Id = uint64(receipt.ID)
 		resReceipts[i].Status = mapReceiptStatus(&receipt)
 		resReceipts[i].Vendor = receipt.Vendor
 		resReceipts[i].Date = timestamppb.New(receipt.Date)
 
 		// FIXME(performance): We should probably do a bulk query before the loop.
-		expenses, err := s.Expenses.ListExpensesForReceipt(ctx, uint64(receipt.ID))
+		expenses, err := s.Expenses.ListExpensesForReceipt(mapCtx, uint64(receipt.ID))
 		if err != nil {
-			slog.ErrorContext(ctx, "failed to list expenses for receipt", "error", err.Error())
+			slog.ErrorContext(mapCtx, "failed to list expenses for receipt", "error", err.Error())
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("unable to list expenses for receipt: %w", err))

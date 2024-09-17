@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -37,82 +36,84 @@ type ReceiptsController struct {
 func (d *ReceiptsController) ListReceipts(c *gin.Context) {
 	ctx, span := xtrace.GetSpan(c.Request.Context())
 
-	var receipts []receipt.Receipt
-	var err error
-
-	userEmail := auth.GetUserEmail(c)
+	var since receiptsv1.ListReceiptsSince
 	switch c.Query("when") {
 	case "current_month":
-		receipts, err = d.Receipts.ListReceiptsCurrentMonth(ctx, userEmail)
+		since = receiptsv1.ListReceiptsSince_LIST_RECEIPTS_SINCE_CURRENT_MONTH
 	case "previous_month":
-		receipts, err = d.Receipts.ListReceiptsPreviousMonth(ctx, userEmail)
+		since = receiptsv1.ListReceiptsSince_LIST_RECEIPTS_SINCE_PREVIOUS_MONTH
 	case "all_time", "":
-		receipts, err = d.Receipts.ListReceipts(ctx, userEmail)
-	default:
-		c.HTML(http.StatusBadRequest, "error.html", gin.H{"error": "Unsupported query value for 'when'"})
-		return
+		since = receiptsv1.ListReceiptsSince_LIST_RECEIPTS_SINCE_ALL_TIME
 	}
 
-	receiptStatus := c.Query("status")
-	if receiptStatus == "pending_review" {
-		receipts, err = d.Receipts.ListReceiptsPendingReview(ctx, userEmail)
+	var status receiptsv1.ReceiptStatus
+	switch c.Query("status") {
+	case "pending_review":
+		status = receiptsv1.ReceiptStatus_RECEIPT_STATUS_PENDING_REVIEW
+	case "reviewed":
+		status = receiptsv1.ReceiptStatus_RECEIPT_STATUS_REVIEWED
 	}
 
+	req := connect.Request[receiptsv1.ListReceiptsRequest]{
+		Msg: &receiptsv1.ListReceiptsRequest{
+			Since:  since,
+			Status: status,
+		},
+	}
+
+	err := auth.CopyAuthHeader(&req, c.Request)
 	if err != nil {
 		span.SetStatus(codes.Error, err.Error())
-		slog.ErrorContext(ctx, "failed to list receipts", "error", err.Error())
-		c.HTML(http.StatusOK, "error.html", gin.H{"error": "We were unable to find your receipts - please try again."})
+		slog.ErrorContext(ctx, "failed to copy auth header", "error", err.Error())
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable to list receipts: %s", err.Error())})
 		return
 	}
 
-	// Sort the most recent first
-	sort.Slice(receipts, func(i, j int) bool {
-		return receipts[i].Date.After(receipts[j].Date)
-	})
+	res, err := d.ReceiptsClient.ListReceipts(ctx, &req)
+	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
+		slog.ErrorContext(ctx, "failed to list receipt", "error", err.Error())
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable to list receipt: %s", err.Error())})
+		return
+	}
 
-	viewReceipts := ToReceiptViewModel(receipts)
+	_, span = xtrace.StartSpan(ctx, "Map view models")
+	defer span.End()
 
-	var pendingReview []ReceiptViewModel
-	var reviewed []ReceiptViewModel
-
-	// Note: awful stuff. We should probably do this in a single SQL query or something.
-	for i, r := range viewReceipts {
-		id, err := strconv.ParseUint(r.ID, 10, 64)
-		if err != nil {
-			span.SetStatus(codes.Error, err.Error())
-			slog.ErrorContext(ctx, "failed to parse receipt ID", "error", err.Error())
-			c.HTML(http.StatusOK, "error.html", gin.H{"error": "We were unable to find your receipts - please try again."})
-			return
-		}
-
-		expenses, err := d.Expenses.ListExpensesForReceipt(ctx, id)
-		if err != nil {
-			span.SetStatus(codes.Error, err.Error())
-			slog.ErrorContext(ctx, "failed to list expenses for receipt", "error", err.Error())
-			c.HTML(http.StatusOK, "error.html", gin.H{"error": "We were unable to find your receipts - please try again."})
-			return
+	var pendingReviewCount int
+	var reviewedCount int
+	var viewModels []ReceiptViewModel
+	for _, r := range res.Msg.Receipts {
+		pendingReview := "No"
+		if r.Status == receiptsv1.ReceiptStatus_RECEIPT_STATUS_PENDING_REVIEW {
+			pendingReview = "Yes"
+			pendingReviewCount += 1
+		} else {
+			reviewedCount += 1
 		}
 
 		var total float64
-		for _, e := range expenses {
-			total += float64(e.Amount)
+		for _, expense := range r.Expenses {
+			total += float64(expense.Amount)
 		}
 
-		viewReceipts[i].TotalAmount = fmt.Sprintf("%0.2f", total)
-
-		if r.PendingReview == "Yes" {
-			pendingReview = append(pendingReview, r)
-		} else {
-			reviewed = append(reviewed, r)
+		v := ReceiptViewModel{
+			ID:            fmt.Sprint(r.Id),
+			Date:          r.Date.AsTime().Format("2006-01-02"),
+			Vendor:        strings.Title(r.Vendor),
+			PendingReview: pendingReview,
+			TotalAmount:   fmt.Sprintf("%0.2f", total),
 		}
+
+		viewModels = append(viewModels, v)
 	}
 
 	c.HTML(http.StatusOK, "list_receipts.html", gin.H{
-		"User":                  userEmail,
-		"HasReceipts":           len(receipts) > 0,
-		"Receipts":              viewReceipts,
-		"ReceiptsPendingReview": len(pendingReview),
-		"ReceiptsReviewed":      len(reviewed),
+		"User":                  auth.GetUserEmail(c),
+		"HasReceipts":           len(viewModels) > 0,
+		"Receipts":              viewModels,
+		"ReceiptsPendingReview": pendingReviewCount,
+		"ReceiptsReviewed":      reviewedCount,
 	})
 }
 
@@ -340,17 +341,8 @@ type ReceiptViewModel struct {
 	Date          string
 	Vendor        string
 	PendingReview string
-	IsPDF         bool
 	ReceiptID     int
 	TotalAmount   string
-}
-
-func ToReceiptViewModel(receipts []receipt.Receipt) (models []ReceiptViewModel) {
-	for _, r := range receipts {
-		models = append(models, ToSingleReceiptViewModel(&r))
-	}
-
-	return
 }
 
 func ToSingleReceiptViewModel(r *receipt.Receipt) ReceiptViewModel {
@@ -359,13 +351,10 @@ func ToSingleReceiptViewModel(r *receipt.Receipt) ReceiptViewModel {
 		pendingReview = "Yes"
 	}
 
-	isPDF := http.DetectContentType(r.Image) == "application/pdf"
-
 	return ReceiptViewModel{
 		ID:            fmt.Sprint(r.ID),
 		Date:          r.Date.Format("2006-01-02"),
 		Vendor:        strings.Title(r.Vendor),
 		PendingReview: pendingReview,
-		IsPDF:         isPDF,
 	}
 }

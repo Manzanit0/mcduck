@@ -9,8 +9,6 @@ import (
 	"net/http"
 	"os"
 
-	"connectrpc.com/connect"
-	"connectrpc.com/otelconnect"
 	_ "github.com/jackc/pgx/v4/stdlib"
 
 	"github.com/manzanit0/mcduck/api/auth.v1/authv1connect"
@@ -68,8 +66,7 @@ func run() error {
 	r.SetHTMLTemplate(t)
 	r.StaticFS("/public", http.FS(assets))
 
-	interceptor, _ := otelconnect.NewInterceptor()
-	authClient := authv1connect.NewAuthServiceClient(xhttp.NewClient(), micro.MustGetEnv("PRIVATE_DOTS_HOST"), connect.WithInterceptors(interceptor))
+	authClient := authv1connect.NewAuthServiceClient(xhttp.NewClient(), micro.MustGetEnv("PRIVATE_DOTS_HOST"))
 	registrationController := controllers.RegistrationController{
 		DB:              db,
 		Telegram:        tgramClient,
@@ -80,7 +77,7 @@ func run() error {
 	expenseRepository := expense.NewRepository(db)
 	expensesController := controllers.ExpensesController{Expenses: expenseRepository}
 
-	receiptsClient := receiptsv1connect.NewReceiptsServiceClient(xhttp.NewClient(), micro.MustGetEnv("PRIVATE_DOTS_HOST"), connect.WithInterceptors(interceptor))
+	receiptsClient := receiptsv1connect.NewReceiptsServiceClient(xhttp.NewClient(), micro.MustGetEnv("PRIVATE_DOTS_HOST"))
 	parserHost := micro.MustGetEnv("PARSER_HOST") // TODO: shouldn't throw.
 	parserClient := client.NewParserClient(parserHost)
 	receiptsRepository := receipt.NewRepository(db)
