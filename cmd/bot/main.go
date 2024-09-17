@@ -18,7 +18,7 @@ import (
 	"github.com/manzanit0/mcduck/pkg/xhttp"
 	"github.com/manzanit0/mcduck/pkg/xtrace"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/codes"
 )
 
 const (
@@ -45,13 +45,12 @@ func main() {
 
 func telegramWebhookController(tgramClient tgram.Client, usersClient usersv1connect.UsersServiceClient, receiptsClient receiptsv1connect.ReceiptsServiceClient) func(c *gin.Context) {
 	return func(c *gin.Context) {
-		ctx := c.Request.Context()
-
-		span := trace.SpanFromContext(ctx)
+		ctx, span := xtrace.GetSpan(c.Request.Context())
 
 		var r tgram.WebhookRequest
 		if err := c.ShouldBindJSON(&r); err != nil {
-			xtrace.RecordError(ctx, "unable to bind request payload", err)
+			span.SetStatus(codes.Error, err.Error())
+			slog.ErrorContext(ctx, "unable to bind json", "error", err.Error())
 
 			// FIXME: this actually isn't what's happening. It's not a json.Unmarshall as I expected.
 			res := gin.H{"error": fmt.Sprintf("payload does not conform with telegram contract: %s", err.Error())}

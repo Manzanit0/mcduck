@@ -62,6 +62,11 @@ func StartSpan(ctx context.Context, spanName string, opts ...trace.SpanStartOpti
 	return Tracer().Start(ctx, spanName, opts...)
 }
 
+func GetSpan(ctx context.Context) (context.Context, trace.Span) {
+	span := trace.SpanFromContext(ctx)
+	return ctx, span
+}
+
 func RecordError(ctx context.Context, description string, err error) {
 	span := trace.SpanFromContext(ctx)
 	span.SetStatus(codes.Error, description)

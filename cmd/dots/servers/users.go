@@ -35,7 +35,7 @@ func (s *usersServer) GetUser(ctx context.Context, req *connect.Request[usersv1.
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("user with telegram ID %d doesn't exist", req.Msg.TelegramChatId))
 	} else if err != nil {
 		span.SetStatus(codes.Error, err.Error())
-		slog.Error("failed to get user", "error", err.Error())
+		slog.ErrorContext(ctx, "failed to get user", "error", err.Error())
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("unable to get receipt: %w", err))
 	}
 

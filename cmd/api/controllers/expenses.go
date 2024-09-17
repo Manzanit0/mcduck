@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 	"sort"
 	"strconv"
@@ -9,9 +10,11 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel/codes"
 
 	"github.com/manzanit0/mcduck/internal/expense"
 	"github.com/manzanit0/mcduck/pkg/auth"
+	"github.com/manzanit0/mcduck/pkg/xtrace"
 )
 
 type ExpensesController struct {
@@ -45,9 +48,13 @@ func MapExpenses(expenses []expense.Expense) (models []ExpenseViewModel) {
 }
 
 func (d *ExpensesController) ListExpenses(c *gin.Context) {
+	ctx, span := xtrace.GetSpan(c.Request.Context())
+
 	user := auth.GetUserEmail(c)
-	expenses, err := d.Expenses.ListExpenses(c.Request.Context(), user)
+	expenses, err := d.Expenses.ListExpenses(ctx, user)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
+		slog.Error("failed to list expenses", "error", err.Error())
 		c.HTML(http.StatusOK, "error.html", gin.H{"error": err.Error()})
 		return
 	}
@@ -74,9 +81,12 @@ type UpdateExpense struct {
 }
 
 func (d *ExpensesController) UpdateExpense(c *gin.Context) {
+	ctx, span := xtrace.GetSpan(c.Request.Context())
 	payload := UpdateExpense{}
 	err := c.ShouldBindJSON(&payload)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
+		slog.ErrorContext(ctx, "failed to bind json", "error", err.Error())
 		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("unable to parse request body: %s", err.Error())})
 		return
 	}
@@ -84,6 +94,8 @@ func (d *ExpensesController) UpdateExpense(c *gin.Context) {
 	id := c.Param("id")
 	i, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
+		slog.ErrorContext(ctx, "failed to parse id", "error", err.Error())
 		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("unable to parse expense id: %s", err.Error())})
 		return
 	}
@@ -92,13 +104,15 @@ func (d *ExpensesController) UpdateExpense(c *gin.Context) {
 	if payload.Date != nil {
 		d, err := time.Parse("2006-01-02", *payload.Date)
 		if err != nil {
+			span.SetStatus(codes.Error, err.Error())
+			slog.ErrorContext(ctx, "failed to parse date", "error", err.Error())
 			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("unable to parse date: %s", err.Error())})
 			return
 		}
 		date = &d
 	}
 
-	err = d.Expenses.UpdateExpense(c.Request.Context(), expense.UpdateExpenseRequest{
+	err = d.Expenses.UpdateExpense(ctx, expense.UpdateExpenseRequest{
 		ID:          i,
 		Date:        date,
 		Amount:      payload.Amount,
@@ -108,6 +122,8 @@ func (d *ExpensesController) UpdateExpense(c *gin.Context) {
 		ReceiptID:   payload.ReceiptID,
 	})
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
+		slog.ErrorContext(ctx, "failed to update expense", "error", err.Error())
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable to update expense: %s", err.Error())})
 		return
 	}
@@ -126,26 +142,34 @@ type CreateExpenseResponse struct {
 }
 
 func (d *ExpensesController) CreateExpense(c *gin.Context) {
+	ctx, span := xtrace.GetSpan(c.Request.Context())
+
 	payload := CreateExpensePayload{}
 	err := c.ShouldBindJSON(&payload)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
+		slog.ErrorContext(ctx, "failed to bind body", "error", err.Error())
 		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("unable to parse request body: %s", err.Error())})
 		return
 	}
 
 	date, err := time.Parse("2006-01-02", payload.Date)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
+		slog.ErrorContext(ctx, "failed to parse date", "error", err.Error())
 		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("unable to parse date: %s", err.Error())})
 		return
 	}
 
-	expenseID, err := d.Expenses.CreateExpense(c.Request.Context(), expense.CreateExpenseRequest{
+	expenseID, err := d.Expenses.CreateExpense(ctx, expense.CreateExpenseRequest{
 		UserEmail: auth.GetUserEmail(c),
 		Date:      date,
 		Amount:    payload.Amount,
 		ReceiptID: payload.ReceiptID,
 	})
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
+		slog.ErrorContext(ctx, "failed to create expense", "error", err.Error())
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable to create expense: %s", err.Error())})
 		return
 	}
@@ -154,15 +178,21 @@ func (d *ExpensesController) CreateExpense(c *gin.Context) {
 }
 
 func (d *ExpensesController) DeleteExpense(c *gin.Context) {
+	ctx, span := xtrace.GetSpan(c.Request.Context())
+
 	id := c.Param("id")
 	i, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
+		slog.ErrorContext(ctx, "failed to parse expense id", "error", err.Error())
 		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("unable to parse expense id: %s", err.Error())})
 		return
 	}
 
 	err = d.Expenses.DeleteExpense(c.Request.Context(), i)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
+		slog.ErrorContext(ctx, "failed to delete expense", "error", err.Error())
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable to delete expense: %s", err.Error())})
 		return
 	}
@@ -176,9 +206,13 @@ type MergeExpensesPayload struct {
 }
 
 func (d *ExpensesController) MergeExpenses(c *gin.Context) {
+	ctx, span := xtrace.GetSpan(c.Request.Context())
+
 	payload := MergeExpensesPayload{}
 	err := c.ShouldBindJSON(&payload)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
+		slog.ErrorContext(ctx, "failed to delete expense", "error", err.Error())
 		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("unable to parse request body: %s", err.Error())})
 		return
 	}
@@ -186,14 +220,18 @@ func (d *ExpensesController) MergeExpenses(c *gin.Context) {
 	var total float32
 	expenses := []*expense.Expense{}
 	for _, id := range payload.ExpenseIDs {
-		expense, err := d.Expenses.FindExpense(c.Request.Context(), int64(id))
+		expense, err := d.Expenses.FindExpense(ctx, int64(id))
 		if err != nil {
+			span.SetStatus(codes.Error, err.Error())
+			slog.ErrorContext(ctx, "failed to find expense", "error", err.Error())
 			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable to fetch expense: %s", err.Error())})
 			return
 		}
 
 		if expense.ReceiptID != payload.ReceiptID {
 			errorMessage := fmt.Sprintf("expense with ID %d doesn't belong to receipt %d", expense.ID, payload.ReceiptID)
+			span.SetStatus(codes.Error, errorMessage)
+			slog.ErrorContext(ctx, "mismatch in IDs", "error", errorMessage)
 			c.JSON(http.StatusBadRequest, gin.H{"error": errorMessage})
 			return
 		}
@@ -204,20 +242,24 @@ func (d *ExpensesController) MergeExpenses(c *gin.Context) {
 	}
 
 	// FIXME: create and delete should be done atomically
-	expenseID, err := d.Expenses.CreateExpense(c.Request.Context(), expense.CreateExpenseRequest{
+	expenseID, err := d.Expenses.CreateExpense(ctx, expense.CreateExpenseRequest{
 		UserEmail: auth.GetUserEmail(c),
 		Date:      time.Now(),
 		Amount:    total,
 		ReceiptID: &payload.ReceiptID,
 	})
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
+		slog.ErrorContext(ctx, "failed to create expense", "error", err.Error())
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable to create expense: %s", err.Error())})
 		return
 	}
 
 	for _, id := range payload.ExpenseIDs {
-		err = d.Expenses.DeleteExpense(c.Request.Context(), int64(id))
+		err = d.Expenses.DeleteExpense(ctx, int64(id))
 		if err != nil {
+			span.SetStatus(codes.Error, err.Error())
+			slog.ErrorContext(ctx, "failed to delete expense", "error", err.Error())
 			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable to delete expense: %s", err.Error())})
 			return
 		}

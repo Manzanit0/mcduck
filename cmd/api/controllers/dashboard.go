@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -11,9 +12,11 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel/codes"
 
 	"github.com/manzanit0/mcduck/internal/expense"
 	"github.com/manzanit0/mcduck/pkg/auth"
+	"github.com/manzanit0/mcduck/pkg/xtrace"
 )
 
 var chartColours = []string{
@@ -42,7 +45,7 @@ var chartBackgroundColours = []string{
 	"rgba(54, 162, 235, 0.2)",
 	"rgba(153, 102, 255, 0.2)",
 	"rgba(201, 203, 207, 0.2)",
-	//repeated
+	// repeated
 	"rgba(255, 99, 132, 0.2)",
 	"rgba(255, 159, 64, 0.2)",
 	"rgba(255, 205, 86, 0.2)",
@@ -114,10 +117,13 @@ func (d *DashboardController) LiveDemo(c *gin.Context) {
 }
 
 func (d *DashboardController) Dashboard(c *gin.Context) {
+	ctx, span := xtrace.GetSpan(c.Request.Context())
 	user := auth.GetUserEmail(c)
 
-	expenses, err := d.Expenses.ListExpenses(c.Request.Context(), user)
+	expenses, err := d.Expenses.ListExpenses(ctx, user)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		span.SetStatus(codes.Error, err.Error())
+		slog.ErrorContext(ctx, "failed list expenses", "error", err.Error())
 		c.HTML(http.StatusOK, "error.html", gin.H{"error": err.Error()})
 		return
 	}
@@ -288,6 +294,8 @@ func buildChartData(labels []string, totals map[string]map[string]float32) Chart
 }
 
 func (d *DashboardController) UploadExpenses(c *gin.Context) {
+	ctx, span := xtrace.GetSpan(c.Request.Context())
+
 	form, err := c.MultipartForm()
 	if err != nil {
 		c.String(http.StatusBadRequest, "get form error: %s", err.Error())
@@ -302,12 +310,16 @@ func (d *DashboardController) UploadExpenses(c *gin.Context) {
 	file := form.File["files"][0]
 	filename := filepath.Base(file.Filename)
 	if err := c.SaveUploadedFile(file, filename); err != nil {
+		span.SetStatus(codes.Error, err.Error())
+		slog.ErrorContext(ctx, "failed upload file", "error", err.Error())
 		c.String(http.StatusInternalServerError, "upload file error: %s", err.Error())
 		return
 	}
 
 	expenses, err := readExpensesFromCSV(filename)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
+		slog.ErrorContext(ctx, "failed read expenses from CSV", "error", err.Error())
 		c.String(http.StatusInternalServerError, "file parsing error: %s", err.Error())
 		return
 	}
@@ -317,6 +329,8 @@ func (d *DashboardController) UploadExpenses(c *gin.Context) {
 	if user != "" {
 		err = d.Expenses.CreateExpenses(c.Request.Context(), expense.ExpensesBatch{UserEmail: user, Records: expenses})
 		if err != nil {
+			span.SetStatus(codes.Error, err.Error())
+			slog.ErrorContext(ctx, "failed create expenses", "error", err.Error())
 			c.HTML(http.StatusOK, "error.html", gin.H{"error": err.Error()})
 			return
 		}

@@ -17,6 +17,7 @@ import (
 	"github.com/manzanit0/mcduck/pkg/tgram"
 	"github.com/manzanit0/mcduck/pkg/xtrace"
 	"github.com/olekukonko/tablewriter"
+	"go.opentelemetry.io/otel/codes"
 )
 
 const (
@@ -44,12 +45,14 @@ func GetDocument(ctx context.Context, tgramClient tgram.Client, fileID string) (
 }
 
 func ParseReceipt(ctx context.Context, tgramClient tgram.Client, usersClient usersv1connect.UsersServiceClient, receiptsClient receiptsv1connect.ReceiptsServiceClient, r *tgram.WebhookRequest) *tgram.WebhookResponse {
+	ctx, span := xtrace.StartSpan(ctx, "Parse Receipt")
+	defer span.End()
+
 	var fileID string
 	var fileSize int64
 
 	if r.Message.Document != nil {
 		fileID = r.Message.Document.FileID
-		fileSize = *r.Message.Document.FileSize
 	} else if len(r.Message.Photos) > 0 {
 		// Get the biggest photo: this will ensure better parsing by parser service.
 		for _, p := range r.Message.Photos {
@@ -62,6 +65,7 @@ func ParseReceipt(ctx context.Context, tgramClient tgram.Client, usersClient use
 
 	fileData, err := GetDocument(ctx, tgramClient, fileID)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		slog.ErrorContext(ctx, "tgram.DownloadFile:", "error", err.Error())
 		return tgram.NewHTMLResponse(fmt.Sprintf("unable to download file from Telegram servers: %s", err.Error()), r.GetFromID())
 	}
@@ -82,6 +86,7 @@ func ParseReceipt(ctx context.Context, tgramClient tgram.Client, usersClient use
 	onBehalfOf := "bot@mcduck.com"
 	token, err := auth.GenerateJWT(onBehalfOf)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		slog.ErrorContext(ctx, "Generate JWT:", "error", err.Error())
 		return tgram.NewHTMLResponse(fmt.Sprintf("generate JWT: %s", err.Error()), r.GetFromID())
 	}
@@ -90,6 +95,7 @@ func ParseReceipt(ctx context.Context, tgramClient tgram.Client, usersClient use
 
 	resp, err := usersClient.GetUser(ctx, &getUserReq)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		slog.ErrorContext(ctx, "mcduck.SearchUserByChatID:", "error", err.Error())
 		return tgram.NewHTMLResponse(fmt.Sprintf("unable to find user: %s", err.Error()), r.GetFromID())
 	}
@@ -103,6 +109,7 @@ func ParseReceipt(ctx context.Context, tgramClient tgram.Client, usersClient use
 	onBehalfOf = resp.Msg.User.Email
 	token, err = auth.GenerateJWT(onBehalfOf)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		slog.ErrorContext(ctx, "Generate JWT:", "error", err.Error())
 		return tgram.NewHTMLResponse(fmt.Sprintf("generate JWT: %s", err.Error()), r.GetFromID())
 	}
@@ -111,6 +118,7 @@ func ParseReceipt(ctx context.Context, tgramClient tgram.Client, usersClient use
 
 	res, err := receiptsClient.CreateReceipts(ctx, &createReceiptReq)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		slog.ErrorContext(ctx, "CreateReceipt", "error", err.Error())
 		return tgram.NewHTMLResponse(fmt.Sprintf("unable to parser receipt: %s", err.Error()), r.GetFromID())
 	}

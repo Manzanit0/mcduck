@@ -16,6 +16,7 @@ import (
 	"github.com/manzanit0/mcduck/pkg/openai"
 	"github.com/manzanit0/mcduck/pkg/xtrace"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 )
 
 const (
@@ -44,11 +45,11 @@ func main() {
 	aivisionParser := parser.NewAIVisionParser(apiKey)
 
 	svc.Engine.POST("/receipt", func(c *gin.Context) {
-		ctx, span := xtrace.StartSpan(c.Request.Context(), "Parse Receipt")
-		defer span.End()
+		ctx, span := xtrace.GetSpan(c.Request.Context())
 
 		file, err := c.FormFile("receipt")
 		if err != nil {
+			span.SetStatus(codes.Error, err.Error())
 			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("unable to read file: %s", err.Error())})
 			return
 		}
@@ -57,6 +58,7 @@ func main() {
 		filePath := filepath.Join(dir, file.Filename)
 		err = c.SaveUploadedFile(file, filePath)
 		if err != nil {
+			span.SetStatus(codes.Error, err.Error())
 			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("unable to save file to disk: %s", err.Error())})
 			return
 		}
@@ -65,6 +67,7 @@ func main() {
 
 		data, err := os.ReadFile(filePath)
 		if err != nil {
+			span.SetStatus(codes.Error, err.Error())
 			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("unable to read file from disk: %s", err.Error())})
 			return
 		}
@@ -83,6 +86,7 @@ func main() {
 			if err != nil {
 				marshalledRes, _ := json.Marshal(openAIRes)
 				span.SetAttributes(attribute.String("openai.response", string(marshalledRes)))
+				span.SetStatus(codes.Error, err.Error())
 				slog.ErrorContext(c.Request.Context(), "failed to extract receipt", "error", err.Error(), "open_ai_response", marshalledRes)
 				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable extract data from receipt: %s", err.Error())})
 				return
@@ -94,6 +98,7 @@ func main() {
 			if err != nil {
 				marshalledRes, _ := json.Marshal(openAIRes)
 				span.SetAttributes(attribute.String("openai.response", string(marshalledRes)))
+				span.SetStatus(codes.Error, err.Error())
 				slog.ErrorContext(c.Request.Context(), "chatGPT response", "error", err.Error(), "open_ai_response", marshalledRes)
 				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("unable extract data from receipt: %s", err.Error())})
 				return
