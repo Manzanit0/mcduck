@@ -38,8 +38,8 @@ message DeleteReceiptRequest {
 message DeleteReceiptResponse {}
 
 message ListReceiptsRequest {
-  optional ListReceiptsSince since = 1;
-  optional ReceiptStatus status = 2;
+  ListReceiptsSince since = 1;
+  ReceiptStatus status = 2;
 }
 
 enum ListReceiptsSince {

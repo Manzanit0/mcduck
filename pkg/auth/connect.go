@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"connectrpc.com/connect"
+	"go.opentelemetry.io/otel"
 )
 
 type key int
@@ -46,9 +47,12 @@ func GetInfo(ctx context.Context) any {
 func AuthenticationInterceptor() connect.UnaryInterceptorFunc {
 	return func(next connect.UnaryFunc) connect.UnaryFunc {
 		return func(ctx context.Context, req connect.AnyRequest) (resp connect.AnyResponse, err error) {
+			_, span := otel.GetTracerProvider().Tracer("github.com/manzanit0/mcduck/pkg/auth").Start(ctx, "Middleware: Authentication")
+
 			auth := req.Header().Get("Authorization")
 			const prefix = "Bearer "
 			if !strings.HasPrefix(auth, prefix) {
+				span.End()
 				return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("no Authorization header"))
 			}
 
@@ -56,10 +60,12 @@ func AuthenticationInterceptor() connect.UnaryInterceptorFunc {
 
 			user, isValid := ValidateJWT(token)
 			if !isValid {
+				span.End()
 				return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("invalid token"))
 			}
 
 			ctx = WithInfo(ctx, user)
+			span.End()
 
 			resp, err = next(ctx, req)
 			return
