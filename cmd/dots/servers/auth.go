@@ -60,13 +60,13 @@ func (s *authServer) Login(ctx context.Context, req *connect.Request[authv1.Logi
 	user, err := users.Find(ctx, s.DB, req.Msg.Email)
 	if err != nil {
 		span.SetStatus(codes.Error, err.Error())
-		slog.Error("unable to find user", "email", req.Msg.Email, "error", err.Error())
+		slog.ErrorContext(ctx, "unable to find user", "email", req.Msg.Email, "error", err.Error())
 		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("invalid email or password"))
 	}
 
 	_, span = xtrace.StartSpan(ctx, "Check password hash")
 	if !auth.CheckPasswordHash(req.Msg.Password, user.HashedPassword) {
-		slog.Error("invalid password", "email", req.Msg.Email, "error", "hashed password doesn't match")
+		slog.ErrorContext(ctx, "invalid password", "email", req.Msg.Email, "error", "hashed password doesn't match")
 		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("invalid email or password"))
 	}
 	span.End()

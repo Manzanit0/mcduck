@@ -64,7 +64,7 @@ func (s *receiptsServer) CreateReceipts(ctx context.Context, req *connect.Reques
 
 			parsed, err := s.Parser.ParseReceipt(ctx, email, file)
 			if err != nil {
-				slog.Error("failed to parse receipt through parser service", "error", err.Error(), "index", i)
+				slog.ErrorContext(ctx, "failed to parse receipt through parser service", "error", err.Error(), "index", i)
 				span.SetStatus(codes.Error, err.Error())
 				return fmt.Errorf("parse receipt: %w", err)
 			}
@@ -84,14 +84,14 @@ func (s *receiptsServer) CreateReceipts(ctx context.Context, req *connect.Reques
 				Email:       email,
 			})
 			if err != nil {
-				slog.Error("failed to insert receipt", "error", err.Error(), "index", i)
+				slog.ErrorContext(ctx, "failed to insert receipt", "error", err.Error(), "index", i)
 				span.SetStatus(codes.Error, err.Error())
 				return fmt.Errorf("create receipt: %w", err)
 			}
 
 			expenses, err := s.Expenses.ListExpensesForReceipt(ctx, uint64(created.ID))
 			if err != nil {
-				slog.Error("failed to list expenses for receipt", "error", err.Error())
+				slog.ErrorContext(ctx, "failed to list expenses for receipt", "error", err.Error())
 				span.SetStatus(codes.Error, err.Error())
 				return fmt.Errorf("list expenses: %w", err)
 			}
@@ -153,7 +153,7 @@ func (s *receiptsServer) UpdateReceipt(ctx context.Context, req *connect.Request
 
 	err = s.Receipts.UpdateReceipt(ctx, dto)
 	if err != nil {
-		slog.Error("failed to update receipt", "error", err.Error())
+		slog.ErrorContext(ctx, "failed to update receipt", "error", err.Error())
 		span.SetStatus(codes.Error, err.Error())
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("unable to update receipt: %w", err))
 	}
@@ -168,7 +168,7 @@ func (s *receiptsServer) DeleteReceipt(ctx context.Context, req *connect.Request
 
 	err := s.Receipts.DeleteReceipt(ctx, int64(req.Msg.Id))
 	if err != nil {
-		slog.Error("failed to delete receipt", "error", err.Error())
+		slog.ErrorContext(ctx, "failed to delete receipt", "error", err.Error())
 		span.SetStatus(codes.Error, err.Error())
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("unable to delete receipt: %w", err))
 	}
@@ -199,7 +199,7 @@ func (s *receiptsServer) ListReceipts(ctx context.Context, req *connect.Request[
 	}
 
 	if err != nil {
-		slog.Error("failed to list receipts", "error", err.Error())
+		slog.ErrorContext(ctx, "failed to list receipts", "error", err.Error())
 		span.SetStatus(codes.Error, err.Error())
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("unable to list receipts: %w", err))
 	}
@@ -241,7 +241,7 @@ func (s *receiptsServer) ListReceipts(ctx context.Context, req *connect.Request[
 		// FIXME(performance): We should probably do a bulk query before the loop.
 		expenses, err := s.Expenses.ListExpensesForReceipt(ctx, uint64(receipt.ID))
 		if err != nil {
-			slog.Error("failed to list expenses for receipt", "error", err.Error())
+			slog.ErrorContext(ctx, "failed to list expenses for receipt", "error", err.Error())
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("unable to list expenses for receipt: %w", err))
@@ -276,14 +276,14 @@ func (s *receiptsServer) GetReceipt(ctx context.Context, req *connect.Request[re
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("receipt with id %d doesn't exist", req.Msg.Id))
 	} else if err != nil {
 		span.SetStatus(codes.Error, err.Error())
-		slog.Error("failed to get receipt", "error", err.Error())
+		slog.ErrorContext(ctx, "failed to get receipt", "error", err.Error())
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("unable to get receipt: %w", err))
 	}
 
 	expenses, err := s.Expenses.ListExpensesForReceipt(ctx, req.Msg.Id)
 	if err != nil {
 		span.SetStatus(codes.Error, err.Error())
-		slog.Error("failed to list expenses for receipt", "error", err.Error())
+		slog.ErrorContext(ctx, "failed to list expenses for receipt", "error", err.Error())
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("unable to get expenses for receipt: %w", err))
 	}
 
