@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package expenses.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/manzanit0/mcduck/api/expenses.v1;expensesv1";
+
+service ExpensesService {
+  rpc CreateExpense(CreateExpenseRequest) returns (CreateExpenseResponse) {}
+  rpc UpdateExpense(UpdateExpenseRequest) returns (UpdateExpenseResponse) {}
+  rpc DeleteExpense(DeleteExpenseRequest) returns (DeleteExpenseResponse) {}
+  rpc ListExpenses(ListExpensesRequest) returns (ListExpensesResponse) {}
+}
+
+message CreateExpenseRequest {
+  uint64 amount = 1;
+  google.protobuf.Timestamp date = 2;
+  optional uint64 receipt_id = 3;
+}
+
+message CreateExpenseResponse {
+  Expense expense = 1;
+}
+
+message UpdateExpenseRequest {
+  uint64 id = 1;
+  optional uint64 receipt_id = 2;
+  optional uint64 amount = 3;
+  optional google.protobuf.Timestamp date = 4;
+  optional string category = 5;
+  optional string subcategory = 6;
+  optional uint64 description = 7;
+}
+
+message UpdateExpenseResponse {
+  Expense expense = 1;
+}
+
+message DeleteExpenseRequest {
+  uint64 id = 1;
+}
+
+message DeleteExpenseResponse {}
+
+message ListExpensesRequest {
+  optional string user_email = 1;
+  optional string receipt_id = 2;
+}
+
+message ListExpensesResponse {
+  repeated Expense expenses = 1;
+}
+
+message Expense {
+  uint64 id = 1;
+  optional uint64 receipt_id = 2;
+  uint64 amount = 3;
+  google.protobuf.Timestamp date = 4;
+  string category = 5;
+  string subcategory = 6;
+  uint64 description = 7;
+}

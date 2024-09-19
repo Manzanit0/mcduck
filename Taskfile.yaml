@@ -16,6 +16,10 @@ tasks:
     desc: generate protobuf outputs via Buf
     cmd: buf generate
 
+  format-proto:
+    desc: format protobuf files
+    cmd: buf format --config api/buf.yaml -w
+
   test:
     desc: check code compiles and run unit tests
     cmds: 
