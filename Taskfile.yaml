@@ -43,7 +43,7 @@ tasks:
     cmds:
       - |
         OPENAI_API_KEY={{.OPENAI_API_KEY}} \
-        docker compose up
+        docker compose up --watch
 
   pgcli:
     desc: Connects to the local Docker postgres database via "pgcli"
