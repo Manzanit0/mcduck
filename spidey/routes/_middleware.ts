@@ -1,6 +1,6 @@
 import { FreshContext } from "$fresh/server.ts";
 import { getCookies } from "$std/http/cookie.ts";
-import * as jose from 'https://deno.land/x/jose@v5.9.3/index.ts'
+import { decodeJwt } from '$jose/index.ts'
 
 export interface State {
     loggedIn: boolean
@@ -17,7 +17,7 @@ export async function handler(req: Request, ctx: FreshContext<State>) {
         ctx.state.loggedIn = true
         ctx.state.authToken = cookies[authCookieName]
 
-        const jwt = jose.decodeJwt(cookies[authCookieName])
+        const jwt = decodeJwt(cookies[authCookieName])
         ctx.state.userEmail = jwt.sub!
     }
 
