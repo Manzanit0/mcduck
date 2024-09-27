@@ -8,6 +8,8 @@ tasks:
     desc: install tools
     cmds:
       - go install github.com/bufbuild/buf/cmd/buf@latest
+      # These are required to generate connect clients in Go. For JS clients,
+      # we're using buf remote modules.
       - go install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest
       - go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
       - go install connectrpc.com/connect/cmd/protoc-gen-connect-go@latest
@@ -22,7 +24,7 @@ tasks:
 
   test:
     desc: check code compiles and run unit tests
-    cmds: 
+    cmds:
       - go build -race ./...
       - go test -cover -shuffle=on -race ./...
   smee:
@@ -48,6 +50,10 @@ tasks:
       - |
         OPENAI_API_KEY={{.OPENAI_API_KEY}} \
         docker compose up --watch
+
+  up-web:
+    desc: starts the deno app
+    cmd: deno task --cwd spidey start
 
   pgcli:
     desc: Connects to the local Docker postgres database via "pgcli"

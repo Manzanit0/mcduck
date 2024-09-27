@@ -8,5 +8,25 @@ plugins:
   - local: protoc-gen-connect-go
     out: api
     opt: paths=source_relative
+    # NOTE: the newest version is v2.x. However, I kept comming across
+    # compilation issues, so I've settled on v1.x.
+    # ref:
+    # - https://github.com/connectrpc/examples-es/issues/1885
+    # - https://github.com/connectrpc/connect-es/issues/1215
+  - remote: buf.build/connectrpc/es:v1.5.0
+    # NOTE: For the Deno LSP to pick up the TS files properly, we had to
+    # generate them within the Deno project, otherwise it would bork on the type
+    # inference. Since at the moment we're just generating the types for this
+    # project and this solution fixed it, it wasn't worth spending more time on
+    # troubleshooting any longer.
+    out: spidey/gen
+    opt:
+      - target=ts
+      - import_extension=.ts
+  - remote: buf.build/bufbuild/es:v1.10.0
+    out: spidey/gen
+    opt:
+      - target=ts
+      - import_extension=.ts
 inputs:
   - directory: api
