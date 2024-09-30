@@ -10,6 +10,7 @@ import * as $api_joke from "./routes/api/joke.ts";
 import * as $greet_name_ from "./routes/greet/[name].tsx";
 import * as $index from "./routes/index.tsx";
 import * as $login_index from "./routes/login/index.tsx";
+import * as $receipts_index from "./routes/receipts/index.tsx";
 import * as $Counter from "./islands/Counter.tsx";
 import * as $MobileHeader from "./islands/MobileHeader.tsx";
 import { type Manifest } from "$fresh/server.ts";
@@ -24,6 +25,7 @@ const manifest = {
     "./routes/greet/[name].tsx": $greet_name_,
     "./routes/index.tsx": $index,
     "./routes/login/index.tsx": $login_index,
+    "./routes/receipts/index.tsx": $receipts_index,
   },
   islands: {
     "./islands/Counter.tsx": $Counter,
