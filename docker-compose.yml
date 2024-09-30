@@ -9,6 +9,15 @@ services:
       watch:
         - action: sync+restart
           path: ./
+          ignore:
+            - .github/
+            - cmd/bot/
+            - cmd/dots/
+            - cmd/parser/
+            - migrations/
+            - railway/
+            - scripts/
+            - spidey/
           target: /usr/src/app
     ports:
       - 8080:8080
@@ -66,6 +75,15 @@ services:
       watch:
         - action: sync+restart
           path: ./
+          ignore:
+            - .github/
+            - cmd/api/
+            - cmd/dots/
+            - cmd/parser/
+            - migrations/
+            - railway/
+            - scripts/
+            - spidey/
           target: /usr/src/app
     ports:
       - 8081:8080
@@ -92,6 +110,15 @@ services:
       watch:
         - action: sync+restart
           path: ./
+          ignore:
+            - .github/
+            - cmd/api/
+            - cmd/dots/
+            - cmd/bot/
+            - migrations/
+            - railway/
+            - scripts/
+            - spidey/
           target: /usr/src/app
     ports:
       - 8082:8080
