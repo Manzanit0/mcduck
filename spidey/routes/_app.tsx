@@ -2,11 +2,8 @@ import { type PageProps } from "$fresh/server.ts";
 import Navbar from "../components/Navbar.tsx";
 import { State } from "./_middleware.ts";
 
-export default function App({
-  Component,
-  state,
-  url,
-}: PageProps<unknown, State>) {
+export default function App(props: PageProps<unknown, State>) {
+  const { Component, state, url } = props;
   return (
     <html>
       <head>

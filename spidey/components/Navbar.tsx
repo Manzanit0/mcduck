@@ -25,7 +25,7 @@ export default function Navbar(props: NavbarProps) {
                 <div class="flex space-x-4">
                   {navLink("Dashboard", "/", props.currentRoute)}
                   {navLink("Expenses", "/greet/javier", props.currentRoute)}
-                  {navLink("Receips", "/greet/javier", props.currentRoute)}
+                  {navLink("Receips", "/receipts", props.currentRoute)}
                 </div>
               </div>
             </div>
