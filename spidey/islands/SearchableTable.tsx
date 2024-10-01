@@ -305,7 +305,7 @@ function row(r: Signal<ViewReceipt>, url: string) {
       </td>
       <td class="px-6 py-4">{formatEuro(total)}</td>
       <td class="px-6 py-4">
-        <ReceiptStatusDropdown receipt={r} />
+        <ReceiptStatusDropdown receipt={r} url={url}/>
       </td>
       <td class="px-6 py-4">
         <a
@@ -327,6 +327,7 @@ function formatEuro(amount: bigint) {
 }
 
 interface DropdownProps {
+  url: string
   receipt: Signal<ViewReceipt>;
 }
 
@@ -374,7 +375,7 @@ function ReceiptStatusDropdown(props: DropdownProps) {
           aria-expanded="true"
           aria-labelledby="listbox-label"
           onClick={() => {
-            open.value = !open.value
+            open.value = !open.value;
           }}
         >
           {selectedDropdownOption}
@@ -419,7 +420,7 @@ function ReceiptStatusDropdown(props: DropdownProps) {
                 onMouseLeave={() => {
                   hovered.value = false;
                 }}
-                onClick={() => {
+                onClick={async () => {
                   if (index === 0) {
                     props.receipt.value = {
                       ...props.receipt.value,
@@ -434,6 +435,15 @@ function ReceiptStatusDropdown(props: DropdownProps) {
 
                   // When the user selects and option, we can assume he wants the dropdown closed.
                   open.value = false;
+
+                  await updateReceipt(props.url, {
+                    id: props.receipt.value.id,
+                    pendingReview:
+                      props.receipt.value.status ===
+                        ReceiptStatus.PENDING_REVIEW.toString(),
+                  });
+
+                  console.log("updated status to", props.receipt.value.status)
                 }}
               >
                 {x}
