@@ -13,6 +13,7 @@ import * as $login_index from "./routes/login/index.tsx";
 import * as $receipts_index from "./routes/receipts/index.tsx";
 import * as $Counter from "./islands/Counter.tsx";
 import * as $MobileHeader from "./islands/MobileHeader.tsx";
+import * as $SearchableTable from "./islands/SearchableTable.tsx";
 import { type Manifest } from "$fresh/server.ts";
 
 const manifest = {
@@ -30,6 +31,7 @@ const manifest = {
   islands: {
     "./islands/Counter.tsx": $Counter,
     "./islands/MobileHeader.tsx": $MobileHeader,
+    "./islands/SearchableTable.tsx": $SearchableTable,
   },
   baseUrl: import.meta.url,
 } satisfies Manifest;
