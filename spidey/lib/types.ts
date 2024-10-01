@@ -23,11 +23,11 @@ export function mapReceiptsToSerializable(receipts: Receipt[]): SerializableRece
             id: r.id,
             status: r.status.toString(),
             vendor: r.vendor,
-            date: r.date?.toDate().toDateString(),
+            date: r.date?.toDate().toISOString(),
             expenses: r.expenses.map((e) => {
                 return {
                     id: e.id,
-                    date: e.date?.toDate().toDateString(),
+                    date: e.date?.toDate().toISOString(),
                     category: e.category,
                     subcategory: e.subcategory,
                     description: e.description,
