@@ -273,6 +273,12 @@ function row(r: Signal<ViewReceipt>, url: string) {
     }
 
     const value = e.currentTarget.value;
+    if (value === r.value.vendor) {
+      return;
+    }
+
+    r.value = {...r.value, vendor: value}
+
     await updateReceipt(url, { id: r.peek().id, vendor: value });
     console.log("updated vendor to", value);
   };
@@ -297,15 +303,13 @@ function row(r: Signal<ViewReceipt>, url: string) {
       </td>
       <td class="px-6 py-4">{r.value.date}</td>
       <td class="px-6 py-4">
-        <input
-          value={r.value.vendor}
-          class="focus:ring-blue-500"
-          onfocusout={updateVendor}
-        />
+        <TextInput value={r.value.vendor} onfocusout={updateVendor} />
       </td>
-      <td class="px-6 py-4">{formatEuro(total)}</td>
       <td class="px-6 py-4">
-        <ReceiptStatusDropdown receipt={r} url={url}/>
+        {formatEuro(total)}
+      </td>
+      <td class="px-6 py-4">
+        <ReceiptStatusDropdown receipt={r} url={url} />
       </td>
       <td class="px-6 py-4">
         <a
@@ -327,7 +331,7 @@ function formatEuro(amount: bigint) {
 }
 
 interface DropdownProps {
-  url: string
+  url: string;
   receipt: Signal<ViewReceipt>;
 }
 
@@ -438,12 +442,11 @@ function ReceiptStatusDropdown(props: DropdownProps) {
 
                   await updateReceipt(props.url, {
                     id: props.receipt.value.id,
-                    pendingReview:
-                      props.receipt.value.status ===
-                        ReceiptStatus.PENDING_REVIEW.toString(),
+                    pendingReview: props.receipt.value.status ===
+                      ReceiptStatus.PENDING_REVIEW.toString(),
                   });
 
-                  console.log("updated status to", props.receipt.value.status)
+                  console.log("updated status to", props.receipt.value.status);
                 }}
               >
                 {x}
@@ -526,5 +529,26 @@ function na(selected: boolean) {
       </div>
       {selected ? checkmark() : <></>}
     </>
+  );
+}
+
+interface TextInputProps {
+  value: string;
+  onfocusout: (e: JSX.TargetedEvent<HTMLInputElement>) => Promise<void>;
+}
+
+function TextInput(props: TextInputProps) {
+  return (
+    <div>
+      <div class="relative mt-2 rounded-md shadow-sm">
+        <input
+          type="text"
+          class="block w-full rounded-md border-0 text-gray-900 ring-1 ring-inset ring-gray-300 sm:text-sm sm:leading-6 focus:outline-none focus:ring-2 focus:ring-gray-500"
+          placeholder="0.00"
+          value={props.value}
+          onfocusout={props.onfocusout}
+        />
+      </div>
+    </div>
   );
 }
