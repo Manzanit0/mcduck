@@ -1142,6 +1142,7 @@
     }
   },
   "redirects": {
+    "https://esm.sh/preact@10.19.6/src/jsx.d.ts": "https://esm.sh/v135/preact@10.19.6/src/jsx.d.ts",
     "https://esm.sh/v135/@types/babel__helper-validator-identifier@~7/index.d.ts": "https://esm.sh/v135/@types/babel__helper-validator-identifier@7.15.2/index.d.ts"
   },
   "remote": {
