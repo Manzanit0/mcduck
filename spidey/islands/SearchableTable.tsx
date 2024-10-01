@@ -3,6 +3,7 @@ import { ReceiptStatus } from "../gen/receipts.v1/receipts_pb.ts";
 import { JSX } from "preact/jsx-runtime";
 import { SerializableReceipt } from "../lib/types.ts";
 import { updateReceipt } from "../lib/receipts.ts";
+import { Timestamp } from "@bufbuild/protobuf";
 
 interface TableProps {
   receipts: SerializableReceipt[];
@@ -277,11 +278,28 @@ function row(r: Signal<ViewReceipt>, url: string) {
       return;
     }
 
-    r.value = {...r.value, vendor: value}
+    r.value = { ...r.value, vendor: value };
 
     await updateReceipt(url, { id: r.peek().id, vendor: value });
     console.log("updated vendor to", value);
   };
+
+  const updateDate = async (e: JSX.TargetedEvent<HTMLInputElement>) => {
+    if (!e.currentTarget || e.currentTarget.value === "") {
+      return;
+    }
+
+    const value = e.currentTarget.value;
+    if (value === r.value.date) {
+      return;
+    }
+
+    r.value = { ...r.value, date: value };
+
+    await updateReceipt(url, { id: r.peek().id, date: Timestamp.fromDate(new Date(value)) });
+    console.log("updated date to", value);
+  };
+
 
   return (
     <tr class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
@@ -301,7 +319,9 @@ function row(r: Signal<ViewReceipt>, url: string) {
           </label>
         </div>
       </td>
-      <td class="px-6 py-4">{r.value.date}</td>
+      <td class="px-6 py-4">
+        <DatePicker value={r.value.date!} onChange={updateDate} />
+      </td>
       <td class="px-6 py-4">
         <TextInput value={r.value.vendor} onfocusout={updateVendor} />
       </td>
@@ -316,7 +336,7 @@ function row(r: Signal<ViewReceipt>, url: string) {
           href="#"
           class="font-medium text-blue-600 dark:text-blue-500 hover:underline"
         >
-          Edit
+          View
         </a>
       </td>
     </tr>
@@ -547,6 +567,26 @@ function TextInput(props: TextInputProps) {
           placeholder="0.00"
           value={props.value}
           onfocusout={props.onfocusout}
+        />
+      </div>
+    </div>
+  );
+}
+
+interface DatepickerProps {
+  value: string;
+  onChange: (e: JSX.TargetedEvent<HTMLInputElement>) => Promise<void>;
+}
+function DatePicker(props: DatepickerProps) {
+  return (
+    <div>
+      <div class="relative mt-2 rounded-md shadow-sm">
+        <input
+          type="date"
+          class="block w-full rounded-md border-0 text-gray-900 ring-1 ring-inset ring-gray-300 sm:text-sm sm:leading-6 focus:outline-none focus:ring-2 focus:ring-gray-500"
+          placeholder="0.00"
+          value={props.value.split("T")[0]}
+          onChange={props.onChange}
         />
       </div>
     </div>
