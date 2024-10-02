@@ -15,7 +15,7 @@ interface ViewReceipt extends SerializableReceipt {
   checked: boolean;
 }
 
-export default function SearcheableTable(props: TableProps) {
+export default function ReceiptsTable(props: TableProps) {
   const mapped = props.receipts.map((x) => {
     return useSignal({
       ...x,
@@ -170,7 +170,7 @@ function row(r: Signal<ViewReceipt>, url: string) {
       </td>
       <td class="px-6 py-4">
         <a
-          href="#"
+          href={`receipts/${r.value.id}`}
           class="font-medium text-blue-600 dark:text-blue-500 hover:underline"
         >
           View

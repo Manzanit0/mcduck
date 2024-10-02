@@ -3,7 +3,7 @@ import { createPromiseClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { ReceiptsService } from "../../gen/receipts.v1/receipts_connect.ts";
 import { ListReceiptsSince } from "../../gen/receipts.v1/receipts_pb.ts";
-import SearcheableTable from "../../islands/SearchableTable.tsx";
+import ReceiptsTable from "../../islands/ReceiptsTable.tsx";
 import { mapReceiptsToSerializable } from "../../lib/types.ts";
 import { AuthState } from "../../lib/auth.ts";
 
@@ -30,7 +30,7 @@ export default async function List(
 
   return (
     <div class="m-6">
-      <SearcheableTable
+      <ReceiptsTable
         receipts={mapReceiptsToSerializable(res.receipts)}
         url={url}
       />
