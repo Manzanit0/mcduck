@@ -11,7 +11,7 @@ const url = Deno.env.get("API_HOST")!;
 
 export default async function List(
   _req: Request,
-  ctx: RouteContext<unknown, AuthState>
+  ctx: RouteContext<unknown, AuthState>,
 ) {
   console.log("list receipts");
   if (!ctx.state || !ctx.state.loggedIn) {
@@ -25,13 +25,15 @@ export default async function List(
 
   const res = await client.listReceipts(
     { since: ListReceiptsSince.ALL_TIME },
-    { headers: { authorization: `Bearer ${ctx.state.authToken}` } }
+    { headers: { authorization: `Bearer ${ctx.state.authToken}` } },
   );
 
   return (
-    <SearcheableTable
-      receipts={mapReceiptsToSerializable(res.receipts)}
-      url={url}
-    />
+    <div class="m-6">
+      <SearcheableTable
+        receipts={mapReceiptsToSerializable(res.receipts)}
+        url={url}
+      />
+    </div>
   );
 }
