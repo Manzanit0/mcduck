@@ -320,15 +320,12 @@ function checkmark() {
 }
 
 function reviewed(selected: boolean) {
+  const fontClass = selected ? "font-semibold" : "font-normal";
   return (
     <>
       <div class="flex items-center">
         <div class="h-2.5 w-2.5 rounded-full bg-green-500 me-2"></div>
-        <span
-          class={`ml-3 block truncate ${
-            selected ? "font-semibold" : "font-normal"
-          }`}
-        >
+        <span class={`ml-3 block truncate ${fontClass}`}>
           Reviewed
         </span>
       </div>
@@ -338,15 +335,12 @@ function reviewed(selected: boolean) {
 }
 
 function pendingReview(selected: boolean) {
+  const fontClass = selected ? "font-semibold" : "font-normal";
   return (
     <>
       <div class="flex items-center">
         <div class="h-2.5 w-2.5 rounded-full bg-red-500 me-2"></div>
-        <span
-          class={`ml-3 block truncate ${
-            selected ? "font-semibold" : "font-normal"
-          }`}
-        >
+        <span class={`ml-3 block truncate ${fontClass}`}>
           Pending Review
         </span>
       </div>
@@ -356,15 +350,12 @@ function pendingReview(selected: boolean) {
 }
 
 function na(selected: boolean) {
+  const fontClass = selected ? "font-semibold" : "font-normal";
   return (
     <>
       <div class="flex items-center">
         <div class="h-2.5 w-2.5 rounded-full bg-yellow-500 me-2"></div>
-        <span
-          class={`ml-3 block truncate ${
-            selected ? "font-semibold" : "font-normal"
-          }`}
-        >
+        <span class={`ml-3 block truncate ${fontClass}`}>
           N/a
         </span>
       </div>
