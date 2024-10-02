@@ -11,7 +11,7 @@ export interface AuthState {
 
 export function getAuthTokenFromBrowser(): AuthState {
     const authToken = getBrowserCookie(authCookieName)
-    if (authToken === "") {
+    if (!authToken || authToken === "") {
         return { loggedIn: false }
     }
 
@@ -21,7 +21,7 @@ export function getAuthTokenFromBrowser(): AuthState {
 export function getAuthTokenFromRequest(req: Request): AuthState {
     const cookies = getCookies(req.headers);
     const authToken = cookies[authCookieName];
-    if (authToken === "") {
+    if (!authToken || authToken === "") {
         return { loggedIn: false }
     }
 

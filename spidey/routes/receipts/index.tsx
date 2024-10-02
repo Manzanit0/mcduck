@@ -15,7 +15,7 @@ export default async function List(
 ) {
   console.log("list receipts");
   if (!ctx.state || !ctx.state.loggedIn) {
-    return <div>state: {JSON.stringify(ctx.state)}</div>;
+    return ctx.renderNotFound({});
   }
 
   const transport = createConnectTransport({
