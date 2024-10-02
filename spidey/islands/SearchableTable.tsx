@@ -95,25 +95,22 @@ export default function SearcheableTable(props: TableProps) {
 }
 
 function row(r: Signal<ViewReceipt>, url: string) {
-  const total = r.value.expenses.reduce(
-    (acc, ex) => (acc += ex.amount),
-    BigInt(0),
-  );
+  const total = r.value.expenses.reduce((acc, ex) => (acc += ex.amount), 0n);
 
   const updateVendor = async (e: JSX.TargetedEvent<HTMLInputElement>) => {
     if (!e.currentTarget || e.currentTarget.value === "") {
       return;
     }
 
-    const value = e.currentTarget.value;
-    if (value === r.value.vendor) {
+    const vendor = e.currentTarget.value;
+    if (vendor === r.value.vendor) {
       return;
     }
 
-    r.value = { ...r.value, vendor: value };
+    r.value = { ...r.value, vendor: vendor };
 
-    await updateReceipt(url, { id: r.peek().id, vendor: value });
-    console.log("updated vendor to", value);
+    await updateReceipt(url, { id: r.peek().id, vendor: vendor });
+    console.log("updated vendor to", vendor);
   };
 
   const updateDate = async (e: JSX.TargetedEvent<HTMLInputElement>) => {
@@ -121,32 +118,47 @@ function row(r: Signal<ViewReceipt>, url: string) {
       return;
     }
 
-    const value = e.currentTarget.value;
-    if (value === r.value.date) {
+    const date = e.currentTarget.value;
+    if (date === r.value.date) {
       return;
     }
 
-    r.value = { ...r.value, date: value };
+    r.value = { ...r.value, date: date };
 
     await updateReceipt(url, {
       id: r.peek().id,
-      date: Timestamp.fromDate(new Date(value)),
+      date: Timestamp.fromDate(new Date(date)),
     });
-    console.log("updated date to", value);
+    console.log("updated date to", date);
   };
 
+  const updateStatus = async (status: string) => {
+    if (status === r.value.status) {
+      return;
+    }
+
+    r.value = { ...r.value, status: status };
+
+    await updateReceipt(url, {
+      id: r.peek().id,
+      pendingReview: r.value.status === ReceiptStatus.PENDING_REVIEW.toString(),
+    });
+
+    console.log("updated status to", r.value.status);
+  };
+
+  // NOTE: the datepicker expects a date without the time. Since we
+  // know" that they always come with time, we can just naively split.
   return (
     <tr class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
       <td class="w-4 p-4">
         <Checkbox
           checked={r.value.checked}
-          onInput={() => {
-            r.value.checked = !r.value.checked;
-          }}
+          onInput={() => (r.value.checked = !r.value.checked)}
         />
       </td>
       <td class="px-6 py-4">
-        <DatePicker value={r.value.date!} onChange={updateDate} />
+        <DatePicker value={r.value.date!.split("T")[0]} onChange={updateDate} />
       </td>
       <td class="px-6 py-4">
         <TextInput value={r.value.vendor} onfocusout={updateVendor} />
@@ -155,7 +167,7 @@ function row(r: Signal<ViewReceipt>, url: string) {
         {formatEuro(total)}
       </td>
       <td class="px-6 py-4">
-        <ReceiptStatusDropdown receipt={r} url={url} />
+        <ReceiptStatusDropdown receipt={r} updateStatus={updateStatus} />
       </td>
       <td class="px-6 py-4">
         <a
@@ -176,12 +188,12 @@ function formatEuro(amount: bigint) {
   }).format(Number(amount) / 100);
 }
 
-interface DropdownProps {
-  url: string;
+interface ReceiptStatusDropdownProps {
   receipt: Signal<ViewReceipt>;
+  updateStatus: (status: string) => Promise<void>;
 }
 
-function ReceiptStatusDropdown(props: DropdownProps) {
+function ReceiptStatusDropdown(props: ReceiptStatusDropdownProps) {
   const open = useSignal(false);
 
   const dropdownOptions = useComputed(() => {
@@ -224,9 +236,7 @@ function ReceiptStatusDropdown(props: DropdownProps) {
           aria-haspopup="listbox"
           aria-expanded="true"
           aria-labelledby="listbox-label"
-          onClick={() => {
-            open.value = !open.value;
-          }}
+          onClick={() => (open.value = !open.value)}
         >
           {selectedDropdownOption}
           <span class="pointer-events-none absolute inset-y-0 right-0 ml-3 flex items-center pr-2">
@@ -264,35 +274,20 @@ function ReceiptStatusDropdown(props: DropdownProps) {
                   hovered.value ? "bg-gray-100" : " text-gray-900"
                 }`}
                 role="option"
-                onMouseEnter={() => {
-                  hovered.value = true;
-                }}
-                onMouseLeave={() => {
-                  hovered.value = false;
-                }}
+                onMouseEnter={() => (hovered.value = true)}
+                onMouseLeave={() => (hovered.value = false)}
                 onClick={async () => {
+                  let status;
                   if (index === 0) {
-                    props.receipt.value = {
-                      ...props.receipt.value,
-                      status: ReceiptStatus.PENDING_REVIEW.toString(),
-                    };
+                    status = ReceiptStatus.PENDING_REVIEW.toString();
                   } else {
-                    props.receipt.value = {
-                      ...props.receipt.value,
-                      status: ReceiptStatus.REVIEWED.toString(),
-                    };
+                    status = ReceiptStatus.REVIEWED.toString();
                   }
 
                   // When the user selects and option, we can assume he wants the dropdown closed.
                   open.value = false;
 
-                  await updateReceipt(props.url, {
-                    id: props.receipt.value.id,
-                    pendingReview: props.receipt.value.status ===
-                      ReceiptStatus.PENDING_REVIEW.toString(),
-                  });
-
-                  console.log("updated status to", props.receipt.value.status);
+                  await props.updateStatus(status);
                 }}
               >
                 {x}
@@ -412,7 +407,7 @@ function DatePicker(props: DatepickerProps) {
           type="date"
           class="block w-full rounded-md border-0 text-gray-900 ring-1 ring-inset ring-gray-300 sm:text-sm sm:leading-6 focus:outline-none focus:ring-2 focus:ring-gray-500"
           placeholder="0.00"
-          value={props.value.split("T")[0]}
+          value={props.value}
           onChange={props.onChange}
         />
       </div>
