@@ -66,18 +66,10 @@ export default function SearcheableTable(props: TableProps) {
         <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
           <tr>
             <th scope="col" class="p-4">
-              <div class="flex items-center">
-                <input
-                  id="checkbox-all-search"
-                  type="checkbox"
-                  class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                  onChange={checkReceipts}
-                  checked={globallySelected.value}
-                />
-                <label for="checkbox-all-search" class="sr-only">
-                  checkbox
-                </label>
-              </div>
+              <Checkbox
+                onInput={checkReceipts}
+                checked={globallySelected.value}
+              />
             </th>
             <th scope="col" class="px-6 py-3">
               Date
@@ -146,20 +138,12 @@ function row(r: Signal<ViewReceipt>, url: string) {
   return (
     <tr class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
       <td class="w-4 p-4">
-        <div class="flex items-center">
-          <input
-            id="checkbox-table-search-1"
-            type="checkbox"
-            class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-            checked={r.value.checked}
-            onInput={() => {
-              r.value.checked = !r.value.checked;
-            }}
-          />
-          <label for="checkbox-table-search-1" class="sr-only">
-            checkbox
-          </label>
-        </div>
+        <Checkbox
+          checked={r.value.checked}
+          onInput={() => {
+            r.value.checked = !r.value.checked;
+          }}
+        />
       </td>
       <td class="px-6 py-4">
         <DatePicker value={r.value.date!} onChange={updateDate} />
@@ -610,6 +594,28 @@ function DateFilterDropdown() {
           </li>
         </ul>
       </div>
+    </div>
+  );
+}
+
+interface CheckboxProps {
+  checked: boolean;
+  onInput: () => void;
+}
+
+function Checkbox({ checked, onInput }: CheckboxProps) {
+  return (
+    <div class="flex items-center">
+      <input
+        id="checkbox-all-search"
+        type="checkbox"
+        class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+        onInput={onInput}
+        checked={checked}
+      />
+      <label for="checkbox-all-search" class="sr-only">
+        checkbox
+      </label>
     </div>
   );
 }
