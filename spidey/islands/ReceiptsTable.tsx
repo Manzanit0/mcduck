@@ -33,7 +33,6 @@ export default function ReceiptsTable(props: TableProps) {
 
   const globallySelected = useSignal(false);
   const searchText = useSignal("");
-  const allReceipts = useSignal(mapped);
   const displayedReceipts = useComputed(() =>
     mapped.filter((x) => {
       return x.value.vendor
@@ -53,7 +52,7 @@ export default function ReceiptsTable(props: TableProps) {
   const checkReceipts = () => {
     globallySelected.value = !globallySelected.value;
 
-    for (const r of allReceipts.value) {
+    for (const r of mapped) {
       for (const d of displayedReceipts.value) {
         if (r.value.id === d.value.id) {
           r.value.checked = globallySelected.value;

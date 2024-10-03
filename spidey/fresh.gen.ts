@@ -13,6 +13,7 @@ import * as $login_index from "./routes/login/index.tsx";
 import * as $receipts_id_ from "./routes/receipts/[id].tsx";
 import * as $receipts_index from "./routes/receipts/index.tsx";
 import * as $Counter from "./islands/Counter.tsx";
+import * as $ExpensesTable from "./islands/ExpensesTable.tsx";
 import * as $MobileHeader from "./islands/MobileHeader.tsx";
 import * as $ReceiptStatusDropdown from "./islands/ReceiptStatusDropdown.tsx";
 import * as $ReceiptsTable from "./islands/ReceiptsTable.tsx";
@@ -33,6 +34,7 @@ const manifest = {
   },
   islands: {
     "./islands/Counter.tsx": $Counter,
+    "./islands/ExpensesTable.tsx": $ExpensesTable,
     "./islands/MobileHeader.tsx": $MobileHeader,
     "./islands/ReceiptStatusDropdown.tsx": $ReceiptStatusDropdown,
     "./islands/ReceiptsTable.tsx": $ReceiptsTable,
