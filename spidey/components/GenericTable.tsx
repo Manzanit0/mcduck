@@ -2,7 +2,7 @@ import { JSX } from "preact/jsx-runtime";
 
 interface GenericTableProps<T> {
   data: T[];
-  columns: { header: string; accessor: (item: T) => JSX.Element }[];
+  columns: { header: JSX.Element; accessor: (item: T) => JSX.Element }[];
 }
 
 export default function GenericTable<T>({ data, columns }: GenericTableProps<T>) {
