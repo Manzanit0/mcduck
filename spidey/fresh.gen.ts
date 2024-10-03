@@ -14,6 +14,7 @@ import * as $receipts_id_ from "./routes/receipts/[id].tsx";
 import * as $receipts_index from "./routes/receipts/index.tsx";
 import * as $Counter from "./islands/Counter.tsx";
 import * as $MobileHeader from "./islands/MobileHeader.tsx";
+import * as $ReceiptStatusDropdown from "./islands/ReceiptStatusDropdown.tsx";
 import * as $ReceiptsTable from "./islands/ReceiptsTable.tsx";
 import { type Manifest } from "$fresh/server.ts";
 
@@ -33,6 +34,7 @@ const manifest = {
   islands: {
     "./islands/Counter.tsx": $Counter,
     "./islands/MobileHeader.tsx": $MobileHeader,
+    "./islands/ReceiptStatusDropdown.tsx": $ReceiptStatusDropdown,
     "./islands/ReceiptsTable.tsx": $ReceiptsTable,
   },
   baseUrl: import.meta.url,
