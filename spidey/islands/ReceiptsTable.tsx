@@ -1,3 +1,4 @@
+import GenericTable from "../components/GenericTable.tsx";
 import { Signal, useComputed, useSignal } from "@preact/signals";
 import { ReceiptStatus } from "../gen/receipts.v1/receipts_pb.ts";
 import { JSX } from "preact/jsx-runtime";
@@ -65,34 +66,67 @@ export default function ReceiptsTable(props: TableProps) {
       <div class="flex flex-column sm:flex-row flex-wrap space-y-4 sm:space-y-0 items-center justify-between pb-4">
         <SearchBox onInput={filterReceipts} />
       </div>
-      <table class="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
-        <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-          <tr>
-            <th scope="col" class="p-4">
+      <GenericTable
+        data={displayedReceipts.value}
+        columns={[
+          {
+            header: (
               <Checkbox
                 onInput={checkReceipts}
                 checked={globallySelected.value}
               />
-            </th>
-            <th scope="col" class="px-6 py-3">
-              Date
-            </th>
-            <th scope="col" class="px-6 py-3">
-              Vendor
-            </th>
-            <th scope="col" class="px-6 py-3">
-              Amount
-            </th>
-            <th scope="col" class="px-6 py-3">
-              Status
-            </th>
-            <th scope="col" class="px-6 py-3">
-              Action
-            </th>
-          </tr>
-        </thead>
-        <tbody>{displayedReceipts.value.map((r) => row(r, props.url))}</tbody>
-      </table>
+            ),
+            accessor: (r) => (
+              <Checkbox
+                checked={r.value.checked}
+                onInput={() => (r.value.checked = !r.value.checked)}
+              />
+            ),
+          },
+          {
+            header: "Date",
+            accessor: (r) => (
+              <DatePicker
+                value={r.value.date!.split("T")[0]}
+                onChange={(e) => updateDate(e, r, props.url)}
+              />
+            ),
+          },
+          {
+            header: "Vendor",
+            accessor: (r) => (
+              <TextInput
+                value={r.value.vendor}
+                onfocusout={(e) => updateVendor(e, r, props.url)}
+              />
+            ),
+          },
+          {
+            header: "Amount",
+            accessor: (r) => formatEuro(r.value.expenses.reduce((acc, ex) => (acc += ex.amount), 0n)),
+          },
+          {
+            header: "Status",
+            accessor: (r) => (
+              <ReceiptStatusDropdown
+                receipt={r}
+                updateStatus={(status) => updateStatus(status, r, props.url)}
+              />
+            ),
+          },
+          {
+            header: "Action",
+            accessor: (r) => (
+              <a
+                href={`receipts/${r.value.id}`}
+                class="font-medium text-blue-600 dark:text-blue-500 hover:underline"
+              >
+                View
+              </a>
+            ),
+          },
+        ]}
+      />
     </div>
   );
 }
