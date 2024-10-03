@@ -1,8 +1,8 @@
 import MobileHeader from "../islands/MobileHeader.tsx";
-import { State } from "../routes/_middleware.ts";
+import { AuthState } from "../lib/auth.ts";
 
 export type NavbarProps = {
-  state: State;
+  state: AuthState;
   currentRoute: string;
 };
 
