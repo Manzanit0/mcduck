@@ -61,7 +61,7 @@ export default function ReceiptsTable(props: TableProps) {
     }
   };
 
-  const updateVendor = async (e: JSX.TargetedEvent<HTMLInputElement>, r: Signal<ViewReceipt>, url: string) => {
+  const updateVendor = async (e: JSX.TargetedEvent<HTMLInputElement>, r: Signal<ViewReceipt>) => {
     if (!e.currentTarget || e.currentTarget.value === "") {
       return;
     }
@@ -73,11 +73,11 @@ export default function ReceiptsTable(props: TableProps) {
 
     r.value = { ...r.value, vendor: vendor };
 
-    await updateReceipt(url, { id: r.peek().id, vendor: vendor });
+    await updateReceipt(props.url, { id: r.peek().id, vendor: vendor });
     console.log("updated vendor to", vendor);
   };
 
-  const updateDate = async (e: JSX.TargetedEvent<HTMLInputElement>, r: Signal<ViewReceipt>, url: string) => {
+  const updateDate = async (e: JSX.TargetedEvent<HTMLInputElement>, r: Signal<ViewReceipt>) => {
     if (!e.currentTarget || e.currentTarget.value === "") {
       return;
     }
@@ -89,21 +89,21 @@ export default function ReceiptsTable(props: TableProps) {
 
     r.value = { ...r.value, date: date };
 
-    await updateReceipt(url, {
+    await updateReceipt(props.url, {
       id: r.peek().id,
       date: Timestamp.fromDate(new Date(date)),
     });
     console.log("updated date to", date);
   };
 
-  const updateStatus = async (status: string, r: Signal<ViewReceipt>, url: string) => {
+  const updateStatus = async (status: string, r: Signal<ViewReceipt>) => {
     if (status === r.value.status) {
       return;
     }
 
     r.value = { ...r.value, status: status };
 
-    await updateReceipt(url, {
+    await updateReceipt(props.url, {
       id: r.peek().id,
       pendingReview: r.value.status === ReceiptStatus.PENDING_REVIEW.toString(),
     });
@@ -138,7 +138,7 @@ export default function ReceiptsTable(props: TableProps) {
             accessor: (r) => (
               <DatePicker
                 value={r.value.date!.split("T")[0]}
-                onChange={(e) => updateDate(e, r, props.url)}
+                onChange={(e) => updateDate(e, r)}
               />
             ),
           },
@@ -147,7 +147,7 @@ export default function ReceiptsTable(props: TableProps) {
             accessor: (r) => (
               <TextInput
                 value={r.value.vendor}
-                onfocusout={(e) => updateVendor(e, r, props.url)}
+                onfocusout={(e) => updateVendor(e, r)}
               />
             ),
           },
@@ -160,7 +160,7 @@ export default function ReceiptsTable(props: TableProps) {
             accessor: (r) => (
               <ReceiptStatusDropdown
                 receipt={r}
-                updateStatus={(status) => updateStatus(status, r, props.url)}
+                updateStatus={(status) => updateStatus(status, r)}
               />
             ),
           },
