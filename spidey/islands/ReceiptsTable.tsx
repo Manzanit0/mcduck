@@ -61,7 +61,10 @@ export default function ReceiptsTable(props: TableProps) {
     }
   };
 
-  const updateVendor = async (e: JSX.TargetedEvent<HTMLInputElement>, r: Signal<ViewReceipt>) => {
+  const updateVendor = async (
+    e: JSX.TargetedEvent<HTMLInputElement>,
+    r: Signal<ViewReceipt>,
+  ) => {
     if (!e.currentTarget || e.currentTarget.value === "") {
       return;
     }
@@ -77,7 +80,10 @@ export default function ReceiptsTable(props: TableProps) {
     console.log("updated vendor to", vendor);
   };
 
-  const updateDate = async (e: JSX.TargetedEvent<HTMLInputElement>, r: Signal<ViewReceipt>) => {
+  const updateDate = async (
+    e: JSX.TargetedEvent<HTMLInputElement>,
+    r: Signal<ViewReceipt>,
+  ) => {
     if (!e.currentTarget || e.currentTarget.value === "") {
       return;
     }
@@ -153,7 +159,13 @@ export default function ReceiptsTable(props: TableProps) {
           },
           {
             header: <span>Amount</span>,
-            accessor: (r) => <span>{formatEuro(r.value.expenses.reduce((acc, ex) => (acc += ex.amount), 0n))}</span>,
+            accessor: (r) => (
+              <span>
+                {formatEuro(
+                  r.value.expenses.reduce((acc, ex) => (acc += ex.amount), 0n),
+                )}
+              </span>
+            ),
           },
           {
             header: <span>Status</span>,
@@ -189,7 +201,7 @@ function formatEuro(amount: bigint) {
 }
 
 interface ReceiptStatusDropdownProps {
-  receipt: Signal<ViewReceipt>;
+  receipt: Signal<SerializableReceipt>;
   updateStatus: (status: string) => Promise<void>;
 }
 
@@ -363,4 +375,3 @@ function na(selected: boolean) {
     </>
   );
 }
-
