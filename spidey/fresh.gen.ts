@@ -15,6 +15,7 @@ import * as $receipts_index from "./routes/receipts/index.tsx";
 import * as $Counter from "./islands/Counter.tsx";
 import * as $ExpensesTable from "./islands/ExpensesTable.tsx";
 import * as $MobileHeader from "./islands/MobileHeader.tsx";
+import * as $ReceiptForm from "./islands/ReceiptForm.tsx";
 import * as $ReceiptStatusDropdown from "./islands/ReceiptStatusDropdown.tsx";
 import * as $ReceiptsTable from "./islands/ReceiptsTable.tsx";
 import { type Manifest } from "$fresh/server.ts";
@@ -36,6 +37,7 @@ const manifest = {
     "./islands/Counter.tsx": $Counter,
     "./islands/ExpensesTable.tsx": $ExpensesTable,
     "./islands/MobileHeader.tsx": $MobileHeader,
+    "./islands/ReceiptForm.tsx": $ReceiptForm,
     "./islands/ReceiptStatusDropdown.tsx": $ReceiptStatusDropdown,
     "./islands/ReceiptsTable.tsx": $ReceiptsTable,
   },
