@@ -153,7 +153,7 @@ export default function ReceiptsTable(props: TableProps) {
           },
           {
             header: <span>Amount</span>,
-            accessor: (r) => formatEuro(r.value.expenses.reduce((acc, ex) => (acc += ex.amount), 0n)),
+            accessor: (r) => <span>{formatEuro(r.value.expenses.reduce((acc, ex) => (acc += ex.amount), 0n))}</span>,
           },
           {
             header: <span>Status</span>,
@@ -178,90 +178,6 @@ export default function ReceiptsTable(props: TableProps) {
         ]}
       />
     </div>
-  );
-}
-
-  const updateVendor = async (e: JSX.TargetedEvent<HTMLInputElement>) => {
-    if (!e.currentTarget || e.currentTarget.value === "") {
-      return;
-    }
-
-    const vendor = e.currentTarget.value;
-    if (vendor === r.value.vendor) {
-      return;
-    }
-
-    r.value = { ...r.value, vendor: vendor };
-
-    await updateReceipt(url, { id: r.peek().id, vendor: vendor });
-    console.log("updated vendor to", vendor);
-  };
-
-  const updateDate = async (e: JSX.TargetedEvent<HTMLInputElement>) => {
-    if (!e.currentTarget || e.currentTarget.value === "") {
-      return;
-    }
-
-    const date = e.currentTarget.value;
-    if (date === r.value.date) {
-      return;
-    }
-
-    r.value = { ...r.value, date: date };
-
-    await updateReceipt(url, {
-      id: r.peek().id,
-      date: Timestamp.fromDate(new Date(date)),
-    });
-    console.log("updated date to", date);
-  };
-
-  const updateStatus = async (status: string) => {
-    if (status === r.value.status) {
-      return;
-    }
-
-    r.value = { ...r.value, status: status };
-
-    await updateReceipt(url, {
-      id: r.peek().id,
-      pendingReview: r.value.status === ReceiptStatus.PENDING_REVIEW.toString(),
-    });
-
-    console.log("updated status to", r.value.status);
-  };
-
-  // NOTE: the datepicker expects a date without the time. Since we
-  // know" that they always come with time, we can just naively split.
-  return (
-    <tr class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
-      <td class="w-4 p-4">
-        <Checkbox
-          checked={r.value.checked}
-          onInput={() => (r.value.checked = !r.value.checked)}
-        />
-      </td>
-      <td class="px-6 py-4">
-        <DatePicker value={r.value.date!.split("T")[0]} onChange={updateDate} />
-      </td>
-      <td class="px-6 py-4">
-        <TextInput value={r.value.vendor} onfocusout={updateVendor} />
-      </td>
-      <td class="px-6 py-4">
-        {formatEuro(total)}
-      </td>
-      <td class="px-6 py-4">
-        <ReceiptStatusDropdown receipt={r} updateStatus={updateStatus} />
-      </td>
-      <td class="px-6 py-4">
-        <a
-          href={`receipts/${r.value.id}`}
-          class="font-medium text-blue-600 dark:text-blue-500 hover:underline"
-        >
-          View
-        </a>
-      </td>
-    </tr>
   );
 }
 
