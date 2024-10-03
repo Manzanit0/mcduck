@@ -134,7 +134,7 @@ export default function ReceiptsTable(props: TableProps) {
             ),
           },
           {
-            header: "Date",
+            header: <span>Date</span>,
             accessor: (r) => (
               <DatePicker
                 value={r.value.date!.split("T")[0]}
@@ -143,7 +143,7 @@ export default function ReceiptsTable(props: TableProps) {
             ),
           },
           {
-            header: "Vendor",
+            header: <span>Vendor</span>,
             accessor: (r) => (
               <TextInput
                 value={r.value.vendor}
@@ -152,11 +152,11 @@ export default function ReceiptsTable(props: TableProps) {
             ),
           },
           {
-            header: "Amount",
+            header: <span>Amount</span>,
             accessor: (r) => formatEuro(r.value.expenses.reduce((acc, ex) => (acc += ex.amount), 0n)),
           },
           {
-            header: "Status",
+            header: <span>Status</span>,
             accessor: (r) => (
               <ReceiptStatusDropdown
                 receipt={r}
@@ -165,7 +165,7 @@ export default function ReceiptsTable(props: TableProps) {
             ),
           },
           {
-            header: "Action",
+            header: <span>Action</span>,
             accessor: (r) => (
               <a
                 href={`receipts/${r.value.id}`}
