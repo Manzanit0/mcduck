@@ -3,3 +3,4 @@ build/
 tmp
 vendor
 .env
+.aider*
