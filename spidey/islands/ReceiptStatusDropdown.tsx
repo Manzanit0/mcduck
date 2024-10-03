@@ -7,7 +7,9 @@ interface ReceiptStatusDropdownProps {
   updateStatus: (status: string) => Promise<void>;
 }
 
-export default function ReceiptStatusDropdown(props: ReceiptStatusDropdownProps) {
+export default function ReceiptStatusDropdown(
+  props: ReceiptStatusDropdownProps
+) {
   const open = useSignal(false);
 
   const dropdownOptions = useComputed(() => {
@@ -139,9 +141,7 @@ function reviewed(selected: boolean) {
     <>
       <div class="flex items-center">
         <div class="h-2.5 w-2.5 rounded-full bg-green-500 me-2"></div>
-        <span class={`ml-3 block truncate ${fontClass}`}>
-          Reviewed
-        </span>
+        <span class={`ml-3 block truncate ${fontClass}`}>Reviewed</span>
       </div>
       {selected ? checkmark() : <></>}
     </>
@@ -154,9 +154,7 @@ function pendingReview(selected: boolean) {
     <>
       <div class="flex items-center">
         <div class="h-2.5 w-2.5 rounded-full bg-red-500 me-2"></div>
-        <span class={`ml-3 block truncate ${fontClass}`}>
-          Pending Review
-        </span>
+        <span class={`ml-3 block truncate ${fontClass}`}>Pending Review</span>
       </div>
       {selected ? checkmark() : <></>}
     </>
@@ -169,9 +167,7 @@ function na(selected: boolean) {
     <>
       <div class="flex items-center">
         <div class="h-2.5 w-2.5 rounded-full bg-yellow-500 me-2"></div>
-        <span class={`ml-3 block truncate ${fontClass}`}>
-          N/a
-        </span>
+        <span class={`ml-3 block truncate ${fontClass}`}>N/a</span>
       </div>
       {selected ? checkmark() : <></>}
     </>
