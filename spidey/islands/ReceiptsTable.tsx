@@ -61,6 +61,56 @@ export default function ReceiptsTable(props: TableProps) {
     }
   };
 
+  const updateVendor = async (e: JSX.TargetedEvent<HTMLInputElement>, r: Signal<ViewReceipt>, url: string) => {
+    if (!e.currentTarget || e.currentTarget.value === "") {
+      return;
+    }
+
+    const vendor = e.currentTarget.value;
+    if (vendor === r.value.vendor) {
+      return;
+    }
+
+    r.value = { ...r.value, vendor: vendor };
+
+    await updateReceipt(url, { id: r.peek().id, vendor: vendor });
+    console.log("updated vendor to", vendor);
+  };
+
+  const updateDate = async (e: JSX.TargetedEvent<HTMLInputElement>, r: Signal<ViewReceipt>, url: string) => {
+    if (!e.currentTarget || e.currentTarget.value === "") {
+      return;
+    }
+
+    const date = e.currentTarget.value;
+    if (date === r.value.date) {
+      return;
+    }
+
+    r.value = { ...r.value, date: date };
+
+    await updateReceipt(url, {
+      id: r.peek().id,
+      date: Timestamp.fromDate(new Date(date)),
+    });
+    console.log("updated date to", date);
+  };
+
+  const updateStatus = async (status: string, r: Signal<ViewReceipt>, url: string) => {
+    if (status === r.value.status) {
+      return;
+    }
+
+    r.value = { ...r.value, status: status };
+
+    await updateReceipt(url, {
+      id: r.peek().id,
+      pendingReview: r.value.status === ReceiptStatus.PENDING_REVIEW.toString(),
+    });
+
+    console.log("updated status to", r.value.status);
+  };
+
   return (
     <div class="sm:rounded-lg">
       <div class="flex flex-column sm:flex-row flex-wrap space-y-4 sm:space-y-0 items-center justify-between pb-4">
@@ -130,9 +180,6 @@ export default function ReceiptsTable(props: TableProps) {
     </div>
   );
 }
-
-function row(r: Signal<ViewReceipt>, url: string) {
-  const total = r.value.expenses.reduce((acc, ex) => (acc += ex.amount), 0n);
 
   const updateVendor = async (e: JSX.TargetedEvent<HTMLInputElement>) => {
     if (!e.currentTarget || e.currentTarget.value === "") {
