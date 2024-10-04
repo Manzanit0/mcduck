@@ -70,7 +70,7 @@ func TestUpdateExpense(t *testing.T) {
 
 		s := servers.NewExpensesServer(db)
 
-		updateAmount := float32(1500)
+		updateAmount := uint64(1500)
 		res, err := s.UpdateExpense(ctx, &connect.Request[expensesv1.UpdateExpenseRequest]{
 			Msg: &expensesv1.UpdateExpenseRequest{
 				Id:     uint64(expenseID),
@@ -271,7 +271,7 @@ func TestUpdateExpense(t *testing.T) {
 		s := servers.NewExpensesServer(db)
 
 		updateDate := timestamppb.New(time.Date(1993, 2, 24, 0, 0, 0, 0, time.UTC))
-		updateAmount := float32(1500)
+		updateAmount := uint64(1500)
 		updateCategory := "Travel"
 		updateSubcategory := "Flight"
 		updateDescription := "Business trip to NYC"
