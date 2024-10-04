@@ -46,3 +46,13 @@ jobs:
           echo "::warning::There are pending protobuf changes to be generated"
           exit 1
         fi
+
+    - name: Generate protobuf code
+      run: task format-proto
+
+    - name: Assert code is formatted
+      run: |
+        if [[ "$(git status --porcelain)" != "" ]]; then
+          echo "::warning::protobuf files are not formatted"
+          exit 1
+        fi
