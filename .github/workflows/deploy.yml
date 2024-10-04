@@ -1,9 +1,11 @@
 name: Deploy
 on:
   push:
-    branches: connect-services
+    branches: 
+      - connect-services
   pull_request:
-    branches: connect-services
+    branches: 
+      - connect-services
 
 jobs:
   deploy:
@@ -24,6 +26,7 @@ jobs:
           deno-version: v1.x
 
       - name: Build step
+        working-directory: spidey
         run: "deno task build"
 
       - name: Upload to Deno Deploy
