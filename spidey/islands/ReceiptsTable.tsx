@@ -103,7 +103,7 @@ export default function ReceiptsTable(props: TableProps) {
     console.log("updated date to", date);
   };
 
-  const updateStatus = async (status: string, r: Signal<ViewReceipt>) => {
+  const updateStatus = async (status: number, r: Signal<ViewReceipt>) => {
     if (status === r.value.status) {
       return;
     }
@@ -112,7 +112,7 @@ export default function ReceiptsTable(props: TableProps) {
 
     await updateReceipt(props.url, {
       id: r.peek().id,
-      pendingReview: r.value.status === ReceiptStatus.PENDING_REVIEW.toString(),
+      pendingReview: r.value.status === ReceiptStatus.PENDING_REVIEW,
     });
 
     console.log("updated status to", r.value.status);
@@ -173,7 +173,7 @@ export default function ReceiptsTable(props: TableProps) {
             header: <span>Status</span>,
             accessor: (r) => (
               <ReceiptStatusDropdown
-                receipt={r}
+                status={r.value.status}
                 updateStatus={(status) => updateStatus(status, r)}
               />
             ),
