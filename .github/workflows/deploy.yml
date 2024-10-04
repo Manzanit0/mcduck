@@ -1,11 +1,8 @@
-name: Deploy
+name: Deploy Frontend
 on:
   push:
     branches: 
-      - connect-services
-  pull_request:
-    branches: 
-      - connect-services
+      - master
 
 jobs:
   deploy:
