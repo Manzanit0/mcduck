@@ -1,6 +1,7 @@
-import { Signal, useComputed, useSignal } from "@preact/signals";
+import { Signal, useComputed, useSignal, effect } from "@preact/signals";
 import { ReceiptStatus } from "../gen/receipts.v1/receipts_pb.ts";
 import { SerializableReceipt } from "../lib/types.ts";
+import { IS_BROWSER } from "$fresh/runtime.ts";
 
 interface ReceiptStatusDropdownProps {
   receipt: Signal<SerializableReceipt>;
@@ -43,6 +44,22 @@ export default function ReceiptStatusDropdown(
     return option;
   });
 
+  const closeDropdown = () => (open.value = false);
+  const toggleDropdown = () => (open.value = !open.value);
+
+  // If the user clicks elsewhere outside of the dropdown, just close it.
+  //
+  // NOTE: we need to check if this running in the browser because the
+  // "document" API is not available on the server.
+  if (IS_BROWSER) {
+    effect(() => {
+      document.addEventListener("click", closeDropdown, true);
+      return () => {
+        document.removeEventListener("click", closeDropdown, true);
+      };
+    });
+  }
+
   return (
     <div>
       <div class="relative mt-2">
@@ -52,7 +69,7 @@ export default function ReceiptStatusDropdown(
           aria-haspopup="listbox"
           aria-expanded="true"
           aria-labelledby="listbox-label"
-          onClick={() => (open.value = !open.value)}
+          onClick={toggleDropdown}
         >
           {selectedDropdownOption}
           <span class="pointer-events-none absolute inset-y-0 right-0 ml-3 flex items-center pr-2">
@@ -101,7 +118,7 @@ export default function ReceiptStatusDropdown(
                   }
 
                   // When the user selects and option, we can assume he wants the dropdown closed.
-                  open.value = false;
+                  closeDropdown();
 
                   await props.updateStatus(status);
                 }}
