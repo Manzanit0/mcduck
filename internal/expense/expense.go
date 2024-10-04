@@ -298,7 +298,7 @@ func (r *Repository) FindExpense(ctx context.Context, id int64) (*Expense, error
 	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
 
 	builder := psql.
-		Select("id, expense_Date, amount, category, sub_category, user_email", "receipt_id").
+		Select("id, expense_Date, amount, category, sub_category, user_email", "receipt_id", "description").
 		From("expenses").
 		Where(sq.Eq{"id": id})
 
