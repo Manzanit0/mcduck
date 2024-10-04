@@ -31,4 +31,4 @@ jobs:
         with:
           project: "mcduck"
           entrypoint: "main.ts"
-          root: "."
+          root: "./spidey"
