@@ -28,6 +28,8 @@ export default async function List(
     { headers: { authorization: `Bearer ${ctx.state.authToken}` } },
   );
 
+  console.log("got", res.receipts.length, "receipts");
+
   return (
     <div class="m-6">
       <ReceiptsTable

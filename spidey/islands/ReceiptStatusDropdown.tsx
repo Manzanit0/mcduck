@@ -1,25 +1,25 @@
-import { Signal, useComputed, useSignal, effect } from "@preact/signals";
+import { useComputed, useSignal, effect } from "@preact/signals";
 import { ReceiptStatus } from "../gen/receipts.v1/receipts_pb.ts";
-import { SerializableReceipt } from "../lib/types.ts";
 import { IS_BROWSER } from "$fresh/runtime.ts";
 
 interface ReceiptStatusDropdownProps {
-  receipt: Signal<SerializableReceipt>;
-  updateStatus: (status: string) => Promise<void>;
+  status: number
+  updateStatus: (status: number) => Promise<void>;
 }
 
 export default function ReceiptStatusDropdown(
   props: ReceiptStatusDropdownProps
 ) {
   const open = useSignal(false);
+  const statusSgn = useSignal(props.status)
 
   const dropdownOptions = useComputed(() => {
     const options = [pendingReview(false), reviewed(false)];
-    switch (props.receipt.value.status) {
-      case ReceiptStatus.PENDING_REVIEW.toString():
+    switch (statusSgn.value) {
+      case ReceiptStatus.PENDING_REVIEW:
         options[0] = pendingReview(true);
         break;
-      case ReceiptStatus.REVIEWED.toString():
+      case ReceiptStatus.REVIEWED:
         options[1] = reviewed(true);
         break;
       default:
@@ -31,11 +31,11 @@ export default function ReceiptStatusDropdown(
 
   const selectedDropdownOption = useComputed(() => {
     let option = na(false);
-    switch (props.receipt.value.status) {
-      case ReceiptStatus.PENDING_REVIEW.toString():
+    switch (statusSgn.value) {
+      case ReceiptStatus.PENDING_REVIEW:
         option = pendingReview(false);
         break;
-      case ReceiptStatus.REVIEWED.toString():
+      case ReceiptStatus.REVIEWED:
         option = reviewed(false);
         break;
       default:
@@ -110,17 +110,16 @@ export default function ReceiptStatusDropdown(
                 onMouseEnter={() => (hovered.value = true)}
                 onMouseLeave={() => (hovered.value = false)}
                 onClick={async () => {
-                  let status;
                   if (index === 0) {
-                    status = ReceiptStatus.PENDING_REVIEW.toString();
+                    statusSgn.value = ReceiptStatus.PENDING_REVIEW;
                   } else {
-                    status = ReceiptStatus.REVIEWED.toString();
+                    statusSgn.value = ReceiptStatus.REVIEWED;
                   }
 
                   // When the user selects and option, we can assume he wants the dropdown closed.
                   closeDropdown();
 
-                  await props.updateStatus(status);
+                  await props.updateStatus(statusSgn.value);
                 }}
               >
                 {x}

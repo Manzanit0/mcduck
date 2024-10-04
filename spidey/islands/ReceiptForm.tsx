@@ -59,7 +59,7 @@ export default function ReceiptForm({ receipt, url }: ReceiptFormProps) {
   };
 
   const updateStatus = async (
-    status: string,
+    status: number,
     r: Signal<SerializableReceipt>
   ) => {
     if (status === r.value.status) {
@@ -70,7 +70,7 @@ export default function ReceiptForm({ receipt, url }: ReceiptFormProps) {
 
     await updateReceipt(url, {
       id: r.peek().id,
-      pendingReview: r.value.status === ReceiptStatus.PENDING_REVIEW.toString(),
+      pendingReview: r.value.status === ReceiptStatus.PENDING_REVIEW,
     });
 
     console.log("updated status to", r.value.status);
@@ -96,7 +96,7 @@ export default function ReceiptForm({ receipt, url }: ReceiptFormProps) {
         <div class="mt-2 col-span-1">
           <Label>Status</Label>
           <ReceiptStatusDropdown
-            receipt={r}
+            status={r.value.status}
             updateStatus={(status) => updateStatus(status, r)}
           />
         </div>

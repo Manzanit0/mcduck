@@ -2,7 +2,7 @@ import { Expense, Receipt } from "../gen/receipts.v1/receipts_pb.ts";
 
 export interface SerializableReceipt {
   id: bigint;
-  status: string;
+  status: number;
   vendor: string;
   date?: string;
   expenses: SerializableExpense[];
@@ -23,7 +23,7 @@ export function mapReceiptsToSerializable(
   return receipts.map((r) => {
     return {
       id: r.id,
-      status: r.status.toString(),
+      status: r.status,
       vendor: r.vendor,
       date: r.date?.toDate().toISOString(),
       expenses: mapExpensesToSerializable(r.expenses),
