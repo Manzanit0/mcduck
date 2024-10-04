@@ -127,9 +127,9 @@ export class UpdateExpenseRequest extends Message<UpdateExpenseRequest> {
   subcategory?: string;
 
   /**
-   * @generated from field: optional uint64 description = 7;
+   * @generated from field: optional string description = 7;
    */
-  description?: bigint;
+  description?: string;
 
   constructor(data?: PartialMessage<UpdateExpenseRequest>) {
     super();
@@ -145,7 +145,7 @@ export class UpdateExpenseRequest extends Message<UpdateExpenseRequest> {
     { no: 4, name: "date", kind: "message", T: Timestamp, opt: true },
     { no: 5, name: "category", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 6, name: "subcategory", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 7, name: "description", kind: "scalar", T: 4 /* ScalarType.UINT64 */, opt: true },
+    { no: 7, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateExpenseRequest {
@@ -385,9 +385,9 @@ export class Expense extends Message<Expense> {
   subcategory = "";
 
   /**
-   * @generated from field: uint64 description = 7;
+   * @generated from field: string description = 7;
    */
-  description = protoInt64.zero;
+  description = "";
 
   constructor(data?: PartialMessage<Expense>) {
     super();
@@ -403,7 +403,7 @@ export class Expense extends Message<Expense> {
     { no: 4, name: "date", kind: "message", T: Timestamp },
     { no: 5, name: "category", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 6, name: "subcategory", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 7, name: "description", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+    { no: 7, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Expense {

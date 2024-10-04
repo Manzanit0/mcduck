@@ -4,3 +4,7 @@ tmp
 vendor
 .env
 .aider*
+<<<<<<< Updated upstream
+=======
+spidey/_fresh
+>>>>>>> Stashed changes

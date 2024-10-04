@@ -8,5 +8,6 @@ Simple tool to run analytics on personal finance records.
    for a bot of your choice.
 2. Run `task smee` in a terminal window.
 3. Run `task up` in a separate terminal window.
+4. Run `task up-web` in yet another separate terminal window.
 
 With that, you should be good to start testing e2e.
