@@ -1,6 +1,6 @@
 import { RouteContext } from "$fresh/server.ts";
-// import * as base64 from "$std/encoding/base64";
-import * as base64 from "jsr:@std/encoding/base64";
+import { encodeBase64 } from "$std/encoding/base64.ts";
+// import * as base64 from "jsr:@std/encoding/base64";
 import ExpensesTable from "../../islands/ExpensesTable.tsx";
 import { createPromiseClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
@@ -31,7 +31,7 @@ export default async function Single(_: Request, ctx: RouteContext<AuthState>) {
   );
 
   const receipt = mapReceiptsToSerializable([res.receipt!])[0];
-  const encoded = base64.encodeBase64(res.receipt!.file);
+  const encoded = encodeBase64(res.receipt!.file);
 
   return (
     <div class="m-6">
